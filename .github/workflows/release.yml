@@ -1,0 +1,24 @@
+# Fast Release Workflow - Publishes in under 2 minutes!
+name: Fast Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+jobs:
+  publish:
+    name: 🚀 Fast Publish to crates.io
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 🦀 Install Rust (cached)
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: 📦 Publish to crates.io
+        run: cargo publish
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+          CARGO_TERM_COLOR: always

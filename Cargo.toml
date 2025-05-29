@@ -1,0 +1,28 @@
+[workspace]
+resolver = "2"
+members = [
+    "yoshi-std",
+    "yoshi-derive",
+    "yoshi",        # facade
+]
+
+# -------- Shared build profiles --------
+[profile.dev]              # fast ≈ release-like debug builds
+opt-level        = 1       # some inlining & vectorisation
+codegen-units    = 4       # keep incremental relinking quick
+debug            = true
+debug-assertions = true
+overflow-checks  = true
+incremental      = true    # lightning-fast rebuilds
+panic            = "unwind"
+
+[profile.dev.package."yoshi-std"]  # micro-optimise hot crate
+opt-level = 2
+
+[profile.release]          # production artefacts
+opt-level        = "z"     # size-optimised but keeps perf high
+lto              = "thin"
+codegen-units    = 1       # maximise cross-crate inlining
+panic            = "abort"
+debug            = false
+strip            = "symbols"

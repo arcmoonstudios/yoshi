@@ -1,0 +1,23 @@
+[package]
+name         = "yoshi-derive"
+version      = "0.1.0"
+edition      = "2021"
+rust-version = "1.87.0"
+authors      = ["Lord Xyn <LordXyn@proton.me>"]
+repository   = "https://github.com/arcmoonstudios/yoshi"
+license-file = "../LICENSE"
+description  = "Procedural-macro helpers for deriving Yoshi errors."
+keywords     = ["proc-macro","error","derive","error-handling"]
+categories   = ["development-tools::procedural-macros"]
+
+[lib]
+proc-macro = true
+
+[dependencies]
+darling      = "0.20.11"
+once_cell    = "1.21.3"
+proc-macro2  = "1.0.95"
+quote        = "1.0.40"
+regex        = "1.11.1"
+syn          = { version = "2.0.101", features = ["full","extra-traits","derive"] }
+yoshi-std    = { path = "../yoshi-std", version = "0.1.0" }

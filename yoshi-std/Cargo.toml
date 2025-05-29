@@ -1,0 +1,32 @@
+[package]
+name         = "yoshi-std"
+version      = "0.1.0"
+edition      = "2021"
+rust-version = "1.87.0"                # MSRV
+authors      = ["Lord Xyn <LordXyn@proton.me>"]
+repository   = "https://github.com/arcmoonstudios/yoshi"
+license-file = "../LICENSE"
+description  = "Core, std-only error type for the Yoshi framework."
+keywords     = ["error","error-handling","result","std-only","no_std","backtrace"]
+categories   = ["error-handling","development-tools::debugging"]
+
+[dependencies]
+serde   = { version = "1.0.219", optional = true, features = ["derive"] }
+tracing = { version = "0.1.41", optional = true }
+miette  = { version = "7.6.0", optional = true }
+
+[features]
+default   = ["std"]
+std       = []
+derive    = []                         # pass-through flag
+serde     = ["dep:serde"]
+tracing   = ["dep:tracing"]
+
+# tech-preview toggles (OFF by default)
+unstable-metrics            = []
+unstable-auto-fix           = []
+unstable-smart-diagnostics  = []
+
+[lib]
+name = "yoshi_std"
+path = "src/lib.rs"

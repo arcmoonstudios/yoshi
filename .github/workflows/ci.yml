@@ -1,0 +1,168 @@
+name: Yoshi CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  # Fast-fail checks to catch formatting and lint errors early
+  code-quality:
+    name: 🔍 Code Quality
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 🔍 Check Cargo.lock
+        run: |
+          echo "Checking for Cargo.lock..."
+          if [ -f "Cargo.lock" ]; then
+            echo "✅ Cargo.lock found"
+            echo "Cargo.lock hash: $(sha256sum Cargo.lock | cut -d' ' -f1)"
+          else
+            echo "❌ Cargo.lock not found - generating..."
+            cargo generate-lockfile
+          fi
+
+      - name: 🦀 Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.87.0"
+          components: rustfmt, clippy
+
+      - name: 📦 Cache dependencies
+        uses: swatinem/rust-cache@v2
+        with:
+          # Use a specific cache key for code quality job
+          shared-key: "code-quality"
+          # Cache on Cargo.lock changes
+          cache-on-failure: true
+          # Save cache even if job fails
+          save-if: true
+
+      - name: 🐛 Debug Environment
+        run: |
+          echo "Rust version: $(rustc --version)"
+          echo "Cargo version: $(cargo --version)"
+          echo "RUST_BACKTRACE: $RUST_BACKTRACE"
+          echo "Platform: $(uname -a)"
+          echo "Working directory: $(pwd)"
+          echo "Cargo.toml exists: $(test -f Cargo.toml && echo 'yes' || echo 'no')"
+          echo "Cache info:"
+          echo "  - Runner OS: ${{ runner.os }}"
+          echo "  - Runner Arch: ${{ runner.arch }}"
+          echo "  - Shared key: code-quality"
+          echo "Target directory: $(ls -la target/ 2>/dev/null || echo 'target/ does not exist')"
+
+      - name: 🎨 Check formatting
+        run: |
+          echo "Checking code formatting..."
+          cargo fmt --all -- --check
+
+      - name: 📎 Run clippy
+        run: |
+          echo "Running clippy lints..."
+          cargo clippy --all-targets --all-features -- -D warnings
+  # Basic tests
+  test:
+    name: 🧪 Test
+    needs: [code-quality]
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 🔍 Check Cargo.lock
+        run: |
+          echo "Checking for Cargo.lock..."
+          if [ -f "Cargo.lock" ]; then
+            echo "✅ Cargo.lock found"
+            echo "Cargo.lock hash: $(sha256sum Cargo.lock | cut -d' ' -f1)"
+          else
+            echo "❌ Cargo.lock not found - generating..."
+            cargo generate-lockfile
+          fi
+
+      - name: 🦀 Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.87.0"
+
+      - name: 📦 Cache dependencies
+        uses: swatinem/rust-cache@v2
+        with:
+          # Use a specific cache key for test job
+          shared-key: "test"
+          # Cache on Cargo.lock changes
+          cache-on-failure: true
+          # Save cache even if job fails
+          save-if: true
+
+      - name: 🐛 Debug Environment
+        run: |
+          echo "Rust version: $(rustc --version)"
+          echo "Cargo version: $(cargo --version)"
+          echo "RUST_BACKTRACE: $RUST_BACKTRACE"
+
+      - name: 🔨 Build
+        run: |
+          echo "Building all targets..."
+          cargo build --all-targets
+
+      - name: 🧪 Run tests
+        run: |
+          echo "Running all tests..."
+          cargo test --all-targets
+
+  # Check documentation
+  docs:
+    name: 📚 Documentation
+    needs: [code-quality]
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 🔍 Check Cargo.lock
+        run: |
+          echo "Checking for Cargo.lock..."
+          if [ -f "Cargo.lock" ]; then
+            echo "✅ Cargo.lock found"
+            echo "Cargo.lock hash: $(sha256sum Cargo.lock | cut -d' ' -f1)"
+          else
+            echo "❌ Cargo.lock not found - generating..."
+            cargo generate-lockfile
+          fi
+
+      - name: 🦀 Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.87.0"
+
+      - name: 📦 Cache dependencies
+        uses: swatinem/rust-cache@v2
+        with:
+          # Use a specific cache key for docs job
+          shared-key: "docs"
+          # Cache on Cargo.lock changes
+          cache-on-failure: true
+          # Save cache even if job fails
+          save-if: true
+
+      - name: 📖 Check documentation
+        run: |
+          echo "Building documentation..."
+          cargo doc --all-features --no-deps
+
+      - name: 📚 Publish documentation
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          echo "Publishing documentation..."
+          cargo doc --all-features --no-deps
