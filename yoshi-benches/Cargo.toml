@@ -1,0 +1,56 @@
+[package]
+name = "yoshi-benches"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+# Benchmark configurations
+[[bench]]
+name = "cross_crate_integration"
+harness = false
+
+[[bench]]
+name = "error_contest"
+harness = false
+
+[[bench]]
+name = "error_context"
+harness = false
+
+[[bench]]
+name = "error_conversion"
+harness = false
+
+[[bench]]
+name = "error_creation"
+harness = false
+
+[[bench]]
+name = "error_formatting"
+harness = false
+
+[dependencies]
+# Local workspace dependencies - Yoshi framework components
+yoshi = { path = "../yoshi" }
+yoshi-std = { path = "../yoshi-std" }
+yoshi-derive = { path = "../yoshi-derive" }
+
+# Benchmarking infrastructure
+criterion = { version = "0.6", features = ["html_reports", "csv_output", "cargo_bench_support"] }
+
+# Supporting dependencies for benchmark scenarios
+tokio = { version = "1.0", features = ["full"] }
+serde = { version = "1.0.219", features = ["derive"] }
+serde_json = "1.0.140"
+rayon = "1.10.0"
+
+# Comparison dependencies (ONLY for side-by-side performance comparison)
+thiserror = { version = "2.0.12", optional = true }
+anyhow    = { version = "1.0.98", optional = true }
+
+[features]
+default = []
+comparison = ["thiserror", "anyhow"]
+
+[dev-dependencies]
+criterion = { version = "0.6", features = ["html_reports", "csv_output", "cargo_bench_support"] }

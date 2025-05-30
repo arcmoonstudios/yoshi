@@ -1,0 +1,396 @@
+# .gitignore
+# ArcMoon Studios Enterprise .gitignore Configuration
+# Project: Yoshi Rust Workspace
+# Last Updated: 2025-05-29
+# 
+# GitHub: ArcMoon Studios (https://github.com/arcmoonstudios)
+# License: Business Source License 1.1 (BSL-1.1)
+# Copyright: (c) 2025 ArcMoon Studios
+# Author: Lord Xyn
+
+# =============================================================================
+# RUST BUILD ARTIFACTS
+# =============================================================================
+
+# Compiled files
+*.o
+*.so
+*.rlib
+*.dll
+*.dylib
+*.a
+*.lib
+
+# Rust build artifacts
+/target/
+**/target/
+Cargo.lock
+
+# Rust incremental compilation
+**/*-incremental/
+
+# Rust documentation
+/doc/
+**/doc/
+
+# Cargo cache
+.cargo/
+!.cargo/config.toml
+
+# =============================================================================
+# DEVELOPMENT ENVIRONMENT
+# =============================================================================
+
+# IDE and Editor files
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Visual Studio Code workspace settings (keep selective files)
+*.code-workspace.user
+
+# JetBrains IDEs
+.idea/
+*.iml
+*.ipr
+*.iws
+out/
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+*.swp
+*.swo
+Session.vim
+.netrwhist
+
+# Emacs
+*~
+\#*\#
+.\#*
+.projectile
+
+# =============================================================================
+# OPERATING SYSTEM GENERATED FILES
+# =============================================================================
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# =============================================================================
+# TEMPORARY AND CACHE FILES
+# =============================================================================
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+*.cache
+*.pid
+*.seed
+*.pid.lock
+
+# Backup files
+*.bak
+*.backup
+*.orig
+*.rej
+
+# =============================================================================
+# SECURITY AND SENSITIVE DATA
+# =============================================================================
+
+# Environment files
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+.env.staging
+
+# API keys and secrets
+secrets/
+*.key
+*.pem
+*.p12
+*.pfx
+*.crt
+*.cer
+*.der
+
+# Configuration files with sensitive data
+config/local.json
+config/development.json
+config/production.json
+**/config/secrets.*
+
+# =============================================================================
+# TEST AND COVERAGE FILES
+# =============================================================================
+
+# Test artifacts
+/coverage/
+lcov.info
+*.profraw
+*.profdata
+
+# Benchmark results
+criterion/
+**/criterion/
+
+# Flamegraph outputs
+*.svg
+perf.data*
+flamegraph.svg
+
+# =============================================================================
+# DOCUMENTATION AND REPORTING
+# =============================================================================
+
+# Generated documentation
+/docs/build/
+/docs/_build/
+*.html
+*.pdf
+!README.html
+
+# Coverage reports
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# =============================================================================
+# PACKAGE MANAGERS AND DEPENDENCIES
+# =============================================================================
+
+# Node.js (for tooling)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+.yarn/
+package-lock.json
+yarn.lock
+
+# Python (for tooling)
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# =============================================================================
+# BUILD AND DEPLOYMENT
+# =============================================================================
+
+# Docker
+.dockerignore
+Dockerfile.*
+docker-compose.override.yml
+.docker/
+
+# Kubernetes
+*.yaml.tmp
+*.yml.tmp
+
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+
+# =============================================================================
+# PROFILING AND PERFORMANCE
+# =============================================================================
+
+# Profiling data
+*.prof
+perf.data
+callgrind.out.*
+massif.out.*
+cachegrind.out.*
+
+# Performance benchmarks
+/benchmarks/results/
+*.bench
+
+# =============================================================================
+# ARCMOON STUDIOS SPECIFIC
+# =============================================================================
+
+# ArcMoon upgrade system artifacts
+.arcmoon-upgrade-snapshot.json
+upgrade-*.log
+dependency-audit-*.json
+
+# Development scripts output
+scripts/logs/
+scripts/temp/
+scripts/*.log
+
+# Local development overrides
+local.mk
+.local/
+
+# Quality assurance artifacts
+.quality-reports/
+quality-*.json
+*.qr
+
+# Performance monitoring
+.perf-monitor/
+performance-*.json
+
+# Security audit results
+.security-audit/
+security-*.json
+audit-*.log
+
+# =============================================================================
+# MISCELLANEOUS
+# =============================================================================
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Microbundle cache
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# dotenv environment variable files
+.env*
+
+# parcel-bundler cache (https://parceljs.org/)
+.cache
+.parcel-cache
+
+# next.js build output
+.next
+
+# nuxt.js build output
+.nuxt
+
+# vuepress build output
+.vuepress/dist
+
+# Serverless directories
+.serverless
+
+# FuseBox cache
+.fusebox/
+
+# DynamoDB Local files
+.dynamodb/
+
+# =============================================================================
+# PROJECT SPECIFIC EXCLUSIONS
+# =============================================================================
+
+# Keep important configuration files
+!.cargo/config.toml
+!.github/
+!scripts/
+!docs/
+
+# Keep example files but ignore their build artifacts
+!examples/
+examples/target/
+
+# Keep test files but ignore their artifacts
+!tests/
+tests/target/

@@ -1,0 +1,273 @@
+# yoshi\.github\ISSUE_TEMPLATE\documentation.yml
+#
+# **Brief:** Documentation improvement template for API docs, guides, and examples.
+#
+# **Module Classification:** Standard
+# **Complexity Level:** Low
+# **API Stability:** Stable
+#
+# ~=####====A===r===c===M===o===o===n====S===t===u===d===i===o===s====X|0|$>
+# + Documentation enhancement template with quality assurance
+#  - Missing documentation identification with coverage analysis: O(1) assessment
+#  - Clarity improvement suggestions with readability metrics: O(n) review
+#  - Example code verification with compilation testing: O(1) validation
+#  - Translation and localization support: O(n) languages
+#  - Accessibility compliance with WCAG guidelines: O(1) standard
+# ~=####====A===r===c===M===o===o===n====S===t===u===d===i===o===s====X|0|$>
+# **GitHub:** ArcMoon Studios (https://github.com/arcmoonstudios)
+# **Copyright:** (c) 2025 ArcMoon Studios
+# **License:** Business Source License 1.1 (BSL-1.1)
+# **License Terms:** Non-production use only; commercial/production use requires paid license.
+# **Effective Date:** 2025-05-25 | **Change License:** GPL v3
+# **License File:** /LICENSE
+# **Contact:** <LordXyn@proton.me>
+# **Author:** Lord Xyn
+# **Last Validation:** 2025-05-30
+
+name: 📚 Documentation Improvement
+description: Suggest improvements to documentation, examples, or guides
+title: "[DOCS] "
+labels: ["documentation", "needs-review"]
+assignees: ["na"]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## 🌙 ArcMoon Studios Documentation Excellence
+        
+        Help us maintain world-class documentation for the Yoshi error handling framework. Clear, comprehensive documentation is essential for enterprise adoption.
+        
+        **For Technical Writing Services:** Contact [LordXyn@proton.me](mailto:LordXyn@proton.me?subject=[Yoshi%20Enterprise]%20Documentation%20Services) for professional technical writing and documentation audit services.
+
+  - type: dropdown
+    id: doc-type
+    attributes:
+      label: 📖 Documentation Type
+      description: What type of documentation needs improvement?
+      options:
+        - "📚 API Documentation (docs.rs)"
+        - "🚀 Getting Started Guide"
+        - "🎯 Tutorial or How-to Guide"
+        - "💡 Code Examples"
+        - "🔧 Configuration Documentation"
+        - "📋 README Files"
+        - "🔄 Migration Guide"
+        - "🐛 Troubleshooting Guide"
+        - "⚡ Performance Guide"
+        - "🔒 Security Documentation"
+        - "🏗️ Architecture Documentation"
+        - "📦 Installation Instructions"
+      default: 0
+    validations:
+      required: true
+
+  - type: textarea
+    id: current-issue
+    attributes:
+      label: ❌ Current Issue
+      description: What's wrong with the current documentation?
+      placeholder: |
+        Describe the specific issue:
+        - What information is missing?
+        - What is unclear or confusing?
+        - Are there errors in the documentation?
+        - Is the information outdated?
+        - Are examples broken or incomplete?
+    validations:
+      required: true
+
+  - type: textarea
+    id: location
+    attributes:
+      label: 📍 Location
+      description: Where is the documentation issue located?
+      placeholder: |
+        Please specify:
+        - URL to the documentation page
+        - File path in the repository
+        - Specific section or function name
+        - Line numbers if applicable
+        
+        Example:
+        - https://docs.rs/yoshi/latest/yoshi/struct.Yoshi.html
+        - docs/getting-started.md, section "Basic Usage"
+        - README.md, line 45-52
+    validations:
+      required: true
+
+  - type: textarea
+    id: suggested-improvement
+    attributes:
+      label: ✨ Suggested Improvement
+      description: How should the documentation be improved?
+      placeholder: |
+        Provide specific suggestions:
+        - What information should be added?
+        - How should confusing parts be clarified?
+        - What examples would be helpful?
+        - How should the structure be improved?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed-content
+    attributes:
+      label: 📝 Proposed Content
+      description: If you have specific content to suggest, provide it here
+      placeholder: |
+        If you have drafted improved content, include it here:
+        
+        \```markdown
+        ## Improved Section Title
+        
+        Your improved documentation content...
+        
+        \```rust
+        // Improved code example
+        use yoshi::prelude::*;
+        
+        fn example() {
+            // Clear, working example
+        }
+        \```
+        \```
+      render: markdown
+    validations:
+      required: false
+
+  - type: dropdown
+    id: audience-level
+    attributes:
+      label: 👥 Target Audience
+      description: What experience level should this documentation target?
+      options:
+        - "🌱 Beginner - New to Rust or error handling"
+        - "🔧 Intermediate - Familiar with Rust basics"
+        - "🚀 Advanced - Experienced Rust developers"
+        - "🏢 Enterprise - Mission-critical applications"
+        - "📚 All Levels - Should be accessible to everyone"
+      default: 4
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: improvement-type
+    attributes:
+      label: 🎯 Improvement Type
+      description: What type of improvement are you suggesting?
+      options:
+        - label: Add missing information
+        - label: Fix incorrect information
+        - label: Clarify confusing explanations
+        - label: Add code examples
+        - label: Improve code examples
+        - label: Fix broken links
+        - label: Improve organization/structure
+        - label: Add visual aids (diagrams, screenshots)
+        - label: Improve accessibility
+        - label: Add translations
+        - label: Update outdated information
+        - label: Add troubleshooting information
+
+  - type: textarea
+    id: use-case
+    attributes:
+      label: 🎯 Use Case
+      description: What specific use case or scenario should this documentation help with?
+      placeholder: |
+        Describe the scenario:
+        - What is the user trying to accomplish?
+        - What problems are they facing?
+        - How would better documentation help them?
+        - What workflow should be supported?
+    validations:
+      required: false
+
+  - type: textarea
+    id: research-done
+    attributes:
+      label: 🔍 Research Done
+      description: What research have you done on this topic?
+      placeholder: |
+        Include any research you've done:
+        - Other libraries' documentation approaches
+        - Industry best practices
+        - User feedback or questions you've seen
+        - Documentation standards or guidelines
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: documentation-standards
+    attributes:
+      label: 📏 Documentation Standards
+      description: Which documentation standards should be considered?
+      options:
+        - label: Rust API Guidelines compliance
+        - label: docs.rs formatting best practices
+        - label: Accessible documentation (WCAG compliance)
+        - label: Mobile-friendly formatting
+        - label: Search engine optimization
+        - label: Internationalization support
+        - label: Version compatibility notes
+        - label: Cross-platform considerations
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: ⚡ Priority Level
+      description: How important is this documentation improvement?
+      options:
+        - "🔴 Critical - Blocking user adoption"
+        - "🟠 High - Significant impact on user experience"
+        - "🟡 Medium - Would improve clarity and usability"
+        - "🟢 Low - Nice to have enhancement"
+      default: 2
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: contribution-offer
+    attributes:
+      label: 🤝 Contribution
+      description: How would you like to contribute to this improvement?
+      options:
+        - label: I can write the improved documentation
+        - label: I can provide technical review
+        - label: I can test examples and instructions
+        - label: I can provide translations
+        - label: I can create visual aids or diagrams
+        - label: I can help with proofreading
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: 📎 Additional Context
+      description: Any other context that would be helpful
+      placeholder: |
+        Include any additional information:
+        - Screenshots of confusing sections
+        - Links to related discussions
+        - Examples from other projects
+        - User feedback or questions
+        - Accessibility considerations
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: ✅ Pre-Submission Checklist
+      description: Please confirm you have completed these steps
+      options:
+        - label: I have identified a specific documentation issue or improvement
+          required: true
+        - label: I have provided clear suggestions for improvement
+          required: true
+        - label: I have considered the target audience for this documentation
+          required: true
+        - label: I have searched for existing documentation improvement requests
+          required: true
+        - label: I understand this is governed by the Business Source License 1.1
+          required: true

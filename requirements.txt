@@ -1,0 +1,29 @@
+# requirements.txt
+# ArcMoon Studios Enterprise GUI Dependencies
+# 
+# Standard library modules used:
+# - tkinter (included with Python)
+# - subprocess (included with Python)
+# - threading (included with Python)
+# - os (included with Python)
+# - sys (included with Python)
+# - json (included with Python)
+# - time (included with Python)
+# - datetime (included with Python)
+# - pathlib (included with Python)
+# - platform (included with Python)
+# - typing (included with Python 3.5+)
+#
+# No external dependencies required!
+# This application uses only Python standard library modules
+# for maximum compatibility and minimal installation overhead.
+#
+# Python Version Requirements:
+# - Python 3.7+ (for typing support)
+# - tkinter (usually included with Python)
+#
+# If tkinter is not available, install it with:
+# - Ubuntu/Debian: sudo apt-get install python3-tk
+# - CentOS/RHEL: sudo yum install tkinter
+# - Windows: tkinter is included with Python
+# - macOS: tkinter is included with Python

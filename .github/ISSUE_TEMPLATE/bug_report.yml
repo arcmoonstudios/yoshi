@@ -1,0 +1,315 @@
+# yoshi\.github\ISSUE_TEMPLATE\01-bug-report.yml
+#
+# **Brief:** Comprehensive bug report template for systematic error analysis and enterprise-grade reproduction.
+#
+# **Module Classification:** Standard
+# **Complexity Level:** Medium
+# **API Stability:** Stable
+#
+# ~=####====A===r===c===M===o===o===n====S===t===u===d===i===o===s====X|0|$>
+# + Enterprise-grade systematic bug report template with comprehensive analysis
+#  - Environment detection with automatic toolchain identification: O(1) setup
+#  - Reproduction steps with mathematical precision requirements: O(n) validation
+#  - Expected vs actual behavior analysis with performance metrics: O(1) assessment
+#  - Code samples with compilation verification requirements: O(1) reproduction
+#  - Impact assessment with severity classification matrix: O(1) triage
+#  - Business impact evaluation with enterprise priority classification
+# ~=####====A===r===c===M===o===o===n====S===t===u===d===i===o===s====X|0|$>
+# **GitHub:** ArcMoon Studios (https://github.com/arcmoonstudios)
+# **Copyright:** (c) 2025 ArcMoon Studios  
+# **License:** Business Source License 1.1 (BSL-1.1)
+# **License Terms:** Non-production use only; commercial/production use requires paid license.
+# **Effective Date:** 2025-05-25 | **Change License:** GPL v3
+# **License File:** /LICENSE
+# **Contact:** LordXyn@proton.me
+# **Author:** Lord Xyn
+# **Last Validation:** 2025-05-30
+
+name: 🐛 Bug Report
+description: Report a bug to help us improve Yoshi's reliability and performance with enterprise-grade analysis
+title: "[BUG] "
+labels: ["bug", "needs-triage"]
+assignees: ["na"]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## 🌙 ArcMoon Studios Enterprise Bug Report
+        
+        Thank you for helping improve the **Yoshi Error Handling Framework**! Your detailed report enables us to maintain enterprise-grade reliability and performance standards.
+        
+        **For Enterprise Support:** Critical production issues require immediate attention via [LordXyn@proton.me](mailto:LordXyn@proton.me?subject=[Yoshi%20CRITICAL]%20Production%20Bug%20Report) with SLA guarantees and priority handling.
+
+  - type: input
+    id: contact
+    attributes:
+      label: 📧 Contact Information
+      description: How can we reach you for clarification?
+      placeholder: "enterprise-contact@company.com or GitHub username"
+    validations:
+      required: false
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: 🚨 Severity Level
+      description: What is the impact level of this bug?
+      options:
+        - "🔴 Critical - Production system failure, crashes, or data corruption"
+        - "🟠 High - Major functionality broken, significant impact"  
+        - "🟡 Medium - Minor functionality affected, workaround available"
+        - "🟢 Low - Cosmetic issue, documentation problem"
+      default: 2
+    validations:
+      required: true
+
+  - type: dropdown
+    id: enterprise-priority
+    attributes:
+      label: 🏢 Enterprise Priority
+      description: Is this blocking enterprise deployment?
+      options:
+        - "Not enterprise-related"
+        - "Planning phase - affects evaluation"
+        - "Development phase - blocks implementation"
+        - "Staging phase - prevents deployment"
+        - "Production phase - CRITICAL business impact"
+      default: 0
+    validations:
+      required: true
+
+  - type: textarea
+    id: bug-description
+    attributes:
+      label: 🔍 Bug Description
+      description: Provide a clear and comprehensive description of the bug
+      placeholder: |
+        Describe the bug in detail:
+        - What error handling behavior did you expect?
+        - What specific functionality is affected?
+        - How does this impact your error recovery strategy?
+        - Is this a regression from a previous version?
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction-steps
+    attributes:
+      label: 🔄 Steps to Reproduce
+      description: Provide precise, step-by-step instructions
+      placeholder: |
+        1. Set up environment with specific configuration...
+        2. Configure Yoshi with these exact settings...
+        3. Execute the following sequence...
+        4. Observe the error or unexpected behavior...
+      value: |
+        1. 
+        2. 
+        3. 
+        4. 
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: ✅ Expected Behavior
+      description: Describe what should happen according to documentation
+      placeholder: |
+        Clearly describe the expected behavior:
+        - How should error handling work in this scenario?
+        - What error types should be generated?
+        - What recovery mechanisms should be available?
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual-behavior
+    attributes:
+      label: ❌ Actual Behavior
+      description: Describe what actually happens instead
+      placeholder: |
+        Describe what actually occurred:
+        - Exact error messages or unexpected outputs
+        - Incorrect error types or missing recovery options
+        - Performance degradation or resource issues
+    validations:
+      required: true
+
+  - type: textarea
+    id: code-sample
+    attributes:
+      label: 📝 Minimal Reproducible Example
+      description: Provide the smallest possible code example that demonstrates the issue
+      placeholder: |
+        ```rust
+        use yoshi::prelude::*;
+        
+        fn reproduce_bug() -> Result<(), YoshiError> {
+            // Your minimal reproducible code here
+        }
+        
+        fn main() {
+            if let Err(e) = reproduce_bug() {
+                eprintln!("Bug reproduced: {}", e);
+            }
+        }
+        ```
+      render: rust
+    validations:
+      required: true
+
+  - type: textarea
+    id: error-output
+    attributes:
+      label: 🚨 Error Output
+      description: Include complete error messages, stack traces, and diagnostic output
+      placeholder: |
+        Paste the complete error output here:
+        
+        Include:
+        - Complete error messages with full context
+        - Stack traces and backtrace information  
+        - Debug output if available
+        - Cargo build errors or warnings
+      render: text
+    validations:
+      required: false
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: 🔧 Environment Information
+      description: Provide comprehensive details about your environment
+      placeholder: |
+        - **Yoshi Version:** 
+        - **Rust Version:** 
+        - **Cargo Version:** 
+        - **Operating System:** 
+        - **Architecture:** 
+        - **Features Enabled:** 
+        - **Build Profile:** 
+      value: |
+        - **Yoshi Version:** 
+        - **Rust Version:** 
+        - **Cargo Version:** 
+        - **Operating System:** 
+        - **Architecture:** 
+        - **Features Enabled:** 
+        - **Build Profile:** 
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: platform-environment
+    attributes:
+      label: 🖥️ Platform Environment
+      description: Select all platforms where this bug occurs
+      options:
+        - label: Linux (x86_64)
+        - label: Linux (ARM64)
+        - label: macOS (Intel)
+        - label: macOS (Apple Silicon)
+        - label: Windows (x86_64)
+        - label: Docker containers
+        - label: Cloud environments
+
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: 📋 Relevant Dependencies
+      description: List relevant dependencies from your Cargo.toml
+      placeholder: |
+        ```toml
+        [dependencies]
+        yoshi = { version = "0.3.1", features = ["enterprise"] }
+        tokio = "1.0"
+        # Include other relevant dependencies
+        ```
+      render: toml
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: performance-impact
+    attributes:
+      label: ⚡ Performance Impact
+      description: Check any performance-related observations
+      options:
+        - label: This issue causes significant performance degradation
+        - label: Memory usage is higher than expected
+        - label: Compilation time is affected
+        - label: Runtime performance is impacted
+        - label: Error handling overhead is excessive
+
+  - type: checkboxes
+    id: impact-assessment
+    attributes:
+      label: 📊 Business Impact Assessment
+      description: How does this bug affect your usage of Yoshi?
+      options:
+        - label: Blocks critical error handling functionality
+        - label: Causes data loss or corruption
+        - label: Breaks integration with other systems
+        - label: Impacts security or compliance requirements
+        - label: Prevents upgrade to newer versions
+        - label: Requires custom patches or workarounds
+
+  - type: textarea
+    id: workaround
+    attributes:
+      label: 🔄 Workaround
+      description: If you found a temporary workaround, please describe it
+      placeholder: |
+        If you've found a temporary workaround:
+        - Describe the workaround approach
+        - Include any code modifications
+        - Note performance implications or limitations
+        - Mention if this affects error handling capabilities
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: 📎 Additional Context
+      description: Provide any other context or information
+      placeholder: |
+        Include any additional relevant information:
+        - Screenshots, diagrams, or visual aids
+        - Links to related issues or discussions
+        - Performance benchmarks or profiling data
+        - Business context or timeline constraints
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: ✅ Pre-Submission Verification
+      description: Please confirm you have completed these steps
+      options:
+        - label: I have searched existing issues to ensure this isn't a duplicate
+          required: true
+        - label: I have included a minimal reproducible example
+          required: true
+        - label: I have provided complete environment information
+          required: true
+        - label: I have tested this with the latest Yoshi version
+          required: true
+        - label: I have read the [Contributing Guidelines](../CONTRIBUTING.md)
+          required: true
+        - label: I understand this is governed by the Business Source License 1.1
+          required: true
+
+  - type: checkboxes
+    id: code-of-conduct
+    attributes:
+      label: 📋 Code of Conduct
+      description: By submitting this issue, you agree to follow our standards
+      options:
+        - label: I agree to follow the [ArcMoon Studios Code of Conduct](https://github.com/arcmoonstudios/yoshi/blob/main/CODE_OF_CONDUCT.md)
+          required: true
+        - label: I understand enterprise support is available for production-critical issues
+          required: false

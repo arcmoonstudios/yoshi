@@ -46,7 +46,6 @@ param(
     [Parameter(Position = 0)]
     [string]$Target = "help",
     
-    [switch]$Verbose,
     [switch]$Force
 )
 

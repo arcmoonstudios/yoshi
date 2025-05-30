@@ -45,7 +45,7 @@ $RootFiles = @(
     '.cargo/config.toml'
 )
 
-# ── CI workflow stubs ────────────────────────────────────────────────────────
+# ── CI workflow configuration ────────────────────────────────────────────────────────
 $Workflows = @(
     '.github/workflows/ci.yml',
     '.github/workflows/release.yml'
@@ -86,8 +86,8 @@ foreach ($crate in $Crates.Keys) {
     }
 }
 
-# ── CI workflow stubs ────────────────────────────────────────────────────────
-Write-Host "`n► CI workflow stubs …" -ForegroundColor Cyan
+# ── CI workflow setup ────────────────────────────────────────────────────────
+Write-Host "`n► Setting up CI workflows …" -ForegroundColor Cyan
 foreach ($wf in $Workflows) { Touch $wf }
 
 # ── Seed one-liners if brand-new ─────────────────────────────────────────────

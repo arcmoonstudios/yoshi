@@ -242,15 +242,18 @@ echo "Duration: ${DURATION} seconds"
 
 ### Environment Variables
 
+```markdown
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `CARGO_ARCMOON_UPGRADE` | `false` | Enable dependency upgrades |
 | `CARGO_BUILD_JOBS` | `0` | Parallel build jobs (0 = auto) |
 | `RUST_BACKTRACE` | `1` | Enhanced error reporting |
 | `CARGO_TERM_COLOR` | `always` | Color output control |
+```
 
 ### Makefile Targets
 
+```markdown
 | Target | Description | Usage |
 |--------|-------------|-------|
 | `check` | Cargo check with optional upgrades | `make check` |
@@ -259,26 +262,31 @@ echo "Duration: ${DURATION} seconds"
 | `performance-check` | Performance benchmarks | `make performance-check` |
 | `all` | Complete CI pipeline | `make all` |
 | `ci-check` | CI environment check | `make ci-check` |
+```
 
 ### Script Parameters
 
 #### PowerShell Script
 
+```markdown
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `-Force` | Switch | Bypass git safety checks |
 | `-SkipGitCheck` | Switch | Skip all git operations |
 | `-DryRun` | Switch | Preview without execution |
 | `-LogLevel` | String | Logging verbosity level |
+```
 
 #### Bash Script
 
+```markdown
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `--force` | Flag | Bypass git safety checks |
 | `--skip-git-check` | Flag | Skip all git operations |
 | `--dry-run` | Flag | Preview without execution |
 | `--verbose` | Flag | Enable verbose logging |
+```
 
 ## 🚨 Error Handling
 
@@ -389,12 +397,14 @@ cargo geiger
 
 ### Typical Performance Metrics
 
-| Operation | Time (seconds) | Memory (MB) |
-|-----------|---------------|-------------|
-| Git safety check | < 0.1 | < 1 |
-| Dependency snapshot | 0.5-2.0 | 10-50 |
-| Cargo upgrade | 30-300 | 100-500 |
-| Validation check | 5-60 | 50-200 |
+```markdown
+|      Operation      | Time (seconds) | Memory (MB) |
+|---------------------|----------------|-------------|
+|  Git safety check   |     < 0.1      |    < 1      |
+| Dependency snapshot |    0.5-2.0     |   10-50     |
+|    Cargo upgrade    |     30-300     |   100-500   |
+|  Validation check   |      5-60      |   50-200    |
+```
 
 ### Optimization Strategies
 

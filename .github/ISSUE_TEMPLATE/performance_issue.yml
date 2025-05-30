@@ -1,0 +1,316 @@
+# yoshi\.github\ISSUE_TEMPLATE\performance_issue.yml
+#
+# **Brief:** Performance issue template with benchmarking and profiling requirements.
+#
+# **Module Classification:** Performance-Critical
+# **Complexity Level:** High
+# **API Stability:** Stable
+#
+# ~=####====A===r===c===M===o===o===n====S===t===u===d===i===o===s====X|0|$>
+# + Performance analysis template with mathematical precision
+#  - Benchmark reproduction with statistical significance: O(n) measurement
+#  - Performance regression detection with automated tooling: O(log n) analysis
+#  - Memory profiling with allocation pattern analysis: O(1) assessment
+#  - CPU profiling with hotspot identification: O(n) optimization
+#  - Comparative analysis with baseline performance metrics: O(1) validation
+# ~=####====A===r===c===M===o===o===n====S===t===u===d===i===o===s====X|0|$>
+# **GitHub:** ArcMoon Studios (https://github.com/arcmoonstudios)
+# **Copyright:** (c) 2025 ArcMoon Studios
+# **License:** Business Source License 1.1 (BSL-1.1)
+# **License Terms:** Non-production use only; commercial/production use requires paid license.
+# **Effective Date:** 2025-05-25 | **Change License:** GPL v3
+# **License File:** /LICENSE
+# **Contact:** LordXyn@proton.me
+# **Author:** Lord Xyn
+# **Last Validation:** 2025-05-30
+
+name: ⚡ Performance Issue
+description: Report performance degradation, memory issues, or optimization opportunities
+title: "[PERF] "
+labels: ["performance", "needs-investigation"]
+assignees: ["na"]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## 🌙 ArcMoon Studios Performance Analysis
+        
+        Performance is critical for enterprise applications. Help us maintain Yoshi's high-performance standards by providing detailed performance analysis.
+        
+        **For Critical Performance Issues:** Contact [LordXyn@proton.me](mailto:LordXyn@proton.me?subject=[Yoshi%20Enterprise]%20Critical%20Performance%20Issue) for immediate enterprise support.
+
+  - type: textarea
+    id: performance-issue
+    attributes:
+      label: ⚡ Performance Issue Description
+      description: Describe the performance issue you've observed
+      placeholder: |
+        Clearly describe what performance issue you're experiencing:
+        - Is it slower than expected?
+        - Using more memory than anticipated?
+        - Taking longer to compile?
+        - Causing performance regression?
+    validations:
+      required: true
+
+  - type: dropdown
+    id: issue-type
+    attributes:
+      label: 📊 Issue Type
+      description: What type of performance issue are you reporting?
+      options:
+        - "🐌 Runtime Performance Degradation"
+        - "🧠 Memory Usage Increase"
+        - "⏱️ Compilation Time Regression"
+        - "📈 Performance Regression (compared to previous version)"
+        - "🔥 CPU Usage Spike"
+        - "💾 Memory Leak"
+        - "⚡ Optimization Opportunity"
+        - "📉 Throughput Decrease"
+      default: 0
+    validations:
+      required: true
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: 🎯 Severity Level
+      description: How severe is this performance issue?
+      options:
+        - "🔴 Critical - Application unusable or fails SLA requirements"
+        - "🟠 High - Significant impact on production performance"
+        - "🟡 Medium - Noticeable performance degradation"
+        - "🟢 Low - Minor optimization opportunity"
+      default: 1
+    validations:
+      required: true
+
+  - type: textarea
+    id: benchmark-results
+    attributes:
+      label: 📈 Benchmark Results
+      description: Provide benchmark data demonstrating the performance issue
+      placeholder: |
+        Please include:
+        - Benchmark results showing the issue
+        - Comparison with expected performance
+        - Statistical significance (if available)
+        - Measurement methodology used
+        
+        Example:
+        ```
+        Before: 1.234 ms ± 0.045 ms
+        After:  2.567 ms ± 0.089 ms
+        Regression: 108% slower
+        ```
+      render: text
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction-code
+    attributes:
+      label: 🔄 Reproduction Code
+      description: Provide code that demonstrates the performance issue
+      placeholder: |
+        ```rust
+        use yoshi::prelude::*;
+        use std::time::Instant;
+        
+        fn main() {
+            let start = Instant::now();
+            
+            // Code that demonstrates the performance issue
+            for i in 0..10000 {
+                // Your performance-critical code here
+            }
+            
+            let duration = start.elapsed();
+            println!("Time taken: {:?}", duration);
+        }
+        ```
+      render: rust
+    validations:
+      required: true
+
+  - type: textarea
+    id: profiling-data
+    attributes:
+      label: 🔍 Profiling Data
+      description: Include profiling information if available
+      placeholder: |
+        Include any profiling data you have:
+        - CPU profiler output (perf, profiler, etc.)
+        - Memory profiler results (valgrind, heaptrack, etc.)
+        - Flame graphs
+        - Call stack analysis
+        - Memory allocation patterns
+      render: text
+    validations:
+      required: false
+
+  - type: textarea
+    id: environment-details
+    attributes:
+      label: 🔧 Environment Details
+      description: Detailed environment information for performance analysis
+      placeholder: |
+        - **Yoshi Version:** 
+        - **Rust Version:** 
+        - **Operating System:** 
+        - **Architecture:** (x86_64, aarch64, etc.)
+        - **CPU Model:** 
+        - **RAM:** 
+        - **Compiler Flags:** 
+        - **Build Profile:** (debug, release, release with debug info)
+        - **Features Enabled:** 
+        - **Target Triple:** 
+      value: |
+        - **Yoshi Version:** 
+        - **Rust Version:** 
+        - **Operating System:** 
+        - **Architecture:** 
+        - **CPU Model:** 
+        - **RAM:** 
+        - **Compiler Flags:** 
+        - **Build Profile:** 
+        - **Features Enabled:** 
+        - **Target Triple:** 
+    validations:
+      required: true
+
+  - type: textarea
+    id: comparison-baseline
+    attributes:
+      label: 📊 Baseline Comparison
+      description: What are you comparing the performance against?
+      placeholder: |
+        - Previous version of Yoshi: 
+        - Alternative error handling library: 
+        - Expected performance based on: 
+        - Industry benchmark: 
+        - Theoretical optimal performance: 
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: measurement-tools
+    attributes:
+      label: 🛠️ Measurement Tools Used
+      description: What tools did you use to measure performance?
+      options:
+        - label: Criterion.rs benchmarks
+        - label: std::time::Instant manual timing
+        - label: perf (Linux performance tool)
+        - label: Instruments (macOS profiler)
+        - label: Windows Performance Toolkit
+        - label: Valgrind/Callgrind
+        - label: heaptrack or similar memory profiler
+        - label: Custom benchmarking harness
+        - label: Production monitoring data
+
+  - type: textarea
+    id: statistical-analysis
+    attributes:
+      label: 📈 Statistical Analysis
+      description: Provide statistical significance of your measurements
+      placeholder: |
+        - Number of iterations: 
+        - Standard deviation: 
+        - Confidence interval: 
+        - P-value (if applicable): 
+        - Sample size: 
+        - Outlier handling: 
+    validations:
+      required: false
+
+  - type: textarea
+    id: regression-info
+    attributes:
+      label: 📉 Regression Information
+      description: If this is a regression, when did it start?
+      placeholder: |
+        - Last known good version: 
+        - First bad version: 
+        - Suspected causing commit/PR: 
+        - Bisection results: 
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: performance-aspects
+    attributes:
+      label: 🎯 Performance Aspects Affected
+      description: Which aspects of performance are impacted?
+      options:
+        - label: Error creation time
+        - label: Error formatting/display time
+        - label: Memory allocation patterns
+        - label: Error chain traversal
+        - label: Context attachment operations
+        - label: Conversion between error types
+        - label: Backtrace capture/formatting
+        - label: Serialization/deserialization
+        - label: Overall application throughput
+        - label: Startup time
+        - label: Compilation time
+
+  - type: textarea
+    id: optimization-suggestions
+    attributes:
+      label: 💡 Optimization Suggestions
+      description: Do you have any suggestions for optimization?
+      placeholder: |
+        If you have ideas for optimization:
+        - Algorithmic improvements
+        - Data structure changes
+        - Caching strategies
+        - Memory layout optimizations
+        - Compiler optimizations
+    validations:
+      required: false
+
+  - type: textarea
+    id: business-impact
+    attributes:
+      label: 💼 Business Impact
+      description: How does this performance issue affect your business/project?
+      placeholder: |
+        - Impact on user experience: 
+        - Effect on system capacity: 
+        - Cost implications: 
+        - SLA violations: 
+        - Competitive disadvantage: 
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: 📎 Additional Context
+      description: Any other relevant information
+      placeholder: |
+        - Links to flame graphs or profiling results
+        - Related performance issues
+        - External factors that might affect performance
+        - Hardware-specific considerations
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: ✅ Pre-Submission Checklist
+      description: Please confirm you have completed these steps
+      options:
+        - label: I have measured performance using reliable tools and methodology
+          required: true
+        - label: I have provided reproducible benchmark code
+          required: true
+        - label: I have included environment details relevant to performance
+          required: true
+        - label: I have searched for similar performance issues
+          required: true
+        - label: I understand this is governed by the Business Source License 1.1
+          required: true
