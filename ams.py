@@ -48,6 +48,7 @@ import time
 import queue
 import signal
 import logging
+import colorsys
 import platform
 import threading
 import subprocess
@@ -55,7 +56,7 @@ import tkinter as tk
 from pathlib import Path
 from datetime import datetime
 from dataclasses import dataclass, asdict
-from typing import Optional, Callable, Any, List, Tuple
+from typing import Optional, Callable, NamedTuple, Tuple, List, Dict, Any
 from tkinter import ttk, scrolledtext, messagebox, filedialog, simpledialog
 
 # Configure logging for enterprise-grade error tracking
@@ -110,12 +111,15 @@ class Colors:
     WHITE = '#F8F8FF'    # Ghost white
 
 class ArcMoonTheme:
-    """ArcMoon Studios Enterprise Color Theme with Light Blue Moon Palette."""
-      # New Light Blue Moon Color Palette - UPDATED (REALLY REALLY DARK)
+    """ArcMoon Studios Enterprise Color Theme with Light Blue Moon Palette."""    # New Light Blue Moon Color Palette - UPDATED (PURE BLACK)
     LIGHT_BLUE_MOON = "#87CEEB"        # 0 - Light Blue Moon (primary accent)
-    OFF_BLACK = "#030303"              # 1 - Nearly pure black (deep backgrounds) - DARKEST
-    MEDIUM_DARK_GRAY = "#0A0A0A"       # 2 - Very dark gray (secondary elements)
-    SIDEBAR_DARK = "#060606"           # 1 - Darker than medium, lighter than main background
+    OFF_BLACK = "#000000"              # 1 - Pure black (deep backgrounds) - DARKEST
+    MEDIUM_DARK_GRAY = "#020202"       # 2 - Almost pure black (secondary elements)
+    SIDEBAR_DARK = "#010101"           # 1 - Darker than medium, lighter than main background
+    WORKSPACE_BG = "#020202"           # Workspace background (customizable per theme)
+    SECTION_ACCENT_1 = "#0A0A0F"       # Section accent 1 (slightly blue-tinted dark)
+    SECTION_ACCENT_2 = "#0F0A0A"       # Section accent 2 (slightly red-tinted dark)
+    SECTION_ACCENT_3 = "#0A0F0A"       # Section accent 3 (slightly green-tinted dark)
     CHERRY_BLOSSOM_PINK = "#FFB7C5"    # 3 - Cherry blossom pink (highlights)
     PALE_BLUE_GRAY = "#B0C4DE"         # 4 - Pale blue/grayish (tertiary elements)
     
@@ -128,7 +132,7 @@ class ArcMoonTheme:
     DARK_BG = OFF_BLACK                   # Primary background (nearly pure black)
     DARK_SECONDARY = SIDEBAR_DARK         # Secondary dark (darker than medium, lighter than main)
     DARK_TERTIARY = MEDIUM_DARK_GRAY      # Tertiary elements
-    DARK_BORDER = "#0D0D0D"             # Border color (slightly lighter than backgrounds)
+    DARK_BORDER = "#030303"             # Border color (slightly lighter than backgrounds)
     
     # Text Colors
     TEXT_PRIMARY = "#F8F8FF"           # Primary text (ghost white)
@@ -157,29 +161,107 @@ class ArcMoonTheme:
     BUTTON_SET_B = [LIGHT_BLUE_MOON, CHERRY_BLOSSOM_PINK, TEXT_SUCCESS, TEXT_WARNING]
 
 class ArcMoonStyles:
-    """Enterprise-grade styling configuration."""
+    """Enterprise-grade styling configuration with enhanced error handling."""
     
     @staticmethod
     def configure_styles() -> None:
-        """Configure ttk styles with ArcMoon theme."""
+        """Configure ttk styles with ArcMoon theme and comprehensive error handling."""
         try:
             style = ttk.Style()
             
-            # Configure overall theme
-            style.theme_use('clam')
+            # Configure overall theme with fallback
+            try:
+                style.theme_use('clam')
+            except tk.TclError:
+                logger.warning("Clam theme not available, using default")
+                try:
+                    style.theme_use('default')
+                except tk.TclError:
+                    logger.error("No TTK themes available, using basic styling")
+                    return
             
             # Main frame styles
             style.configure('ArcMoon.TFrame', 
                            background=ArcMoonTheme.DARK_BG,
-                           borderwidth=0)            # Workspace frame style (darker than medium gray, lighter than main bg)
-            style.configure('Workspace.TLabelFrame',
-                           background=ArcMoonTheme.SIDEBAR_DARK,
-                           borderwidth=1,
-                           relief='flat')
+                           borderwidth=0)
             
-            style.configure('Workspace.TLabelFrame.Label',
-                           background=ArcMoonTheme.SIDEBAR_DARK,
-                           foreground=ArcMoonTheme.TEXT_PRIMARY)
+            # Tab content frame (slightly lighter than main bg)
+            style.configure('TabContent.TFrame',
+                           background=ArcMoonTheme.DARK_SECONDARY,
+                           borderwidth=0)
+            
+            # Notebook styles (tabs)
+            style.configure('TNotebook', 
+                           background=ArcMoonTheme.DARK_BG,
+                           borderwidth=0,
+                           tabposition='n')
+            
+            style.configure('TNotebook.Tab',
+                           background=ArcMoonTheme.DARK_TERTIARY,
+                           foreground=ArcMoonTheme.TEXT_PRIMARY,
+                           padding=[10, 5],
+                           borderwidth=0,
+                           focuscolor='none')
+            
+            style.map('TNotebook.Tab',
+                    background=[('selected', ArcMoonTheme.DARK_SECONDARY),
+                               ('active', ArcMoonTheme.DARK_SECONDARY)])            # Workspace frame style (using dedicated workspace background) - Enhanced error handling
+            try:
+                # First, create the layout for the custom LabelFrame
+                style.layout('Workspace.TLabelFrame', [
+                    ('Labelframe.border', {
+                        'sticky': 'nswe', 
+                        'children': [
+                            ('Labelframe.padding', {
+                                'sticky': 'nswe',
+                                'children': [
+                                    ('Labelframe.label', {'side': 'top', 'sticky': ''}),
+                                    ('Labelframe.focus', {
+                                        'sticky': 'nswe',
+                                        'children': [
+                                            ('Labelframe.text', {'sticky': 'nswe'})
+                                        ]
+                                    })
+                                ]
+                            })
+                        ]
+                    })
+                ])
+                
+                # Now configure the style
+                style.configure('Workspace.TLabelFrame',
+                               background=ArcMoonTheme.WORKSPACE_BG,
+                               borderwidth=1,
+                               relief='flat',
+                               bordercolor=ArcMoonTheme.LIGHT_BLUE_MOON,
+                               lightcolor=ArcMoonTheme.WORKSPACE_BG,
+                               darkcolor=ArcMoonTheme.WORKSPACE_BG)
+                
+                style.configure('Workspace.TLabelFrame.Label',
+                               background=ArcMoonTheme.WORKSPACE_BG,
+                               foreground=ArcMoonTheme.TEXT_PRIMARY,
+                               font=('Segoe UI', 9, 'bold'))
+                               
+                # Configure the border element
+                style.configure('Workspace.TLabelFrame.Border',
+                               background=ArcMoonTheme.WORKSPACE_BG,
+                               borderwidth=1,
+                               relief='flat')
+                               
+                logger.debug("Workspace.TLabelFrame style and layout configured successfully")
+            except Exception as workspace_error:
+                logger.error(f"Failed to configure Workspace.TLabelFrame: {workspace_error}")
+                logger.error(f"Workspace error details: {type(workspace_error).__name__}: {str(workspace_error)}")
+                # Fallback to basic TLabelFrame style
+                try:
+                    style.configure('TLabelFrame',
+                                   background=ArcMoonTheme.WORKSPACE_BG,
+                                   borderwidth=1,
+                                   relief='flat')
+                    logger.debug("Fallback to basic TLabelFrame style")
+                except Exception as fallback_error:
+                    logger.error(f"Even basic TLabelFrame configuration failed: {fallback_error}")
+                # Continue with other styles even if this one fails
             
             # Button styles
             style.configure('ArcMoon.TButton',
@@ -202,8 +284,8 @@ class ArcMoonStyles:
                            font=('Segoe UI', 10, 'bold'))
             
             style.map('ArcMoonSecondary.TButton',
-                     background=[('active', ArcMoonTheme.BUTTON_SECONDARY_HOVER),
-                               ('pressed', ArcMoonTheme.LIGHT_BLUE_MOON)])
+                    background=[('active', ArcMoonTheme.BUTTON_SECONDARY_HOVER),
+                                ('pressed', ArcMoonTheme.LIGHT_BLUE_MOON)])
             
             # Success button style
             style.configure('ArcMoonSuccess.TButton',
@@ -239,7 +321,6 @@ class ArcMoonStyles:
                            background=ArcMoonTheme.DARK_BG,
                            foreground=ArcMoonTheme.LIGHT_BLUE_MOON,
                            font=('Segoe UI', 16, 'bold'))
-            
             style.configure('ArcMoonSubtitle.TLabel',
                            background=ArcMoonTheme.DARK_BG,
                            foreground=ArcMoonTheme.PALE_BLUE_GRAY,
@@ -253,11 +334,340 @@ class ArcMoonStyles:
                            arrowcolor=ArcMoonTheme.PALE_BLUE_GRAY)
             
             style.map('Vertical.TScrollbar',
-                     background=[('active', ArcMoonTheme.MEDIUM_DARK_GRAY)])
+                    background=[('active', ArcMoonTheme.MEDIUM_DARK_GRAY)])
                            
         except Exception as e:
             logger.error(f"Failed to configure styles: {e}")
-            raise
+            logger.error(f"Style error details: {type(e).__name__}: {str(e)}")
+            # Don't raise - allow GUI to continue with default styles
+            # Instead, try to configure minimal fallback styles
+            try:
+                ArcMoonStyles._configure_fallback_styles()
+            except Exception as fallback_error:
+                logger.error(f"Fallback style configuration also failed: {fallback_error}")
+    
+    @staticmethod
+    def _configure_fallback_styles() -> None:
+        """Configure minimal fallback styles if main configuration fails."""
+        try:
+            style = ttk.Style()
+            
+            # Basic fallback styles that should always work
+            style.configure('Workspace.TLabelFrame',
+                           background='#000000',
+                           borderwidth=1)
+            
+            style.configure('ArcMoon.TFrame',
+                           background='#000000')
+            
+            style.configure('TabContent.TFrame',
+                           background='#010101')
+                           
+            logger.info("Fallback styles configured successfully")
+        except Exception as e:
+            logger.error(f"Even fallback styles failed: {e}")
+
+class ColorRGB(NamedTuple):
+    """RGB color representation with mathematical operations."""
+    r: int
+    g: int
+    b: int
+    
+    def to_hex(self) -> str:
+        """Convert RGB to hex format."""
+        return f"#{self.r:02x}{self.g:02x}{self.b:02x}"
+    
+    def to_hsl(self) -> Tuple[float, float, float]:
+        """Convert RGB to HSL color space."""
+        return colorsys.rgb_to_hls(self.r/255, self.g/255, self.b/255)
+    
+    @classmethod
+    def from_hex(cls, hex_color: str) -> 'ColorRGB':
+        """Create RGB from hex string."""
+        hex_color = hex_color.lstrip('#')
+        return cls(
+            int(hex_color[0:2], 16),
+            int(hex_color[2:4], 16),
+            int(hex_color[4:6], 16)
+        )
+
+@dataclass
+class ArcMoonThemeVariations:
+    """Extended ArcMoon Studios theme variations with mathematical precision."""
+    
+    # ===============================================
+    # 🌙 ORIGINAL ARCMOON ULTRA DARK THEME
+    # ===============================================
+    class UltraDark:
+        """Original ultra-dark theme - nearly pure black backgrounds."""
+        
+        # Core backgrounds (extremely dark)
+        OFF_BLACK = "#030303"              # Nearly pure black
+        SIDEBAR_DARK = "#060606"           # Subtle sidebar differentiation
+        MEDIUM_DARK_GRAY = "#0A0A0A"       # Secondary elements
+        DARK_BORDER = "#0D0D0D"            # Minimal border visibility
+        WORKSPACE_BG = "#020202"           # Ultra dark workspace background
+        
+        # Accent colors (light blue moon palette)
+        LIGHT_BLUE_MOON = "#87CEEB"        # Primary accent
+        CHERRY_BLOSSOM_PINK = "#FFB7C5"    # Secondary accent
+        PALE_BLUE_GRAY = "#B0C4DE"         # Tertiary elements
+        
+        # Text colors
+        TEXT_PRIMARY = "#F8F8FF"           # Ghost white
+        TEXT_SECONDARY = "#B0C4DE"         # Pale blue gray
+        TEXT_SUCCESS = "#90EE90"           # Light green
+        TEXT_ERROR = "#FFB6C1"             # Light pink
+        TEXT_WARNING = "#F0E68C"           # Khaki
+    
+    # ===============================================
+    # 🌌 COSMIC VOID THEME (Even Darker!)
+    # ===============================================
+    class CosmicVoid:
+        """Cosmic void theme - absolute darkness with stellar accents."""
+        
+        # Void backgrounds (maximum darkness)
+        VOID_BLACK = "#000000"             # Pure black
+        SHADOW_GRAY = "#020202"            # Barely visible gray
+        NEBULA_DARK = "#040404"            # Faint nebula
+        ASTEROID_GRAY = "#080808"          # Asteroid belt
+        WORKSPACE_BG = "#000000"           # Pure black workspace
+        
+        # Stellar accents
+        NEUTRON_BLUE = "#4169E1"           # Royal blue neutron star
+        PULSAR_CYAN = "#00CED1"            # Dark turquoise pulsar
+        QUASAR_PURPLE = "#9370DB"          # Medium purple quasar
+        SOLAR_GOLD = "#FFD700"             # Gold solar flare
+        
+        # Cosmic text
+        STARLIGHT = "#FFFFFF"              # Pure white starlight
+        MOONBEAM = "#F0F8FF"               # Alice blue moonbeam
+        AURORA_GREEN = "#00FF7F"           # Spring green aurora
+        COMET_TAIL = "#87CEEB"             # Sky blue comet
+    
+    # ===============================================
+    # 🎯 MATRIX NOIR THEME
+    # ===============================================
+    class MatrixNoir:
+        """Matrix-inspired noir theme with green phosphor accents."""
+        
+        # Matrix backgrounds
+        MATRIX_BLACK = "#000000"           # Pure black matrix
+        TERMINAL_DARK = "#001100"          # Dark green tint
+        CODE_RAIN_BG = "#002200"           # Code rain background
+        CONSOLE_GRAY = "#003300"           # Console background
+        WORKSPACE_BG = "#001100"           # Dark green workspace (special for Matrix)
+        
+        # Phosphor greens
+        PHOSPHOR_GREEN = "#00FF00"         # Classic matrix green
+        TERMINAL_GREEN = "#00CC00"         # Terminal text green
+        DATA_STREAM = "#009900"            # Data stream green
+        GHOST_GREEN = "#006600"            # Faded green
+        
+        # Noir accents
+        NEON_CYAN = "#00FFFF"              # Neon cyan highlights
+        WARNING_AMBER = "#FFAA00"          # Amber warnings
+        ERROR_RED = "#FF3333"              # Error red
+        WHITE_NOISE = "#CCCCCC"            # Static white
+    
+    # ===============================================
+    # 🔥 EMBER STORM THEME
+    # ===============================================
+    class EmberStorm:
+        """Ember storm theme - dark with warm fire accents."""
+        
+        # Storm backgrounds
+        STORM_BLACK = "#0A0A0A"            # Storm cloud black
+        ASH_GRAY = "#1A1A1A"               # Volcanic ash
+        EMBER_DARK = "#2A1A1A"             # Dark ember glow
+        SMOKE_GRAY = "#3A2A2A"             # Smoke gray
+        WORKSPACE_BG = "#050505"           # Ultra dark storm workspace
+        
+        # Fire accents
+        EMBER_ORANGE = "#FF6600"           # Bright ember
+        FLAME_RED = "#FF3300"              # Flame red
+        COAL_GLOW = "#CC3300"              # Glowing coal
+        SUNSET_GOLD = "#FFCC00"            # Sunset gold
+        
+        # Storm colors
+        LIGHTNING_WHITE = "#FFFFFF"        # Lightning flash
+        RAIN_BLUE = "#336699"              # Rain blue
+        THUNDER_PURPLE = "#663399"         # Thunder purple
+        MIST_GRAY = "#999999"              # Mist gray
+    
+    # ===============================================
+    # ❄️ ARCTIC FROST THEME
+    # ===============================================
+    class ArcticFrost:
+        """Arctic frost theme - cool blues and whites."""
+        
+        # Arctic backgrounds
+        ARCTIC_BLACK = "#0A0F1A"           # Arctic night
+        ICE_BLUE = "#1A2F3A"               # Deep ice blue
+        GLACIER_GRAY = "#2A3F4A"           # Glacier gray
+        SNOW_DRIFT = "#3A4F5A"             # Snow drift
+        WORKSPACE_BG = "#040608"           # Ultra dark arctic workspace
+        
+        # Frost accents
+        ICE_CRYSTAL = "#87CEEB"            # Ice crystal blue
+        AURORA_BLUE = "#4169E1"            # Aurora blue
+        FROST_WHITE = "#F0F8FF"            # Frost white
+        ARCTIC_CYAN = "#00CED1"            # Arctic cyan
+        
+        # Winter colors
+        SNOW_WHITE = "#FFFFFF"             # Pure snow
+        BLIZZARD_GRAY = "#E6E6FA"          # Blizzard gray
+        POLAR_BLUE = "#B0E0E6"             # Polar blue
+        TUNDRA_GREEN = "#2E8B57"           # Tundra green
+
+    # ===============================================
+    # 🌙 MATHEMATICAL COLOR GENERATION
+    # ===============================================
+    @staticmethod
+    def generate_analogous_colors(base_hex: str, count: int = 5) -> list[str]:
+        """Generate analogous colors using mathematical color theory."""
+        base_rgb = ColorRGB.from_hex(base_hex)
+        h, l, s = base_rgb.to_hsl()
+        
+        colors = []
+        for i in range(count):
+            # Generate analogous hues (±30 degrees)
+            hue_shift = (i - count//2) * 30 / 360
+            new_h = (h + hue_shift) % 1.0
+            
+            # Convert back to RGB
+            r, g, b = colorsys.hls_to_rgb(new_h, l, s)
+            rgb = ColorRGB(int(r*255), int(g*255), int(b*255))
+            colors.append(rgb.to_hex())
+        
+        return colors
+    
+    @staticmethod
+    def generate_triadic_colors(base_hex: str) -> Tuple[str, str, str]:
+        """Generate triadic color harmony (120° apart)."""
+        base_rgb = ColorRGB.from_hex(base_hex)
+        h, l, s = base_rgb.to_hsl()
+        
+        colors = []
+        for shift in [0, 120/360, 240/360]:
+            new_h = (h + shift) % 1.0
+            r, g, b = colorsys.hls_to_rgb(new_h, l, s)
+            rgb = ColorRGB(int(r*255), int(g*255), int(b*255))
+            colors.append(rgb.to_hex())
+        
+        return tuple(colors)
+    
+    @staticmethod
+    def darken_color(hex_color: str, factor: float = 0.2) -> str:
+        """Mathematically darken a color by reducing lightness."""
+        rgb = ColorRGB.from_hex(hex_color)
+        h, l, s = rgb.to_hsl()
+        
+        # Reduce lightness
+        new_l = max(0, l - factor)
+        
+        r, g, b = colorsys.hls_to_rgb(h, new_l, s)
+        darkened = ColorRGB(int(r*255), int(g*255), int(b*255))
+        return darkened.to_hex()
+    
+    @staticmethod
+    def create_gradient(start_hex: str, end_hex: str, steps: int = 10) -> list[str]:
+        """Create a smooth color gradient between two colors."""
+        start_rgb = ColorRGB.from_hex(start_hex)
+        end_rgb = ColorRGB.from_hex(end_hex)
+        
+        gradient = []
+        for i in range(steps):
+            factor = i / (steps - 1)
+            
+            r = int(start_rgb.r + (end_rgb.r - start_rgb.r) * factor)
+            g = int(start_rgb.g + (end_rgb.g - start_rgb.g) * factor)
+            b = int(start_rgb.b + (end_rgb.b - start_rgb.b) * factor)
+            
+            gradient.append(ColorRGB(r, g, b).to_hex())
+        
+        return gradient
+
+# ===============================================
+# 🎨 THEME SELECTOR UTILITY
+# ===============================================
+class ThemeSelector:
+    """Dynamic theme selection with mathematical optimization."""
+    
+    @classmethod
+    def get_themes_dict(cls):
+        """Get available themes dictionary."""
+        return {
+            'ultra_dark': ArcMoonThemeVariations.UltraDark,
+            'cosmic_void': ArcMoonThemeVariations.CosmicVoid,
+            'matrix_noir': ArcMoonThemeVariations.MatrixNoir,
+            'ember_storm': ArcMoonThemeVariations.EmberStorm,
+            'arctic_frost': ArcMoonThemeVariations.ArcticFrost,
+        }
+    
+    @classmethod
+    def get_theme(cls, theme_name: str):
+        """Get theme by name with validation."""
+        themes = cls.get_themes_dict()
+        return themes.get(theme_name, themes['ultra_dark'])
+    
+    @classmethod
+    def list_available_themes(cls) -> list[str]:
+        """List all available theme names."""
+        return list(cls.get_themes_dict().keys())
+    
+    @classmethod
+    def create_custom_theme(cls, base_theme: str, customizations: Dict[str, str]):
+        """Create a custom theme based on an existing theme."""
+        base = cls.get_theme(base_theme)
+        
+        # Create a new class dynamically
+        class CustomTheme:
+            pass
+        
+        # Copy all attributes from base theme
+        for attr in dir(base):
+            if not attr.startswith('_'):
+                setattr(CustomTheme, attr, getattr(base, attr))
+        
+        # Apply customizations
+        for attr, value in customizations.items():
+            setattr(CustomTheme, attr, value)
+        
+        return CustomTheme
+
+# ===============================================
+# 🧪 EXAMPLE USAGE AND DEMONSTRATIONS
+# ===============================================
+if __name__ == "__main__":
+    # Demonstrate color generation
+    print("🌙 ArcMoon Studios Color Theme Variations")
+    print("=" * 50)
+    
+    # Show available themes
+    themes = ThemeSelector.list_available_themes()
+    print(f"Available themes: {', '.join(themes)}")
+    
+    # Demonstrate color mathematics
+    base_color = "#87CEEB"  # Light Blue Moon
+    print(f"\nBase color: {base_color}")
+    
+    # Generate analogous colors
+    analogous = ArcMoonThemeVariations.generate_analogous_colors(base_color)
+    print(f"Analogous colors: {analogous}")
+    
+    # Generate triadic harmony
+    triadic = ArcMoonThemeVariations.generate_triadic_colors(base_color)
+    print(f"Triadic harmony: {triadic}")
+    
+    # Create gradient
+    gradient = ArcMoonThemeVariations.create_gradient("#000000", base_color, 5)
+    print(f"Gradient to black: {gradient}")
+    
+    # Demonstrate theme usage
+    cosmic_theme = ThemeSelector.get_theme('cosmic_void')
+    print(f"\nCosmic Void primary background: {cosmic_theme.VOID_BLACK}")
+    print(f"Cosmic Void stellar accent: {cosmic_theme.NEUTRON_BLUE}")
 
 class CrateChecker:
     """Comprehensive Rust Crate Quality Validation System"""
@@ -1253,10 +1663,11 @@ class ArcMoonSystemGUI:
             ArcMoonStyles.configure_styles()
             
             # Load configuration
-            self.config = AMSConfig.load()
-              # Initialize variables with proper defaults
+            self.config = AMSConfig.load()            # Initialize variables with proper defaults
             self.workspace_path = self._detect_workspace()
             self.git_status_var = tk.StringVar(value="Ready")
+            self.upgrade_enabled_var = tk.BooleanVar(value=False)
+            self.custom_command_var = tk.StringVar(value="")
             
             # Command queue for terminal output
             self.command_queue = queue.Queue()
@@ -1414,13 +1825,13 @@ class ArcMoonSystemGUI:
     def _create_rust_tab(self) -> None:
         """Create the Rust development tab."""
         try:
-            rust_frame = ttk.Frame(self.notebook)
+            rust_frame = ttk.Frame(self.notebook, style='TabContent.TFrame')
             self.notebook.add(rust_frame, text="🦀 Rust")
               # Workspace section
-            workspace_frame = ttk.LabelFrame(rust_frame, text="📁 Workspace")
+            workspace_frame = ttk.LabelFrame(rust_frame, text="📁 Workspace", style='Workspace.TLabelFrame')
             workspace_frame.pack(fill='x', padx=5, pady=5)
             
-            path_frame = tk.Frame(workspace_frame, bg=ArcMoonTheme.SIDEBAR_DARK)
+            path_frame = tk.Frame(workspace_frame, bg=ArcMoonTheme.WORKSPACE_BG)
             path_frame.pack(fill='x', padx=5, pady=5)
             
             ttk.Label(path_frame, text="Path:", style='ArcMoon.TLabel').pack(side='left')
@@ -1444,10 +1855,10 @@ class ArcMoonSystemGUI:
             refresh_btn.pack(pady=5)
             
             # Quick Actions section
-            actions_frame = ttk.LabelFrame(rust_frame, text="🚀 Quick Actions")
+            actions_frame = ttk.LabelFrame(rust_frame, text="🚀 Quick Actions", style='Workspace.TLabelFrame')
             actions_frame.pack(fill='x', padx=5, pady=5)
               # Action buttons grid with alternating colors (Set A)
-            buttons_frame = tk.Frame(actions_frame, bg=ArcMoonTheme.SIDEBAR_DARK)
+            buttons_frame = tk.Frame(actions_frame, bg=ArcMoonTheme.WORKSPACE_BG)
             buttons_frame.pack(fill='x', padx=5, pady=5)
             
             quick_buttons = [
@@ -1467,10 +1878,10 @@ class ArcMoonSystemGUI:
             
             buttons_frame.columnconfigure(0, weight=1)
             buttons_frame.columnconfigure(1, weight=1)            # Quality Tools section
-            quality_frame = ttk.LabelFrame(rust_frame, text="🔧 Quality Tools")
+            quality_frame = ttk.LabelFrame(rust_frame, text="🔧 Quality Tools", style='Workspace.TLabelFrame')
             quality_frame.pack(fill='x', padx=5, pady=5)
             
-            quality_buttons_frame = tk.Frame(quality_frame, bg=ArcMoonTheme.SIDEBAR_DARK)
+            quality_buttons_frame = tk.Frame(quality_frame, bg=ArcMoonTheme.WORKSPACE_BG)
             quality_buttons_frame.pack(fill='x', padx=5, pady=5)
             
             quality_buttons = [
@@ -1497,13 +1908,13 @@ class ArcMoonSystemGUI:
     def _create_github_tab(self) -> None:
         """Create the GitHub operations tab."""
         try:
-            github_frame = ttk.Frame(self.notebook)
+            github_frame = ttk.Frame(self.notebook, style='TabContent.TFrame')
             self.notebook.add(github_frame, text="🐙 GitHub")
             
             # Create scrollable frame
-            canvas = tk.Canvas(github_frame, bg=ArcMoonTheme.DARK_BG, highlightthickness=0)
+            canvas = tk.Canvas(github_frame, bg=ArcMoonTheme.DARK_SECONDARY, highlightthickness=0)
             scrollbar = ttk.Scrollbar(github_frame, orient="vertical", command=canvas.yview)
-            scrollable_frame = ttk.Frame(canvas)
+            scrollable_frame = ttk.Frame(canvas, style='TabContent.TFrame')
             
             scrollable_frame.bind(
                 "<Configure>",
@@ -1517,7 +1928,7 @@ class ArcMoonSystemGUI:
             scrollbar.pack(side="right", fill="y")
             
             # Authentication section
-            auth_frame = ttk.LabelFrame(scrollable_frame, text="🔐 Authentication")
+            auth_frame = ttk.LabelFrame(scrollable_frame, text="🔐 Authentication", style='Workspace.TLabelFrame')
             auth_frame.pack(fill='x', padx=5, pady=5)
             
             auth_buttons = ttk.Frame(auth_frame)
@@ -1533,7 +1944,7 @@ class ArcMoonSystemGUI:
                       command=lambda: self._execute_github_async(self.github_ops.auth_logout)).pack(side='left', padx=5)
             
             # Git Operations section
-            git_frame = ttk.LabelFrame(scrollable_frame, text="📝 Git Operations")
+            git_frame = ttk.LabelFrame(scrollable_frame, text="📝 Git Operations", style='Workspace.TLabelFrame')
             git_frame.pack(fill='x', padx=5, pady=5)
             
             # Git status
@@ -1596,7 +2007,7 @@ class ArcMoonSystemGUI:
                           command=lambda t=template: self.commit_message_var.set(t)).pack(side='left', padx=2)
             
             # Repository section
-            repo_frame = ttk.LabelFrame(scrollable_frame, text="📁 Repository Operations")
+            repo_frame = ttk.LabelFrame(scrollable_frame, text="📁 Repository Operations", style='Workspace.TLabelFrame')
             repo_frame.pack(fill='x', padx=5, pady=5)
             
             # Clone section
@@ -1652,7 +2063,7 @@ class ArcMoonSystemGUI:
                       command=self._list_repos_command).pack(side='right')
             
             # Issues section
-            issues_frame = ttk.LabelFrame(scrollable_frame, text="🐛 Issues")
+            issues_frame = ttk.LabelFrame(scrollable_frame, text="🐛 Issues", style='Workspace.TLabelFrame')
             issues_frame.pack(fill='x', padx=5, pady=5)
             
             ttk.Label(issues_frame, text="Create Issue:").pack(anchor='w')
@@ -1673,7 +2084,7 @@ class ArcMoonSystemGUI:
                       command=lambda: self._execute_github_async(self.github_ops.list_issues)).pack(side='left', padx=5)
             
             # SSH Keys section
-            ssh_frame = ttk.LabelFrame(scrollable_frame, text="🔑 SSH Keys")
+            ssh_frame = ttk.LabelFrame(scrollable_frame, text="🔑 SSH Keys", style='Workspace.TLabelFrame')
             ssh_frame.pack(fill='x', padx=5, pady=5)
             
             ttk.Button(ssh_frame, text="List SSH Keys",
@@ -1703,11 +2114,11 @@ class ArcMoonSystemGUI:
     def _create_tools_tab(self) -> None:
         """Create the general tools tab."""
         try:
-            tools_frame = ttk.Frame(self.notebook)
+            tools_frame = ttk.Frame(self.notebook, style='TabContent.TFrame')
             self.notebook.add(tools_frame, text="🛠️ Tools")
             
             # Command input section
-            command_frame = ttk.LabelFrame(tools_frame, text="💻 Command Execution")
+            command_frame = ttk.LabelFrame(tools_frame, text="💻 Command Execution", style='Workspace.TLabelFrame')
             command_frame.pack(fill='x', padx=5, pady=5)
             
             cmd_input_frame = ttk.Frame(command_frame)
@@ -1736,12 +2147,11 @@ class ArcMoonSystemGUI:
             ttk.Button(wd_frame, text="Change", command=self._change_working_directory).pack(side='right')
             
             # Utilities section
-            utilities_frame = ttk.LabelFrame(tools_frame, text="🔧 Utilities")
+            utilities_frame = ttk.LabelFrame(tools_frame, text="🔧 Utilities", style='Workspace.TLabelFrame')
             utilities_frame.pack(fill='x', padx=5, pady=5)
             
             util_buttons = ttk.Frame(utilities_frame)
             util_buttons.pack(fill='x', padx=5, pady=5)
-            
             ttk.Button(util_buttons, text="Generate SSH Key", command=self._generate_ssh_key).pack(side='left', padx=5)
             ttk.Button(util_buttons, text="Test GitHub Connection", command=self._test_github_connection).pack(side='left', padx=5)
             ttk.Button(util_buttons, text="Clear Terminal", command=self._clear_output).pack(side='left', padx=5)
@@ -1750,18 +2160,36 @@ class ArcMoonSystemGUI:
             logger.error(f"Failed to create tools tab: {e}")
     
     def _create_terminal_panel(self, parent: ttk.Frame) -> None:
-        """Create the terminal output panel."""
+        """Create the terminal output panel with bulletproof widget creation."""
         try:
-            # Terminal output section
-            terminal_frame = ttk.LabelFrame(parent, text="📝 Terminal Output")
+            # Terminal output section - try custom style first, fallback to standard
+            try:
+                terminal_frame = ttk.LabelFrame(parent, text="📝 Terminal Output", style='Workspace.TLabelFrame')
+            except tk.TclError:
+                logger.warning("Custom style failed, using fallback for terminal frame")
+                terminal_frame = ttk.LabelFrame(parent, text="📝 Terminal Output")
+            
             terminal_frame.pack(fill='both', expand=True, padx=(5, 0), pady=5)
             
-            # Terminal text widget with scrollbar
+            # Terminal text widget with scrollbar - ensure this always succeeds
             terminal_container = ttk.Frame(terminal_frame)
             terminal_container.pack(fill='both', expand=True, padx=5, pady=5)
             
-            self.terminal_text = self._create_syntax_highlighted_terminal(terminal_container)
-            self.terminal_text.pack(fill='both', expand=True)
+            try:
+                self.terminal_text = self._create_syntax_highlighted_terminal(terminal_container)
+            except Exception as terminal_error:
+                logger.error(f"Syntax highlighted terminal failed: {terminal_error}")
+                # Fallback to basic terminal if syntax highlighting fails
+                self.terminal_text = self._create_fallback_terminal(terminal_container)
+            
+            if self.terminal_text:
+                self.terminal_text.pack(fill='both', expand=True)
+            else:
+                # Last resort - create minimal working terminal
+                self.terminal_text = tk.Text(terminal_container, 
+                                          bg='#1a1a1a', fg='#ffffff',
+                                          state='disabled', wrap=tk.WORD)
+                self.terminal_text.pack(fill='both', expand=True)
             
             # Terminal controls
             controls_frame = ttk.Frame(terminal_frame)
@@ -1772,6 +2200,10 @@ class ArcMoonSystemGUI:
             
         except Exception as e:
             logger.error(f"Failed to create terminal panel: {e}")
+            # Ensure terminal_text exists even if everything else fails
+            if not hasattr(self, 'terminal_text') or self.terminal_text is None:
+                self.terminal_text = tk.Text(parent, state='disabled')
+                self.terminal_text.pack(fill='both', expand=True)
     
     def _create_status_bar(self, parent: ttk.Frame) -> None:
         """Create status bar with error handling."""
@@ -1892,8 +2324,7 @@ class ArcMoonSystemGUI:
                                font=('Segoe UI', 10, 'bold'),
                                command=command)
                 btn.pack(fill='x', pady=2)
-            
-            # Visual Themes section
+              # Visual Themes section
             themes_label = tk.Label(content_frame,
                                    text="🎨 Visual Themes",
                                    bg=ArcMoonTheme.OVERLAY_PANEL,
@@ -1901,12 +2332,13 @@ class ArcMoonSystemGUI:
                                    font=('Segoe UI', 12, 'bold'))
             themes_label.pack(anchor='w', pady=(20, 10))
             
-            # Theme management buttons
+            # Simple theme switching buttons
             theme_commands = [
-                ("🌙 Interactive Theme Demo", self._open_theme_demo),
-                ("📂 Open AMS Options Folder", self._open_ams_options_folder),
-                ("🔧 Theme Integration System", self._open_theme_integration),
-                ("🎨 Color Themes Definition", self._open_color_themes),
+                ("🌙 Ultra Dark", lambda: self._apply_theme('ultra_dark')),
+                ("🌌 Cosmic Void", lambda: self._apply_theme('cosmic_void')),
+                ("🎯 Matrix Noir", lambda: self._apply_theme('matrix_noir')),
+                ("🔥 Ember Storm", lambda: self._apply_theme('ember_storm')),
+                ("❄️ Arctic Frost", lambda: self._apply_theme('arctic_frost')),
             ]
             
             for text, command in theme_commands:
@@ -1953,6 +2385,26 @@ Features: Integrated CrateCheck • GitHub CLI Integration"""
         except Exception as e:
             logger.error(f"Failed to create overlay content: {e}")
     
+    def _create_fallback_terminal(self, parent) -> tk.Text:
+        """Create basic fallback terminal if syntax highlighting fails."""
+        try:
+            terminal = tk.Text(
+                parent,
+                wrap=tk.WORD,
+                font=('Consolas', 10),
+                bg='#1a1a1a',
+                fg='#ffffff',
+                insertbackground='#87CEEB',
+                selectbackground='#FFB7C5',
+                selectforeground='#000000',
+                state='disabled'
+            )
+            return terminal
+        except Exception as e:
+            logger.error(f"Even fallback terminal creation failed: {e}")
+            # Return basic text widget as last resort
+            return tk.Text(parent, state='disabled')
+
     def _create_syntax_highlighted_terminal(self, parent) -> scrolledtext.ScrolledText:
         """Create terminal with basic syntax highlighting support"""
         terminal = scrolledtext.ScrolledText(
@@ -2189,6 +2641,7 @@ Features: Integrated CrateCheck • GitHub CLI Integration"""
                 self.root.after(0, lambda: self.git_status_var.set(f"❌ Error: {str(e)[:50]}"))
         
         threading.Thread(target=check_status_thread, daemon=True).start()
+        return True
     
     def _update_status_display(self) -> None:
         """Update initial status display."""
@@ -2633,7 +3086,6 @@ Features: Integrated CrateCheck • GitHub CLI Integration"""
         except Exception as e:
             logger.error(f"Error showing confirmation dialog: {e}")
             return False
-    
     def _on_closing(self) -> None:
         """Handle application closing with proper cleanup."""
         try:
@@ -2651,6 +3103,272 @@ Features: Integrated CrateCheck • GitHub CLI Integration"""
                 self.root.destroy()
             except:
                 pass
+
+    def _open_theme_demo(self) -> None:
+        """Open the interactive theme demo application."""
+        try:
+            demo_path = os.path.join(os.path.dirname(__file__), "ams_options", "theme_demo.py")
+            if os.path.exists(demo_path):
+                self._append_output_queued("🎨 Opening Interactive Theme Demo...\n")
+                subprocess.Popen([sys.executable, demo_path])
+            else:
+                self._append_output_queued(f"❌ Theme demo not found at: {demo_path}\n")
+                messagebox.showerror("Error", f"Theme demo file not found:\n{demo_path}")
+        except Exception as e:
+            logger.error(f"Error opening theme demo: {e}")
+            self._append_output_queued(f"❌ Error opening theme demo: {str(e)}\n")
+            messagebox.showerror("Error", f"Failed to open theme demo:\n{str(e)}")
+
+    def _open_ams_options_folder(self) -> None:
+        """Open the AMS options folder in file explorer."""
+        try:
+            options_path = os.path.join(os.path.dirname(__file__), "ams_options")
+            if os.path.exists(options_path):
+                self._append_output_queued(f"📁 Opening AMS Options folder: {options_path}\n")
+                
+                # Cross-platform file explorer opening
+                if platform.system() == "Windows":
+                    os.startfile(options_path)
+                elif platform.system() == "Darwin":  # macOS
+                    subprocess.Popen(["open", options_path])
+                else:  # Linux
+                    subprocess.Popen(["xdg-open", options_path])
+            else:
+                self._append_output_queued(f"❌ AMS Options folder not found at: {options_path}\n")
+                messagebox.showerror("Error", f"AMS Options folder not found:\n{options_path}")
+        except Exception as e:
+            logger.error(f"Error opening AMS options folder: {e}")
+            self._append_output_queued(f"❌ Error opening AMS options folder: {str(e)}\n")
+            messagebox.showerror("Error", f"Failed to open AMS options folder:\n{str(e)}")
+
+    def _open_theme_integration(self) -> None:
+        """Open the theme integration system file."""
+        try:
+            integration_path = os.path.join(os.path.dirname(__file__), "ams_options", "ams_theme_integration.py")
+            if os.path.exists(integration_path):
+                self._append_output_queued(f"🔧 Opening Theme Integration: {integration_path}\n")
+                
+                # Cross-platform file opening
+                if platform.system() == "Windows":
+                    os.startfile(integration_path)
+                elif platform.system() == "Darwin":  # macOS
+                    subprocess.Popen(["open", integration_path])
+                else:  # Linux
+                    subprocess.Popen(["xdg-open", integration_path])
+            else:
+                self._append_output_queued(f"❌ Theme integration file not found at: {integration_path}\n")
+                messagebox.showerror("Error", f"Theme integration file not found:\n{integration_path}")
+        except Exception as e:
+            logger.error(f"Error opening theme integration: {e}")
+            self._append_output_queued(f"❌ Error opening theme integration: {str(e)}\n")
+            messagebox.showerror("Error", f"Failed to open theme integration:\n{str(e)}")
+
+    def _open_color_themes(self) -> None:
+        """Open the color themes definition file."""
+        try:
+            themes_path = os.path.join(os.path.dirname(__file__), "ams_options", "color_themes.py")
+            if os.path.exists(themes_path):
+                self._append_output_queued(f"🎨 Opening Color Themes: {themes_path}\n")
+                
+                # Cross-platform file opening  
+                if platform.system() == "Windows":
+                    os.startfile(themes_path)
+                elif platform.system() == "Darwin":  # macOS
+                    subprocess.Popen(["open", themes_path])
+                else:  # Linux
+                    subprocess.Popen(["xdg-open", themes_path])
+            else:
+                self._append_output_queued(f"❌ Color themes file not found at: {themes_path}\n")
+                messagebox.showerror("Error", f"Color themes file not found:\n{themes_path}")
+        except Exception as e:
+            logger.error(f"Error opening color themes: {e}")
+            self._append_output_queued(f"❌ Error opening color themes: {str(e)}\n")
+            messagebox.showerror("Error", f"Failed to open color themes:\n{str(e)}")
+    
+    def _apply_theme(self, theme_name: str) -> None:
+        """Apply a selected theme by updating the ArcMoonTheme class attributes."""
+        try:
+            # Get the selected theme
+            theme_class = ThemeSelector.get_theme(theme_name)
+            if theme_class is None:
+                self._append_output_queued(f"❌ Theme '{theme_name}' not found\n")
+                messagebox.showerror("Error", f"Theme '{theme_name}' not found")
+                return
+            
+            self._append_output_queued(f"🎨 Applying theme: {theme_name}\n")
+            
+            # Create comprehensive theme mapping based on available attributes
+            theme_mappings = {
+                # Ultra Dark theme mappings
+                'ultra_dark': {
+                    'OFF_BLACK': 'DARK_BG',
+                    'SIDEBAR_DARK': 'DARK_SECONDARY', 
+                    'MEDIUM_DARK_GRAY': 'DARK_TERTIARY',
+                    'DARK_BORDER': 'DARK_BORDER',
+                    'WORKSPACE_BG': 'WORKSPACE_BG',
+                    'LIGHT_BLUE_MOON': 'LIGHT_BLUE_MOON',
+                    'CHERRY_BLOSSOM_PINK': 'CHERRY_BLOSSOM_PINK',
+                    'PALE_BLUE_GRAY': 'PALE_BLUE_GRAY',
+                    'TEXT_PRIMARY': 'TEXT_PRIMARY',
+                    'TEXT_SECONDARY': 'TEXT_SECONDARY',
+                    'TEXT_SUCCESS': 'TEXT_SUCCESS',
+                    'TEXT_ERROR': 'TEXT_ERROR',
+                    'TEXT_WARNING': 'TEXT_WARNING',
+                },
+                # Cosmic Void theme mappings
+                'cosmic_void': {
+                    'VOID_BLACK': 'DARK_BG',
+                    'SHADOW_GRAY': 'DARK_SECONDARY',
+                    'NEBULA_DARK': 'DARK_TERTIARY',
+                    'ASTEROID_GRAY': 'DARK_BORDER',
+                    'WORKSPACE_BG': 'WORKSPACE_BG',
+                    'NEUTRON_BLUE': 'LIGHT_BLUE_MOON',
+                    'PULSAR_CYAN': 'CHERRY_BLOSSOM_PINK',
+                    'QUASAR_PURPLE': 'PALE_BLUE_GRAY',
+                    'STARLIGHT': 'TEXT_PRIMARY',
+                    'MOONBEAM': 'TEXT_SECONDARY',
+                    'AURORA_GREEN': 'TEXT_SUCCESS',
+                    'COMET_TAIL': 'TEXT_ERROR',
+                    'SOLAR_GOLD': 'TEXT_WARNING',
+                },
+                # Matrix Noir theme mappings
+                'matrix_noir': {
+                    'MATRIX_BLACK': 'DARK_BG',
+                    'TERMINAL_DARK': 'DARK_SECONDARY',
+                    'CODE_RAIN_BG': 'DARK_TERTIARY',
+                    'CONSOLE_GRAY': 'DARK_BORDER',
+                    'WORKSPACE_BG': 'WORKSPACE_BG',
+                    'PHOSPHOR_GREEN': 'LIGHT_BLUE_MOON',
+                    'TERMINAL_GREEN': 'CHERRY_BLOSSOM_PINK',
+                    'DATA_STREAM': 'PALE_BLUE_GRAY',
+                    'WHITE_NOISE': 'TEXT_PRIMARY',
+                    'GHOST_GREEN': 'TEXT_SECONDARY',
+                    'PHOSPHOR_GREEN': 'TEXT_SUCCESS',
+                    'ERROR_RED': 'TEXT_ERROR',
+                    'WARNING_AMBER': 'TEXT_WARNING',
+                },
+                # Ember Storm theme mappings
+                'ember_storm': {
+                    'STORM_BLACK': 'DARK_BG',
+                    'ASH_GRAY': 'DARK_SECONDARY',
+                    'EMBER_DARK': 'DARK_TERTIARY',
+                    'SMOKE_GRAY': 'DARK_BORDER',
+                    'WORKSPACE_BG': 'WORKSPACE_BG',
+                    'EMBER_ORANGE': 'LIGHT_BLUE_MOON',
+                    'FLAME_RED': 'CHERRY_BLOSSOM_PINK',
+                    'COAL_GLOW': 'PALE_BLUE_GRAY',
+                    'LIGHTNING_WHITE': 'TEXT_PRIMARY',
+                    'MIST_GRAY': 'TEXT_SECONDARY',
+                    'SUNSET_GOLD': 'TEXT_SUCCESS',
+                    'FLAME_RED': 'TEXT_ERROR',
+                    'EMBER_ORANGE': 'TEXT_WARNING',
+                },
+                # Arctic Frost theme mappings
+                'arctic_frost': {
+                    'ARCTIC_BLACK': 'DARK_BG',
+                    'ICE_BLUE': 'DARK_SECONDARY',
+                    'GLACIER_GRAY': 'DARK_TERTIARY',
+                    'SNOW_DRIFT': 'DARK_BORDER',
+                    'WORKSPACE_BG': 'WORKSPACE_BG',
+                    'ICE_CRYSTAL': 'LIGHT_BLUE_MOON',
+                    'AURORA_BLUE': 'CHERRY_BLOSSOM_PINK',
+                    'ARCTIC_CYAN': 'PALE_BLUE_GRAY',
+                    'SNOW_WHITE': 'TEXT_PRIMARY',
+                    'BLIZZARD_GRAY': 'TEXT_SECONDARY',
+                    'TUNDRA_GREEN': 'TEXT_SUCCESS',
+                    'POLAR_BLUE': 'TEXT_ERROR',
+                    'FROST_WHITE': 'TEXT_WARNING',
+                }
+            }
+            
+            # Get the mapping for this specific theme
+            theme_mapping = theme_mappings.get(theme_name, theme_mappings['ultra_dark'])
+            
+            # Apply theme colors to ArcMoonTheme
+            for theme_attr, arcmoon_attr in theme_mapping.items():
+                if hasattr(theme_class, theme_attr):
+                    new_color = getattr(theme_class, theme_attr)
+                    setattr(ArcMoonTheme, arcmoon_attr, new_color)
+                    self._append_output_queued(f"   {arcmoon_attr} = {new_color}\n")
+            
+            # Update derived colors
+            ArcMoonTheme.BUTTON_PRIMARY = ArcMoonTheme.CHERRY_BLOSSOM_PINK
+            ArcMoonTheme.BUTTON_SECONDARY = ArcMoonTheme.LIGHT_BLUE_MOON
+            ArcMoonTheme.BUTTON_SUCCESS = ArcMoonTheme.TEXT_SUCCESS
+            ArcMoonTheme.BUTTON_WARNING = ArcMoonTheme.TEXT_WARNING
+            ArcMoonTheme.BUTTON_DANGER = ArcMoonTheme.TEXT_ERROR
+            ArcMoonTheme.OVERLAY_BG = ArcMoonTheme.DARK_BG
+            ArcMoonTheme.OVERLAY_PANEL = ArcMoonTheme.DARK_SECONDARY
+            ArcMoonTheme.OVERLAY_ACCENT = ArcMoonTheme.LIGHT_BLUE_MOON
+            
+            # Reconfigure styles with new colors
+            ArcMoonStyles.configure_styles()
+            
+            # Update root window and existing components
+            self._update_gui_theme()
+            
+            self._append_output_queued(f"✅ Theme '{theme_name}' applied successfully\n")
+            
+        except Exception as e:
+            logger.error(f"Error applying theme {theme_name}: {e}")
+            self._append_output_queued(f"❌ Error applying theme {theme_name}: {str(e)}\n")
+    
+    def _update_gui_theme(self) -> None:
+        """Update GUI components with new theme colors."""
+        try:
+            # Update root window
+            self.root.configure(bg=ArcMoonTheme.DARK_BG)
+            
+            # Update terminal text widget
+            if hasattr(self, 'terminal_text'):
+                self.terminal_text.configure(
+                    bg=ArcMoonTheme.DARK_TERTIARY,
+                    fg=ArcMoonTheme.TEXT_PRIMARY,
+                    insertbackground=ArcMoonTheme.LIGHT_BLUE_MOON,
+                    selectbackground=ArcMoonTheme.CHERRY_BLOSSOM_PINK,
+                    selectforeground=ArcMoonTheme.OFF_BLACK
+                )
+            
+            # Update overlay if it exists
+            if hasattr(self, 'overlay') and self.overlay:
+                self.overlay.overlay.configure(bg=ArcMoonTheme.OVERLAY_BG)
+                self.overlay.panel.configure(bg=ArcMoonTheme.OVERLAY_PANEL)
+            
+            # Update entry widgets recursively
+            self._update_entry_widgets_recursive(self.root)
+            
+            self._append_output_queued("🎨 GUI components updated with new theme\n")
+            
+        except Exception as e:
+            logger.error(f"Error updating GUI theme: {e}")
+            self._append_output_queued(f"⚠️ Some GUI components may need restart to fully update\n")
+    
+    def _update_entry_widgets_recursive(self, widget) -> None:
+        """Recursively update entry widgets with new theme colors."""
+        try:
+            for child in widget.winfo_children():
+                if isinstance(child, tk.Entry):
+                    child.configure(
+                        bg=ArcMoonTheme.DARK_TERTIARY,
+                        fg=ArcMoonTheme.TEXT_PRIMARY,
+                        insertbackground=ArcMoonTheme.LIGHT_BLUE_MOON
+                    )
+                elif isinstance(child, tk.Text):
+                    child.configure(
+                        bg=ArcMoonTheme.DARK_TERTIARY,
+                        fg=ArcMoonTheme.TEXT_SECONDARY
+                    )
+                elif isinstance(child, tk.Frame):
+                    # Update frame backgrounds
+                    try:
+                        child.configure(bg=ArcMoonTheme.DARK_BG)
+                    except:
+                        pass  # Some frames may not support bg
+                
+                # Recursively update children
+                self._update_entry_widgets_recursive(child)
+        except Exception as e:
+            logger.debug(f"Error updating widget {widget}: {e}")
     
     def run(self) -> None:
         """Run the GUI application with comprehensive initialization."""
