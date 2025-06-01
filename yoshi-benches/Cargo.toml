@@ -31,9 +31,9 @@ harness = false
 
 [dependencies]
 # Local workspace dependencies - Yoshi framework components
-yoshi = { path = "../yoshi" }
-yoshi-std = { path = "../yoshi-std" }
-yoshi-derive = { path = "../yoshi-derive" }
+yoshi = { path = "../yoshi", version = "0.1.0" }
+yoshi-std = { path = "../yoshi-std", version = "0.1.0" }
+yoshi-derive = { path = "../yoshi-derive", version = "0.1.0" }
 
 # Benchmarking infrastructure
 criterion = { version = "0.6", features = [
