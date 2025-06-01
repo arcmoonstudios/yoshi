@@ -21,12 +21,12 @@
 //!
 //! **Algorithmic Complexity:**
 //! - Time Complexity: O(1) for error creation, O(1) for context attachment. O(N) for context chain traversal and formatting (where N is context depth).
-//! - Space Complexity: O(N) where N is context chain depth, bounded by MAX_DEPTH=32
+//! - Space Complexity: O(N) where N is context chain depth, bounded by `MAX_DEPTH=32`
 //! - Concurrency Safety: Send + Sync + 'static guarantees with atomic instance counting
 //!
 //! **Performance Characteristics:**
 //! - Expected Performance: Sub-microsecond error creation, <100ns context attachment. Full error formatting depends on context depth.
-//! - Worst-Case Scenarios: O(MAX_DEPTH) for deep context chains with cycle protection during formatting.
+//! - Worst-Case Scenarios: `O(MAX_DEPTH)` for deep context chains with cycle protection during formatting.
 //! - Optimization Opportunities: SIMD-friendly formatting, pre-allocated buffers, lazy backtrace capture
 //!
 //! ## Module Organization
@@ -35,10 +35,10 @@
 //!
 //! - [`Yoshi`]: The main error type, providing structured error handling capabilities.
 //! - [`YoshiKind`]: Defines high-level categories for errors.
-//! - [`YoshiContext`]: Stores additional contextual information for errors.
+//! - [`YoContext`]: Stores additional contextual information for errors.
 //! - [`YoshiLocation`]: Represents a source code location.
 //! - [`YoshiBacktrace`]: Wraps a standard library backtrace with performance metadata.
-//! - [`YoshiContextExt`]: An extension trait for `Result` to easily attach context.
+//! - [`HatchExt`]: An extension trait for `Result` to easily attach context.
 //! - [`NoStdIo`]: A minimal I/O error type for `no_std` environments (available in `no_std` environments).
 //! - [`Result`]: A type alias for `std::result::Result` or `core::result::Result` with `Yoshi` as the default error.
 //! - [`error_instance_count()`]: Global counter for Yoshi error instances.
@@ -86,9 +86,9 @@
 //! assert!(err4.suggestion().as_deref() == Some("Check your internet connection."));
 //! ```
 //!
-//! **Propagating `Yoshi` errors with `YoshiContextExt`:**
+//! **Propagating `Yoshi` errors with `HatchExt`:**
 //! ```
-//! use yoshi::{yoshi, Yoshi, YoshiKind, YoshiContextExt};
+//! use yoshi::{yoshi, Yoshi, YoshiKind, HatchExt};
 //! # use std::io::{self, ErrorKind};
 //!
 //! fn load_data() -> Result<(), Yoshi> {
@@ -123,9 +123,7 @@
 pub use yoshi_std::error_instance_count;
 
 // Main types and trait
-pub use yoshi_std::{
-    Result, Yoshi, YoshiBacktrace, YoshiContext, YoshiContextExt, YoshiKind, YoshiLocation,
-};
+pub use yoshi_std::{HatchExt, Result, YoContext, Yoshi, YoshiBacktrace, YoshiKind, YoshiLocation};
 
 // Import Arc from std or core based on feature flag
 #[cfg(not(feature = "std"))]
@@ -191,7 +189,7 @@ pub use yoshi_derive::*;
 /// Optional trailing keyword arguments for chaining `Yoshi` builder methods:
 /// - `with_metadata = ($key:expr, $value:expr)`: Adds metadata.
 /// - `with_suggestion = $sugg:expr`: Adds a suggestion.
-/// - `with_payload = $payload:expr`: Adds a typed payload.
+/// - `with_shell = $shell:expr`: Adds a typed shell.
 /// - `with_priority = $priority:expr`: Sets the priority.
 ///
 /// # Examples
@@ -281,8 +279,8 @@ macro_rules! yoshi {
     (@apply_attr $instance:expr, with_suggestion, $suggestion:expr) => {
         $instance.with_suggestion($suggestion)
     };
-    (@apply_attr $instance:expr, with_payload, $payload:expr) => {
-        $instance.with_payload($payload)
+    (@apply_attr $instance:expr, with_shell, $shell:expr) => {
+        $instance.with_shell($shell)
     };
     (@apply_attr $instance:expr, with_priority, $priority:expr) => {
         $instance.with_priority($priority)

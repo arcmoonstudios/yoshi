@@ -149,7 +149,7 @@ async fn enterprise_operation() -> Result<(), AppError> {
 
 The `yoshi` facade provides unified access to:
 
-+ **`yoshi-std`** - Core error types (`Yoshi`, `YoshiKind`, `YoshiContext`)
++ **`yoshi-std`** - Core error types (`Yoshi`, `YoshiKind`, `YoContext`)
 + **`yoshi-derive`** - Procedural macros (`YoshiDerive`, attribute macros)
 + **`yoshi-benches`** - Performance benchmarking suite (optional, feature-gated)
 
