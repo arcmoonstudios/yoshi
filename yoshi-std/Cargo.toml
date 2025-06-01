@@ -1,6 +1,6 @@
 [package]
 name = "yoshi-std"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 rust-version = "1.87.0" # MSRV
 authors = ["Lord Xyn <LordXyn@proton.me>"]
