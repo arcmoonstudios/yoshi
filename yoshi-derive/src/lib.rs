@@ -1467,8 +1467,14 @@ fn validate_display_format(
     // Performance analysis for format strings
     match format_str.len() {
         0..=50 => {}, // Optimal range
-        51..=200 => validation.performance_hint("Moderately long format strings may impact formatting performance"),
-        _ => validation.performance_hint("Very long format strings may significantly impact runtime performance - consider simplifying"),
+        51..=200 => validation.performance_hint(format!(
+            "Moderately long format strings may impact formatting performance: '{}' ({} chars)",
+            format_str, format_str.len()
+        )),
+        _ => validation.performance_hint(format!(
+            "Very long format strings may significantly impact runtime performance - consider simplifying: '{}' ({} chars)",
+            format_str, format_str.len()
+        )),
     }
 
     // Check for potential formatting issues

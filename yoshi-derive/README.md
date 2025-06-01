@@ -386,7 +386,7 @@ mod tests {
 
 ---
 
-## 📊 **Integration with Yoshi Ecosystem**
+## 📊 **Integration with Yoshi**
 
 ### **With yoshi-std**
 
