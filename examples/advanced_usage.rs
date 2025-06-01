@@ -28,11 +28,11 @@
 // **Author:** Lord Xyn
 // **Last Validation:** 2025-05-30
 
-use yoshi::{yoshi, Result, Yoshi, YoshiKind, YoshiContext, YoshiContextExt};
+use yoshi::{yoshi, Result, Yoshi, YoshiKind, YoContext, HatchExt};
 use std::time::Duration;
 use std::sync::Arc; // Needed for Arc<str> in YoshiKind fields
 
-/// Custom struct to use as a payload.
+/// Custom struct to use as a shell.
 #[derive(Debug, PartialEq, Clone)]
 struct RequestInfo {
     id: String,
@@ -106,19 +106,19 @@ mod example_2_timeout_with_suggestion {
     }
 }
 
-/// Example 3: Attaching a custom struct as a payload and setting error priority.
+/// Example 3: Attaching a custom struct as a shell and setting error priority.
 ///
 /// This example demonstrates how to embed arbitrary typed data (payloads)
 /// within an error's context and assign a priority level.
 mod example_3_payload_and_priority {
     use super::*;
 
-    /// Creates an error with a custom payload and priority using the `yoshi!` macro.
+    /// Creates an error with a custom shell and priority using the `yoshi!` macro.
     ///
-    /// The payload and priority are applied to the initial context created by the macro.
+    /// The shell and priority are applied to the initial context created by the macro.
     pub fn create_with_macro() -> Yoshi {
         yoshi!(message: "Request processing failed due to an unexpected state.",
-            with_payload = RequestInfo {
+            with_shell = RequestInfo {
                 id: "req_xyz_789".to_string(),
                 method: "POST".to_string(),
                 path: "/api/v1/data".to_string(),
@@ -127,16 +127,16 @@ mod example_3_payload_and_priority {
         )
     }
 
-    /// Creates an error with a custom payload and priority using direct API calls.
+    /// Creates an error with a custom shell and priority using direct API calls.
     ///
-    /// Shows explicit `YoshiContext` creation and applying payload and priority.
+    /// Shows explicit `YoContext` creation and applying shell and priority.
     pub fn create_with_api() -> Yoshi {
         Yoshi::new(YoshiKind::Internal {
             message: "Request processing failed due to an unexpected state.".into(),
             source: None,
             component: None,
         })
-        .with_payload(RequestInfo {
+        .with_shell(RequestInfo {
             id: "req_xyz_789".to_string(),
             method: "POST".to_string(),
             path: "/api/v1/data".to_string(),
@@ -213,13 +213,13 @@ mod tests {
     fn test_example_3_payload_and_priority() {
         let err1 = example_3_payload_and_priority::create_with_macro();
         assert!(err1.primary_context().unwrap().priority == 200);
-        assert!(err1.payload::<RequestInfo>().is_some());
-        assert_eq!(err1.payload::<RequestInfo>().unwrap().id, "req_xyz_789");
+        assert!(err1.shell::<RequestInfo>().is_some());
+        assert_eq!(err1.shell::<RequestInfo>().unwrap().id, "req_xyz_789");
 
         let err2 = example_3_payload_and_priority::create_with_api();
         assert!(err2.primary_context().unwrap().priority == 200);
-        assert!(err2.payload::<RequestInfo>().is_some());
-        assert_eq!(err2.payload::<RequestInfo>().unwrap().id, "req_xyz_789");
+        assert!(err2.shell::<RequestInfo>().is_some());
+        assert_eq!(err2.shell::<RequestInfo>().unwrap().id, "req_xyz_789");
     }
 
     #[test]

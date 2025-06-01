@@ -4,5 +4,128 @@
 			"path": "."
 		}
 	],
-	"settings": {}
+	"settings": {
+		"rust-analyzer.checkOnSave.command": "clippy",
+		"rust-analyzer.checkOnSave.extraArgs": [
+			"--",
+			"-D",
+			"warnings"
+		],
+		"rust-analyzer.cargo.allFeatures": true,
+		"rust-analyzer.inlayHints.chainingHints.enable": true,
+		"rust-analyzer.inlayHints.typeHints.enable": true,
+		"editor.formatOnSave": true,
+		"editor.rulers": [
+			100
+		],
+		"files.eol": "\n",
+		"files.insertFinalNewline": true,
+		"files.trimTrailingWhitespace": true,
+		"files.exclude": {
+			"**/.git": true,
+			"**/target": true,
+			"**/*.rs.bk": true,
+			"**/.DS_Store": true
+		},
+		"[rust]": {
+			"editor.defaultFormatter": "rust-lang.rust-analyzer",
+			"editor.tabSize": 4,
+			"editor.insertSpaces": true
+		},
+		"cSpell.words": [
+			"arcmoon",
+			"yoshi",
+			"thiserror",
+			"backtrace",
+			"anyhow",
+			"miette",
+			"rustc",
+			"rustfmt"
+		],
+		"workbench.colorCustomizations": {
+			"activityBar.background": "#282B44",
+			"titleBar.activeBackground": "#3C3E61",
+			"titleBar.activeForeground": "#FBFBFD"
+		},
+		"todo-tree.general.tags": [
+			"TODO",
+			"FIXME",
+			"BUG",
+			"HACK",
+			"PERF",
+			"REVIEW",
+			"NOTE"
+		],
+		"gitlens.codeLens.enabled": true
+	},
+	"extensions": {
+		"recommendations": [
+			"rust-lang.rust-analyzer",
+			"tamasfe.even-better-toml",
+			"serayuzgur.crates",
+			"vadimcn.vscode-lldb",
+			"usernamehw.errorlens",
+			"streetsidesoftware.code-spell-checker",
+			"eamodio.gitlens",
+			"github.copilot",
+			"github.copilot-chat",
+			"shardulm94.trailing-spaces",
+			"gruntfuggly.todo-tree"
+		]
+	},
+	"launch": {
+		"version": "0.2.0",
+		"configurations": [
+			{
+				"type": "lldb",
+				"request": "launch",
+				"name": "Debug Example - Standard Usage",
+				"cargo": {
+					"args": [
+						"build",
+						"--example=standard_usage"
+					]
+				},
+				"args": []
+			},
+			{
+				"type": "lldb",
+				"request": "launch",
+				"name": "Debug Unit Tests",
+				"cargo": {
+					"args": [
+						"test",
+						"--no-run"
+					]
+				},
+				"args": []
+			},
+			{
+				"type": "lldb",
+				"request": "launch",
+				"name": "Debug Integration Tests",
+				"cargo": {
+					"args": [
+						"test",
+						"--test",
+						"test_macro",
+						"--no-run"
+					]
+				},
+				"args": []
+			},
+			{
+				"type": "lldb",
+				"request": "launch",
+				"name": "Debug Advanced Example",
+				"cargo": {
+					"args": [
+						"build",
+						"--example=advanced_usage"
+					]
+				},
+				"args": []
+			}
+		]
+	}
 }

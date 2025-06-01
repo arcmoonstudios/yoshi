@@ -72,7 +72,7 @@ yoshi = { version = "0.1.0", features = ["serde", "tracing"] }
 ### Basic Usage
 
 ```rust
-use yoshi::{Yoshi, YoshiKind, YoshiContextExt, Result};
+use yoshi::{Yoshi, YoshiKind, HatchExt, Result};
 
 fn load_config(path: &str) -> Result<String> {
     // Create structured errors with rich context
@@ -99,7 +99,7 @@ fn main() {
             // Rich error information with full context chain
             eprintln!("Error: {}", err);
             eprintln!("Context: {:#}", err.context_chain());
-            
+
             // Access structured error data
             if let YoshiKind::Io { path, .. } = err.kind() {
                 eprintln!("Failed file path: {:?}", path);
@@ -128,10 +128,10 @@ fn validate_user_input(input: &str) -> Result<(), Yoshi> {
         .with_suggestion("Provide a non-empty input value")
         .with_suggestion("Check input validation logic"));
     }
-    
+
     if input.len() > 1000 {
         return Err(Yoshi::new(YoshiKind::Validation {
-            field: "user_input".into(), 
+            field: "user_input".into(),
             message: "Input exceeds maximum length".into(),
             expected: Some("≤ 1000 characters".into()),
             actual: Some(format!("{} characters", input.len()).into()),
@@ -140,7 +140,7 @@ fn validate_user_input(input: &str) -> Result<(), Yoshi> {
         .with_metadata("max_length", "1000")
         .with_suggestion("Reduce input length to 1000 characters or less"));
     }
-    
+
     Ok(())
 }
 ```
@@ -176,7 +176,7 @@ let error = base_error
     .with_metadata("user_id", "user_67890")
     .with_suggestion("Try the operation again")
     .with_suggestion("Check system resources")
-    .with_payload(additional_debug_data);
+    .with_shell(additional_debug_data);
 ```
 
 ## 📊 Performance

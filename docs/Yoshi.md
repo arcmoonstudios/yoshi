@@ -72,10 +72,10 @@ File: lib.rs
 //!
 //! - [`Yoshi`]: The main error type, providing structured error handling capabilities.
 //! - [`YoshiKind`]: Defines high-level categories for errors.
-//! - [`YoshiContext`]: Stores additional contextual information for errors.
+//! - [`YoContext`]: Stores additional contextual information for errors.
 //! - [`YoshiLocation`]: Represents a source code location.
 //! - [`YoshiBacktrace`]: Wraps a standard library backtrace with performance metadata.
-//! - [`YoshiContextExt`]: An extension trait for `Result` to easily attach context.
+//! - [`HatchExt`]: An extension trait for `Result` to easily attach context.
 //! - [`NoStdIo`]: A minimal I/O error type for `no_std` environments (available in `no_std` environments).
 //! - [`Result`]: A type alias for `std::result::Result` or `core::result::Result` with `Yoshi` as the default error.
 //! - [`error_instance_count()`]: Global counter for Yoshi error instances.
@@ -123,9 +123,9 @@ File: lib.rs
 //! assert!(err4.suggestion().as_deref() == Some("Check your internet connection."));
 //! ```
 //!
-//! **Propagating `Yoshi` errors with `YoshiContextExt`:**
+//! **Propagating `Yoshi` errors with `HatchExt`:**
 //! ```
-//! use yoshi::{yoshi, Yoshi, YoshiKind, YoshiContextExt};
+//! use yoshi::{yoshi, Yoshi, YoshiKind, HatchExt};
 //! # use std::io::{self, ErrorKind};
 //!
 //! fn load_data() -> Result<(), Yoshi> {
@@ -160,7 +160,7 @@ File: lib.rs
 pub use yoshi_std::error_instance_count;
 
 // Main types and trait
-pub use yoshi_std::{Result, Yoshi, YoshiBacktrace, YoshiContext, YoshiContextExt, YoshiKind, YoshiLocation};
+pub use yoshi_std::{Result, Yoshi, YoshiBacktrace, YoContext, HatchExt, YoshiKind, YoshiLocation};
 
 // Import Arc from std or core based on feature flag
 #[cfg(feature = "std")]
@@ -226,7 +226,7 @@ pub use yoshi_derive::*;
 /// Optional trailing keyword arguments for chaining `Yoshi` builder methods:
 /// - `with_metadata = ($key:expr, $value:expr)`: Adds metadata.
 /// - `with_suggestion = $sugg:expr`: Adds a suggestion.
-/// - `with_payload = $payload:expr`: Adds a typed payload.
+/// - `with_shell = $shell:expr`: Adds a typed shell.
 /// - `with_priority = $priority:expr`: Sets the priority.
 ///
 /// # Examples
@@ -267,17 +267,17 @@ macro_rules! yoshi {
             component: None,
         })
     };
-    
+
     // Kind-based error creation
     (kind: $kind:expr) => {
         $crate::Yoshi::new($kind)
     };
-    
+
     // Error wrapping
     (error: $err:expr) => {
         $crate::Yoshi::foreign($err)
     };
-    
+
     // Message with additional attributes
     (message: $msg:expr, $($attr_key:ident = $attr_val:expr),+ $(,)?) => {{
         let mut __yoshi_instance = $crate::Yoshi::new($crate::YoshiKind::Internal {
@@ -290,7 +290,7 @@ macro_rules! yoshi {
         )+
         __yoshi_instance
     }};
-    
+
     // Kind with additional attributes
     (kind: $kind:expr, $($attr_key:ident = $attr_val:expr),+ $(,)?) => {{
         let mut __yoshi_instance = $crate::Yoshi::new($kind);
@@ -299,7 +299,7 @@ macro_rules! yoshi {
         )+
         __yoshi_instance
     }};
-    
+
     // Error with additional attributes
     (error: $err:expr, $($attr_key:ident = $attr_val:expr),+ $(,)?) => {{
         let mut __yoshi_instance = $crate::Yoshi::foreign($err);
@@ -316,8 +316,8 @@ macro_rules! yoshi {
     (@apply_attr $instance:expr, with_suggestion, $suggestion:expr) => {
         $instance.with_suggestion($suggestion)
     };
-    (@apply_attr $instance:expr, with_payload, $payload:expr) => {
-        $instance.with_payload($payload)
+    (@apply_attr $instance:expr, with_shell, $shell:expr) => {
+        $instance.with_shell($shell)
     };
     (@apply_attr $instance:expr, with_priority, $priority:expr) => {
         $instance.with_priority($priority)
@@ -411,7 +411,7 @@ File: lib.rs
 //!     #[yoshi(kind = "Timeout")]
 //!     #[yoshi(transient = true)]
 //!     DatabaseTimeout {
-//!         #[yoshi(payload)]
+//!         #[yoshi(shell)]
 //!         connection_info: DatabaseInfo,
 //!     },
 //! }
@@ -443,7 +443,7 @@ File: lib.rs
 //         message: String,
 //         #[yoshi(source)]
 //         cause: Box<dyn Error + Send + Sync + 'static>,
-//         #[yoshi(payload)]
+//         #[yoshi(shell)]
 //         system_state: SystemState,
 //     },
 // }
@@ -490,7 +490,7 @@ use quote::{format_ident, quote};
 use regex::Regex;
 use std::collections::HashMap;
 use syn::{
-    parse_macro_input, spanned::Spanned, Attribute, Data, DeriveInput, 
+    parse_macro_input, spanned::Spanned, Attribute, Data, DeriveInput,
     Error, Ident, Result, Type, Visibility, Generics,
 };
 
@@ -499,36 +499,36 @@ const ATTRIBUTE_SHORTCUTS: &[(&str, &str)] = &[
     // Network errors
     ("y_net", r#"yoshi(kind = "Network", display = "Network error: {message}")"#),
     ("y_timeout", r#"yoshi(kind = "Timeout", display = "Operation timed out: {operation}")"#),
-    
-    // I/O errors  
+
+    // I/O errors
     ("y_io", r#"yoshi(kind = "Io", display = "IO error: {source}")"#),
     ("y_file", r#"yoshi(kind = "Io", display = "File error: {source}")"#),
-    
+
     // Validation errors
     ("y_val", r#"yoshi(kind = "Validation", display = "Validation error: {field}")"#),
     ("y_parse", r#"yoshi(kind = "Validation", display = "Parse error: {message}")"#),
-    
+
     // Config errors
     ("y_cfg", r#"yoshi(kind = "Config", display = "Configuration error: {message}")"#),
     ("y_env", r#"yoshi(kind = "Config", display = "Environment error: {message}")"#),
-    
+
     // System errors
     ("y_sys", r#"yoshi(kind = "Internal", display = "System error: {message}")"#),
     ("y_db", r#"yoshi(kind = "Network", display = "Database error: {message}")"#),
 ];
 
 /// Global cache for compiled regex patterns to avoid recompilation.
-/// 
+///
 /// This cache leverages `once_cell` to provide thread-safe, lazy initialization
 /// of commonly used regex patterns, significantly improving compilation performance
 /// for large codebases with many error enums.
-/// 
+///
 /// # Performance Impact
-/// 
+///
 /// - First access: O(n) where n is pattern complexity
 /// - Subsequent accesses: O(1) with zero allocation
 /// - Memory overhead: ~1KB for all cached patterns
-static REGEX_CACHE: once_cell::sync::Lazy<HashMap<&'static str, Regex>> = 
+static REGEX_CACHE: once_cell::sync::Lazy<HashMap<&'static str, Regex>> =
     once_cell::sync::Lazy::new(|| {
         let mut cache = HashMap::new();
         cache.insert("display_placeholder", Regex::new(r"\{(\w+)\}").unwrap());
@@ -539,22 +539,22 @@ static REGEX_CACHE: once_cell::sync::Lazy<HashMap<&'static str, Regex>> =
     });
 
 /// Configuration for the derive macro with comprehensive validation and Rust 1.87 enhancements.
-/// 
+///
 /// This structure defines all available options for customizing the behavior of the
 /// `YoshiError` derive macro. It leverages `darling`'s powerful attribute parsing
 /// capabilities to provide a type-safe and user-friendly configuration interface.
-/// 
+///
 /// # Rust 1.87 Enhancements
-/// 
+///
 /// - Precise capturing support for better async/Send bounds
 /// - Enhanced validation with improved error reporting
 /// - Performance monitoring integration
-/// 
+///
 /// # Examples
-/// 
+///
 /// ```rust
 /// use yoshi_derive::YoshiError;
-/// 
+///
 /// #[derive(Debug, YoshiError)]
 /// #[yoshi(error_code_prefix = "HTTP")]
 /// #[yoshi(default_severity = 50)]
@@ -569,69 +569,69 @@ static REGEX_CACHE: once_cell::sync::Lazy<HashMap<&'static str, Regex>> =
 struct YoshiErrorOpts {
     /// The identifier of the error enum
     ident: Ident,
-    
+
     /// Visibility specifier for the enum - used for generating helper methods
     #[allow(dead_code)]
     vis: Visibility,
-    
+
     /// Generic parameters of the enum
     generics: Generics,
-    
+
     /// Variant data parsed by darling
     data: darling::ast::Data<YoshiVariantOpts, ()>,
-    
+
     /// Global error code prefix for this enum (e.g., "HTTP", "DB", "AUTH")
     #[darling(default)]
     error_code_prefix: Option<String>,
-    
+
     /// Default severity level for variants without explicit severity (0-255)
     #[darling(default = "yoshi_default_severity")]
     default_severity: u8,
-    
+
     /// Whether to generate performance monitoring code for this enum
     #[darling(default)]
     performance_monitoring: bool,
-    
+
     /// Whether to generate tracing integration for this enum
     #[darling(default)]
     tracing_integration: bool,
-    
+
     /// Custom documentation prefix for generated implementations
     #[darling(default)]
     doc_prefix: Option<String>,
-    
+
     /// Enable Rust 1.87 precise capturing features
     #[darling(default)]
     precise_capturing: bool,
 }
 
 /// Returns the default severity level for error variants.
-/// 
+///
 /// This function provides a sensible default severity level that represents
 /// a medium-priority error suitable for most common error conditions.
-/// 
+///
 /// # Returns
-/// 
+///
 /// Returns 50 as the default severity level (on a scale of 0-255).
 fn yoshi_default_severity() -> u8 { 50 }
 
 /// Configuration for individual error variants with enhanced attribute support.
-/// 
+///
 /// This structure defines all available options for customizing individual variants
 /// within an error enum. It supports advanced features like error code assignment,
 /// severity levels, transient error classification, and automated context generation.
-/// 
+///
 /// # Rust 1.87 Enhancements
-/// 
+///
 /// - Enhanced validation with improved error messages
 /// - Better integration with precise capturing
 /// - Performance hints for code generation
-/// 
+///
 /// # Examples
-/// 
+///
 /// ```rust
 /// use yoshi_derive::YoshiError;
-/// 
+///
 /// #[derive(Debug, YoshiError)]
 /// pub enum MyError {
 ///     #[yoshi(display = "Network error: {message}")]
@@ -654,68 +654,68 @@ struct YoshiVariantOpts {
     ident: Ident,
     /// Fields within this variant
     fields: darling::ast::Fields<YoshiFieldOpts>,
-    
+
     /// Custom display format string for this variant using placeholder syntax
     display: Option<String>,
-    
+
     /// Maps this variant to a specific YoshiKind (e.g., "Network", "Config", "Validation")
     #[darling(default)]
     kind: Option<String>,
-    
+
     /// Unique error code for this specific variant (must be unique within enum)
     #[darling(default)]
     error_code: Option<u32>,
-    
+
     /// Severity level for this variant (0-255, higher is more severe)
     #[darling(default)]
     severity: Option<u8>,
-    
+
     /// Whether this error is transient (retryable) - affects auto-retry logic
     #[darling(default)]
     transient: bool,
-    
+
     /// Default context message to be added automatically
     #[darling(default)]
     context: Option<String>,
-    
+
     /// Default suggestion for recovery to be added automatically
     #[darling(default)]
     suggestion: Option<String>,
-    
+
     /// Custom conversion logic function name for advanced error mapping
     #[darling(default)]
     convert_with: Option<String>,
-    
+
     /// Documentation comment for this variant - used in generated docs
     #[darling(default)]
     doc: Option<String>,
 }
 
 /// Configuration for individual fields within variants with comprehensive attribute support.
-/// 
+///
 /// This structure defines how individual fields within error variant structs should be
 /// processed during code generation. It supports various roles like source error chaining,
 /// context metadata, typed payloads, and custom formatting.
-/// 
+///
 /// # Field Roles
-/// 
+///
 /// - **Source**: The field contains the underlying cause of the error
 /// - **Context**: The field should be added to error context metadata
-/// - **Payload**: The field should be attached as a typed payload
+/// - **Shell**: The field should be attached as a typed shell
 /// - **Skip**: The field should be ignored in Display formatting
-/// 
+///
 /// # Examples
-/// 
+///
 // ```rust,ignore
 // use yoshi_derive::YoshiError;
 // use std::path::PathBuf;
 // use std::time::SystemTime;
-// 
+//
 // // Helper function to format PathBuf for display since it doesn't implement Display
 // fn format_path(path: &PathBuf) -> String {
 //     path.display().to_string()
 // }
-// 
+//
 // #[derive(Debug, YoshiError)]
 // pub enum DetailedError {
 //     #[yoshi(display = "File operation failed: {operation} on {path_display}")]
@@ -728,7 +728,7 @@ struct YoshiVariantOpts {
 //         #[yoshi(format_with = "format_path")]
 //         #[yoshi(context = "path_display")]
 //         path_display: PathBuf,
-//         #[yoshi(payload)]
+//         #[yoshi(shell)]
 //         file_metadata: FileMetadata,
 //         #[yoshi(skip)]
 //         internal_state: InternalState,
@@ -736,18 +736,18 @@ struct YoshiVariantOpts {
 //         operation: String,
 //     },
 // }
-// 
+//
 // #[derive(Debug)]
 // struct FileMetadata {
 //     size: u64,
 //     modified: SystemTime,
 // }
-// 
+//
 // #[derive(Debug)]
 // struct InternalState {
 //     retry_count: u32,
 // }
-// 
+//
 // fn custom_format(op: &String) -> String {
 //     format!("Operation: {}", op.to_uppercase())
 // }
@@ -759,35 +759,35 @@ struct YoshiFieldOpts {
     ident: Option<Ident>,
     /// Type of this field
     ty: Type,
-    
+
     /// Mark this field as the error source (only one per variant)
     #[darling(default)]
     source: bool,
-    
+
     /// Add this field to error context metadata with optional key name
     #[darling(default)]
     context: Option<String>,
-    
-    /// Add this field as a typed payload accessible via Error::provide
+
+    /// Add this field as a typed shell accessible via Error::provide
     #[darling(default)]
-    payload: bool,
-    
+    shell: bool,
+
     /// Skip this field in Display formatting (useful for internal state)
     #[darling(default)]
     skip: bool,
-    
+
     /// Custom formatting function for this field in Display output
     #[darling(default)]
     format_with: Option<String>,
-    
+
     /// Enable automatic From conversion for this field type
     #[darling(default)]
     from: bool,
-    
+
     /// Add this field as a suggestion for recovery
     #[darling(default)]
     suggestion: Option<String>,
-    
+
     /// Documentation comment for this field - used in generated docs
     #[allow(dead_code)]
     #[darling(default)]
@@ -795,19 +795,19 @@ struct YoshiFieldOpts {
 }
 
 /// Enhanced validation context for comprehensive error checking and performance analysis.
-/// 
+///
 /// This structure accumulates validation errors, warnings, and performance hints during
 /// the macro expansion process. It provides detailed error reporting with precise source
 /// location information and helpful suggestions for developers.
-/// 
+///
 /// # Error Categories
-/// 
+///
 /// - **Errors**: Fatal issues that prevent code generation
 /// - **Warnings**: Non-fatal issues that may cause runtime problems
 /// - **Performance Hints**: Suggestions for optimizing generated code
-/// 
+///
 /// # Rust 1.87 Enhancements
-/// 
+///
 /// - Enhanced error reporting with better span information
 /// - Performance analysis integration
 /// - Validation caching for incremental compilation
@@ -822,12 +822,12 @@ struct ValidationContext {
 
 impl ValidationContext {
     /// Creates a new empty validation context.
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// A new `ValidationContext` with empty error, warning, and hint collections.
     ///    /// # Examples
-    /// 
+    ///
     /// ```rust,no_run
     /// # use yoshi_derive::*;
     /// # use proc_macro2::Span;
@@ -858,15 +858,15 @@ impl ValidationContext {
             performance_hints: Vec::new(),
         }
     }
-    
+
     /// Adds a fatal error with precise source location information.
-    /// 
+    ///
     /// # Parameters
-    /// 
+    ///
     /// - `span`: The source code span where the error occurred
     /// - `message`: A descriptive error message for the developer
     ///    /// # Examples
-    /// 
+    ///
     /// ```rust,no_run
     /// # use yoshi_derive::*;
     /// # use proc_macro2::Span;
@@ -895,14 +895,14 @@ impl ValidationContext {
     fn error(&mut self, span: Span, message: impl Into<String>) {
         self.errors.push(Error::new(span, message.into()));
     }
-    
+
     /// Adds a non-fatal warning about potential issues.
-    /// 
+    ///
     /// # Parameters
-    /// 
+    ///
     /// - `message`: A descriptive warning message
     ///    /// # Examples
-    /// 
+    ///
     /// ```rust,no_run
     /// # use yoshi_derive::*;
     /// # struct ValidationContext {
@@ -929,14 +929,14 @@ impl ValidationContext {
     fn warning(&mut self, message: impl Into<String>) {
         self.warnings.push(message.into());
     }
-    
+
     /// Adds a performance optimization hint.
-    /// 
+    ///
     /// # Parameters
-    /// 
+    ///
     /// - `message`: A descriptive hint for performance improvement
     ///    /// # Examples
-    /// 
+    ///
     /// ```rust,no_run
     /// # use yoshi_derive::*;
     /// # struct ValidationContext {
@@ -963,20 +963,20 @@ impl ValidationContext {
     fn performance_hint(&mut self, message: impl Into<String>) {
         self.performance_hints.push(message.into());
     }
-    
+
     /// Finalizes validation and returns the result.
-    /// 
+    ///
     /// This method processes all accumulated errors, warnings, and hints,
     /// emitting diagnostics as appropriate and returning a `Result` indicating
     /// whether validation was successful.
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// - `Ok(())` if no fatal errors were encountered
     /// - `Err(Error)` if fatal errors prevent compilation
-    /// 
+    ///
     /// # Side Effects
-    /// 
+    ///
     /// - Emits warnings to stderr
     /// - Emits performance hints when the appropriate feature is enabled
     fn finish(self) -> Result<()> {
@@ -988,47 +988,47 @@ impl ValidationContext {
             }
             return Err(combined);
         }
-        
+
         // Emit warnings and performance hints as compile-time messages
         for warning in self.warnings {
             // Using eprintln! for warnings since proc_macro::Diagnostic is still unstable in Rust 1.87
             // TODO: Migrate to proc_macro::Diagnostic when it stabilizes
             eprintln!("warning: {}", warning);
         }
-        
+
         for hint in self.performance_hints {
             eprintln!("performance hint: {}", hint);
         }
-        
+
         Ok(())
     }
 }
 
 /// Main derive macro for YoshiError with comprehensive error handling and Rust 1.87 enhancements.
-/// 
+///
 /// This procedural macro generates comprehensive error handling implementations for custom
 /// error enums, including `Display`, `std::error::Error`, and conversion to `yoshi_std::Yoshi`.
 /// It leverages Rust 1.87's enhanced macro system for optimal code generation and error reporting.
-/// 
+///
 /// # Generated Implementations
-/// 
+///
 /// - `impl Display` with customizable format strings
 /// - `impl std::error::Error` with proper source chaining
 /// - `impl From<T> for yoshi_std::Yoshi` with intelligent kind mapping
 /// - Performance monitoring integration (if enabled)
 /// - Tracing integration (if enabled)
-/// 
+///
 /// # Rust 1.87 Features Used
-/// 
+///
 /// - Precise capturing for better async/Send bounds
 /// - Enhanced hygiene for macro-generated code
 /// - Improved error reporting with span information
-/// 
+///
 /// # Examples
-/// 
+///
 /// ```rust
 /// use yoshi_derive::YoshiError;
-/// 
+///
 /// #[derive(Debug, YoshiError)]
 /// pub enum MyError {
 ///     #[yoshi(display = "IO operation failed: {message}")]
@@ -1036,15 +1036,15 @@ impl ValidationContext {
 ///     IoError { message: String },
 /// }
 /// ```
-/// 
+///
 /// # Attributes
-/// 
+///
 /// The macro supports extensive customization through `#[yoshi(...)]` attributes.
 /// See the module-level documentation for comprehensive examples.
 #[proc_macro_derive(YoshiError, attributes(yoshi))]
 pub fn yoshi_error_derive(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
-    
+
     match yoshi_error_derive_impl(input) {
         Ok(tokens) => tokens.into(),
         Err(error) => error.to_compile_error().into(),
@@ -1052,58 +1052,58 @@ pub fn yoshi_error_derive(input: TokenStream) -> TokenStream {
 }
 
 /// Implementation of the derive macro with advanced error handling and optimization.
-/// 
+///
 /// This function orchestrates the entire code generation process, from parsing and
 /// validation through to final code emission. It employs a multi-phase approach
 /// for optimal error handling and performance.
-/// 
+///
 /// # Process Flow
-/// 
+///
 /// 1. **Parsing**: Extract configuration from derive input using `darling`
 /// 2. **Validation**: Comprehensive error checking and performance analysis
 /// 3. **Code Generation**: Multi-threaded generation of implementation blocks
 /// 4. **Optimization**: Application of Rust 1.87 performance enhancements
 /// 5. **Assembly**: Combination of all generated code into final output
-/// 
+///
 /// # Parameters
-/// 
+///
 /// - `input`: The parsed derive input containing the error enum definition
-/// 
+///
 /// # Returns
-/// 
+///
 /// - `Ok(TokenStream2)`: Successfully generated implementation code
 /// - `Err(Error)`: Compilation error with detailed diagnostic information
-/// 
+///
 /// # Performance Characteristics
-/// 
+///
 /// - Time Complexity: O(V + A + F) where V=variants, A=attributes, F=fields
 /// - Space Complexity: O(V) for variant analysis with memoization
 /// - Expected Runtime: <100ms for typical error enums
 fn yoshi_error_derive_impl(input: DeriveInput) -> Result<TokenStream2> {
     // Clone the input for attribute expansion
     let mut input_with_expanded_attrs = input;
-    
+
     // Pre-process attributes to expand shortcuts
     expand_attribute_shortcuts(&mut input_with_expanded_attrs.attrs);
-    
+
     // Process variants to expand their attribute shortcuts
     if let Data::Enum(ref mut data_enum) = input_with_expanded_attrs.data {
         for variant in &mut data_enum.variants {
             expand_attribute_shortcuts(&mut variant.attrs);
-            
+
             // Process fields within variants
             for field in variant.fields.iter_mut() {
                 expand_attribute_shortcuts(&mut field.attrs);
             }
         }
     }
-    
+
     let mut opts = YoshiErrorOpts::from_derive_input(&input_with_expanded_attrs)?;
     let mut validation = ValidationContext::new();
-    
+
     // Apply auto-inference before validation
     apply_auto_inference(&mut opts)?;
-    
+
     // Extract variants data once and ensure it's an enum
     let variants = match &opts.data {
         darling::ast::Data::Enum(variants) => variants,
@@ -1112,37 +1112,37 @@ fn yoshi_error_derive_impl(input: DeriveInput) -> Result<TokenStream2> {
 
     // Phase 1: Comprehensive validation
     validate_enum_structure(&opts, variants, &mut validation)?;
-    
+
     // Phase 2: Code generation with parallel processing
     let display_impl = generate_display_impl(&opts, variants, &mut validation)?;
     let error_impl = generate_error_impl(&opts, variants, &mut validation)?;
     let yoshi_conversion_impl = generate_yoshi_conversion(&opts, variants, &mut validation)?;
     let additional_impls = generate_additional_impls(&opts, variants, &mut validation)?;
-    
+
     // Phase 2.5: Advanced feature generation
     let performance_monitoring = if opts.performance_monitoring {
         generate_performance_monitoring(&opts, variants)?
     } else {
         quote! {}
     };
-    
+
     let tracing_integration = if opts.tracing_integration {
         generate_tracing_integration(&opts, variants)?
     } else {
         quote! {}
     };
-    
+
     let precise_capturing_traits = if opts.precise_capturing {
         generate_precise_capturing_traits(&opts, variants)?
     } else {
         quote! {}
     };
-    
+
     let documentation_impl = generate_comprehensive_documentation(&opts, variants)?;
-    
+
     // Phase 3: Finalize validation and emit diagnostics
     validation.finish()?;
-    
+
     // Phase 4: Assemble final implementation with documentation
     Ok(quote! {
         #documentation_impl
@@ -1157,22 +1157,22 @@ fn yoshi_error_derive_impl(input: DeriveInput) -> Result<TokenStream2> {
 }
 
 /// Expands shorthand attributes to their full `yoshi` attribute form.
-/// 
+///
 /// This function efficiently processes shorthand attributes by iterating through the
 /// attribute vector and replacing recognized shortcuts with their expanded forms.
 /// Implements an optimized pattern-matching approach for high-performance attribute expansion.
-/// 
+///
 /// # Parameters
-/// 
+///
 /// - `attrs`: A mutable reference to a `Vec<Attribute>` to be modified in place.
 fn expand_attribute_shortcuts(attrs: &mut Vec<Attribute>) {
     for attr in attrs.iter_mut() {
         if let Some(ident) = attr.path().get_ident() {
             let attr_name = ident.to_string();
-            
+
             // Check if it's a shortcut
             if let Some((_, expansion)) = ATTRIBUTE_SHORTCUTS.iter()
-                .find(|(short, _)| *short == attr_name) 
+                .find(|(short, _)| *short == attr_name)
             {
                 // Replace with expanded form
                 // Parse the expansion as a new attribute
@@ -1185,16 +1185,16 @@ fn expand_attribute_shortcuts(attrs: &mut Vec<Attribute>) {
 }
 
 /// Applies auto-inference to all variants in the parsed options.
-/// 
+///
 /// This function processes all variants in the enum, applying attribute
 /// auto-inference to infer missing attributes from naming patterns and field types.
-/// 
+///
 /// # Parameters
-/// 
+///
 /// - `opts`: The parsed error enum options
-/// 
+///
 /// # Returns
-/// 
+///
 /// - `Ok(())`: Auto-inference completed successfully
 /// - `Err(Error)`: Auto-inference encountered a fatal error
 fn apply_auto_inference(opts: &mut YoshiErrorOpts) -> Result<()> {
@@ -1207,13 +1207,13 @@ fn apply_auto_inference(opts: &mut YoshiErrorOpts) -> Result<()> {
 }
 
 /// Comprehensive auto-inference logic for Yoshi attributes.
-/// 
+///
 /// This function analyzes variant names and field types to automatically infer
 /// appropriate YoshiError attributes, reducing boilerplate and improving developer
 /// ergonomics while maintaining full customization capability.
-/// 
+///
 /// # Inference Rules
-/// 
+///
 /// ## Variant Name Pattern Matching
 /// - Names containing "io", "file" → `kind = "Io"`
 /// - Names containing "network", "connection", "http" → `kind = "Network"`
@@ -1223,30 +1223,30 @@ fn apply_auto_inference(opts: &mut YoshiErrorOpts) -> Result<()> {
 /// - Names containing "not_found", "missing" → `kind = "NotFound"`
 /// - Names containing "internal", "bug", "panic" → `kind = "Internal"`
 /// - Names containing "resource", "limit", "quota" → `kind = "ResourceExhausted"`
-/// 
+///
 /// ## Field Type Analysis
 /// - `std::io::Error` → `source = true`
-/// - `Box<dyn std::error::Error>` → `source = true`  
+/// - `Box<dyn std::error::Error>` → `source = true`
 /// - `reqwest::Error` → `source = true`
 /// - Field names containing "path", "file" → `context = "file_path"`
 /// - Field names containing "url", "uri" → `context = "endpoint"`
 /// - Field names containing "user", "id" → `context = "identifier"`
-/// 
+///
 /// ## Display Format Inference
 /// - Single field variants get `display = "{variant_name}: {field}"`
 /// - Multi-field variants get contextual formatting based on field names
-/// 
+///
 /// # Parameters
-/// 
+///
 /// - `variant`: The variant to apply auto-inference to
-/// 
+///
 /// # Returns
-/// 
+///
 /// - `Ok(())`: Inference applied successfully
 /// - `Err(Error)`: Inference encountered an error
 fn infer_yoshi_attributes(variant: &mut YoshiVariantOpts) -> Result<()> {
     let variant_name = variant.ident.to_string().to_lowercase();
-    
+
     // Infer YoshiKind based on variant name patterns
     if variant.kind.is_none() {
         variant.kind = Some(match () {
@@ -1261,7 +1261,7 @@ fn infer_yoshi_attributes(variant: &mut YoshiVariantOpts) -> Result<()> {
             _ => "Foreign", // Default fallback
         }.to_string());
     }
-    
+
     // Infer severity based on variant name and kind
     if variant.severity.is_none() {
         variant.severity = Some(match variant.kind.as_deref() {
@@ -1276,24 +1276,24 @@ fn infer_yoshi_attributes(variant: &mut YoshiVariantOpts) -> Result<()> {
             _ => 75, // Default medium severity
         });
     }
-    
+
     // Analyze fields for auto-inference
-    let is_single_tuple_field = variant.fields.fields.len() == 1 && 
+    let is_single_tuple_field = variant.fields.fields.len() == 1 &&
                                matches!(variant.fields.style, Style::Tuple);
-    
+
     for field in variant.fields.fields.iter_mut() {
         // Infer source fields based on type analysis
         if !field.source && is_error_type(&field.ty) {
             field.source = true;
         }
-        
+
         // Infer context based on field names
         if field.context.is_none() {
             if let Some(ref field_name) = field.ident {
                 let name: String = field_name.to_string().to_lowercase();
                 field.context = Some(match () {
                     _ if name.contains("path") || name.contains("file") => "file_path",
-                    _ if name.contains("url") || name.contains("uri") => "endpoint",  
+                    _ if name.contains("url") || name.contains("uri") => "endpoint",
                     _ if name.contains("user") || name.contains("id") => "identifier",
                     _ if name.contains("host") || name.contains("server") => "server",
                     _ if name.contains("port") => "port",
@@ -1304,51 +1304,51 @@ fn infer_yoshi_attributes(variant: &mut YoshiVariantOpts) -> Result<()> {
                 }.to_string());
             }
         }
-        
+
         // Infer from conversions for simple single-field variants
         if !field.from && is_single_tuple_field {
             field.from = true; // Enable From conversion for single unnamed field
         }
     }
-    
+
     // Infer display format if not provided
     if variant.display.is_none() {
         variant.display = Some(generate_inferred_display_format(variant));
     }
-    
+
     // Infer transient flag based on error kind
     if !variant.transient {
-        variant.transient = matches!(variant.kind.as_deref(), 
+        variant.transient = matches!(variant.kind.as_deref(),
             Some("Network") | Some("Timeout") | Some("ResourceExhausted"));
     }
-    
+
     Ok(())
 }
 
 /// Analyzes a type to determine if it represents an error type suitable for source chaining.
-/// 
+///
 /// This function performs comprehensive type analysis to identify common error types
 /// that should be marked as source fields for proper error chaining.
-/// 
+///
 /// # Supported Error Types
-/// 
+///
 /// - `std::io::Error`
 /// - `Box<dyn std::error::Error>`
 /// - `Box<dyn std::error::Error + Send>`
-/// - `Box<dyn std::error::Error + Sync>`  
+/// - `Box<dyn std::error::Error + Sync>`
 /// - `Box<dyn std::error::Error + Send + Sync>`
 /// - Common third-party error types (reqwest, serde_json, etc.)
-/// 
+///
 /// # Parameters
-/// 
+///
 /// - `ty`: The type to analyze
-/// 
+///
 /// # Returns
-/// 
+///
 /// `true` if the type appears to be an error type suitable for source chaining
 fn is_error_type(ty: &Type) -> bool {
     let type_string = quote! { #ty }.to_string();
-    
+
     // Check for common error types
     type_string.contains("std :: io :: Error") ||
     type_string.contains("Box < dyn std :: error :: Error") ||
@@ -1362,24 +1362,24 @@ fn is_error_type(ty: &Type) -> bool {
 }
 
 /// Generates an inferred display format based on variant structure and field analysis.
-/// 
+///
 /// This function creates contextually appropriate display format strings by analyzing
 /// the variant's fields and their semantic meaning, providing meaningful default
 /// error messages without requiring explicit configuration.
-/// 
+///
 /// # Format Generation Strategy
-/// 
+///
 /// - **Unit variants**: Use variant name directly
 /// - **Single field**: `"{variant_name}: {field}"`
 /// - **Multiple fields**: Contextual formatting based on field names and types
 /// - **Source fields**: Special handling to show error chaining
-/// 
+///
 /// # Parameters
-/// 
+///
 /// - `variant`: The variant to generate a display format for
-/// 
+///
 /// # Returns
-/// 
+///
 /// An inferred display format string optimized for the variant structure
 fn generate_inferred_display_format(variant: &YoshiVariantOpts) -> String {
     match variant.fields.style {
@@ -1397,21 +1397,21 @@ fn generate_inferred_display_format(variant: &YoshiVariantOpts) -> String {
         Style::Struct => {
             let fields = &variant.fields.fields;
             let mut format_parts = vec![format!("{}", variant.ident)];
-            
+
             // Prioritize important fields for display
             let important_fields: Vec<_> = fields.iter()
                 .filter(|f| !f.skip && f.ident.is_some())
                 .collect();
-                
+
             if important_fields.is_empty() {
                 return format!("{}", variant.ident);
             }
-            
+
             // Add contextual field information
             for field in important_fields.iter().take(3) { // Limit to 3 fields for readability
                 if let Some(ref field_name) = field.ident {
                     let name = field_name.to_string();
-                    
+
                     if field.source {
                         format_parts.push(format!("caused by {{{}}}", name));
                     } else if name.to_lowercase().contains("message") {
@@ -1421,12 +1421,12 @@ fn generate_inferred_display_format(variant: &YoshiVariantOpts) -> String {
                     }
                 }
             }
-            
+
             format_parts.join(" - ")
         }
         Style::Tuple => {
             // Multi-field tuple variant
-            format!("{}: {}", variant.ident, 
+            format!("{}: {}", variant.ident,
                 (0..variant.fields.fields.len())
                     .map(|i| format!("{{{}}}", i))
                     .collect::<Vec<_>>()
@@ -1436,27 +1436,27 @@ fn generate_inferred_display_format(variant: &YoshiVariantOpts) -> String {
 }
 
 /// Validates the enum structure for common issues and optimization opportunities.
-/// 
+///
 /// This function performs comprehensive validation of the error enum structure,
 /// checking for common issues like duplicate error codes, invalid configurations,
 /// and performance anti-patterns. It also provides optimization suggestions.
-/// 
+///
 /// # Validation Checks
-/// 
+///
 /// - Enum is not empty
 /// - Error codes are unique within the enum
 /// - Variant configurations are valid
 /// - Field configurations are consistent
 /// - Performance optimization opportunities
-/// 
+///
 /// # Parameters
-/// 
+///
 /// - `opts`: The parsed enum configuration
 /// - `variants`: A slice of `YoshiVariantOpts` representing the enum variants.
 /// - `validation`: Validation context for error accumulation
-/// 
+///
 /// # Returns
-/// 
+///
 /// - `Ok(())`: Validation passed successfully
 /// - `Err(Error)`: Fatal validation errors encountered
 fn validate_enum_structure(opts: &YoshiErrorOpts, variants: &[YoshiVariantOpts], validation: &mut ValidationContext) -> Result<()> {
@@ -1465,7 +1465,7 @@ fn validate_enum_structure(opts: &YoshiErrorOpts, variants: &[YoshiVariantOpts],
         validation.error(opts.ident.span(), "Error enum cannot be empty");
         return Ok(());
     }
-    
+
     // Performance analysis for large enums
     if variants.len() > 50 {
         validation.performance_hint(format!(
@@ -1473,7 +1473,7 @@ fn validate_enum_structure(opts: &YoshiErrorOpts, variants: &[YoshiVariantOpts],
             variants.len()
         ));
     }
-    
+
     // Validate error code prefix if provided
     if let Some(ref prefix) = opts.error_code_prefix {
         let prefix_regex = REGEX_CACHE.get("error_code_pattern").unwrap();
@@ -1484,12 +1484,12 @@ fn validate_enum_structure(opts: &YoshiErrorOpts, variants: &[YoshiVariantOpts],
             );
         }
     }
-    
+
     // Validate individual variants
     for variant in variants {
         validate_variant(variant, validation)?;
     }
-    
+
     // Check for duplicate error codes across variants
     let mut error_codes = HashMap::new();
     for variant in variants {
@@ -1502,7 +1502,7 @@ fn validate_enum_structure(opts: &YoshiErrorOpts, variants: &[YoshiVariantOpts],
             }
         }
     }
-    
+
     // Performance optimization suggestions
     let total_fields: usize = variants.iter().map(|v| v.fields.len()).sum();
     if total_fields > 100 {
@@ -1510,31 +1510,31 @@ fn validate_enum_structure(opts: &YoshiErrorOpts, variants: &[YoshiVariantOpts],
             "Consider using Box<T> for large field types to reduce enum size"
         );
     }
-    
+
     Ok(())
 }
 
 /// Validates individual variant configuration for correctness and performance.
-/// 
+///
 /// This function performs detailed validation of each error variant, checking
 /// display format strings, YoshiKind mappings, severity levels, and field
 /// configurations for consistency and correctness.
-/// 
+///
 /// # Validation Areas
-/// 
+///
 /// - Display format string validation with placeholder checking
 /// - YoshiKind mapping validation against known types
 /// - Severity level range checking and recommendations
 /// - Field configuration consistency checking
 /// - Source field uniqueness validation
-/// 
+///
 /// # Parameters
-/// 
+///
 /// - `variant`: The variant configuration to validate
 /// - `validation`: Validation context for error accumulation
-/// 
+///
 /// # Returns
-/// 
+///
 /// - `Ok(())`: Variant validation passed
 /// - `Err(Error)`: Fatal validation errors in variant
 fn validate_variant(variant: &YoshiVariantOpts, validation: &mut ValidationContext) -> Result<()> {
@@ -1542,12 +1542,12 @@ fn validate_variant(variant: &YoshiVariantOpts, validation: &mut ValidationConte
     if let Some(ref display_format) = variant.display {
         validate_display_format(display_format, variant, validation)?;
     }
-    
+
     // Validate YoshiKind mapping
     if let Some(ref kind) = variant.kind {
         validate_yoshi_kind_mapping(kind, variant, validation)?;
     }
-    
+
     // Validate severity level with enhanced recommendations
     if let Some(severity) = variant.severity {
         match severity {
@@ -1557,17 +1557,17 @@ fn validate_variant(variant: &YoshiVariantOpts, validation: &mut ValidationConte
             _ => {} // Normal severity range
         }
     }
-    
+
     // Validate transient flag with context
     if variant.transient && variant.kind.as_deref() == Some("Internal") {
         validation.warning("Internal errors are typically not transient - consider using Network or Timeout kinds");
     }
-    
+
     // Validate fields with comprehensive checking
     for field in variant.fields.iter() {
         validate_field(field, validation)?;
     }
-    
+
     // Check for source field requirements and consistency
     let source_fields: Vec<_> = variant.fields.iter().filter(|f| f.source).collect();
     match source_fields.len() {
@@ -1589,31 +1589,31 @@ fn validate_variant(variant: &YoshiVariantOpts, validation: &mut ValidationConte
             );
         }
     }
-    
+
     Ok(())
 }
 
 /// Validates display format strings for correctness and performance characteristics.
-/// 
+///
 /// This function analyzes display format strings to ensure all placeholders
 /// correspond to actual fields, validates escape sequences, and provides
 /// performance recommendations for complex formatting operations.
-/// 
+///
 /// # Validation Checks
-/// 
+///
 /// - Placeholder field name validation
 /// - Escape sequence correctness
 /// - Performance impact analysis
 /// - Format string complexity assessment
-/// 
+///
 /// # Parameters
-/// 
+///
 /// - `format_str`: The display format string to validate
 /// - `variant`: The variant containing the format string
 /// - `validation`: Validation context for error accumulation
-/// 
+///
 /// # Returns
-/// 
+///
 /// - `Ok(())`: Format string validation passed
 /// - `Err(Error)`: Format string validation failed
 fn validate_display_format(format_str: &str, variant: &YoshiVariantOpts, validation: &mut ValidationContext) -> Result<()> {
@@ -1621,52 +1621,52 @@ fn validate_display_format(format_str: &str, variant: &YoshiVariantOpts, validat
     let field_names: std::collections::HashSet<_> = variant.fields.iter()
         .filter_map(|f| f.ident.as_ref().map(|i| i.to_string()))
         .collect();
-    
+
     // Validate all placeholders in the format string
     for cap in placeholder_regex.captures_iter(format_str) {
         let placeholder = &cap[1];
-        
+
         // Check if placeholder corresponds to a field or special keyword
         if placeholder != "source" && !field_names.contains(placeholder) {
             validation.error(
                 variant.ident.span(),
-                format!("Display format references unknown field '{}'. Available fields: {:?}", 
+                format!("Display format references unknown field '{}'. Available fields: {:?}",
                        placeholder, field_names)
             );
         }
     }
-    
+
     // Performance analysis for format strings
     match format_str.len() {
         0..=50 => {}, // Optimal range
         51..=200 => validation.performance_hint("Moderately long format strings may impact formatting performance"),
         _ => validation.performance_hint("Very long format strings may significantly impact runtime performance - consider simplifying"),
     }
-    
+
     // Check for potential formatting issues
     if format_str.contains("{{") || format_str.contains("}}") {
         validation.warning("Escaped braces in format strings may indicate unintended literal braces");
     }
-    
+
     // Validate placeholder count for performance
     let placeholder_count = placeholder_regex.find_iter(format_str).count();
     if placeholder_count > 10 {
         validation.performance_hint("Format strings with many placeholders may benefit from custom Display implementation");
     }
-    
+
     Ok(())
 }
 
 /// Validates YoshiKind mapping for correctness and consistency.
-/// 
+///
 /// This function ensures that specified YoshiKind values correspond to actual
 /// enum variants in the yoshi-std crate and provides suggestions for optimal
 /// error categorization.
-/// 
+///
 /// # Valid YoshiKind Values
-/// 
+///
 /// - `Io`: I/O related errors
-/// - `Network`: Network connectivity and protocol errors  
+/// - `Network`: Network connectivity and protocol errors
 /// - `Config`: Configuration and settings errors
 /// - `Validation`: Input validation and constraint errors
 /// - `Internal`: Internal logic and invariant errors
@@ -1675,23 +1675,23 @@ fn validate_display_format(format_str: &str, variant: &YoshiVariantOpts, validat
 /// - `ResourceExhausted`: Resource exhaustion errors
 /// - `Foreign`: Wrapping of external error types
 /// - `Multiple`: Multiple related errors
-/// 
+///
 /// # Parameters
-/// 
+///
 /// - `kind`: The YoshiKind string to validate
 /// - `variant`: The variant containing the kind specification
 /// - `validation`: Validation context for error accumulation
-/// 
+///
 /// # Returns
-/// 
+///
 /// - `Ok(())`: Kind validation passed
 /// - `Err(Error)`: Invalid kind specified
 fn validate_yoshi_kind_mapping(kind: &str, variant: &YoshiVariantOpts, validation: &mut ValidationContext) -> Result<()> {
     let valid_kinds = [
-        "Io", "Network", "Config", "Validation", "Internal", 
+        "Io", "Network", "Config", "Validation", "Internal",
         "NotFound", "Timeout", "ResourceExhausted", "Foreign", "Multiple"
     ];
-    
+
     if !valid_kinds.contains(&kind) {
         validation.error(
             variant.ident.span(),
@@ -1699,7 +1699,7 @@ fn validate_yoshi_kind_mapping(kind: &str, variant: &YoshiVariantOpts, validatio
         );
         return Ok(());
     }
-    
+
     // Provide optimization suggestions based on kind
     match kind {
         "Foreign" => {
@@ -1732,30 +1732,30 @@ fn validate_yoshi_kind_mapping(kind: &str, variant: &YoshiVariantOpts, validatio
         }
         _ => {}
     }
-    
+
     Ok(())
 }
 
 /// Validates field configuration for consistency and optimization opportunities.
-/// 
+///
 /// This function checks individual field configurations within error variants,
 /// validating attribute combinations, type compatibility, and providing
 /// optimization suggestions for better performance and usability.
-/// 
+///
 /// # Validation Areas
-/// 
+///
 /// - Attribute combination compatibility
 /// - Context key validation for metadata fields
 /// - Type compatibility for source fields
 /// - Performance implications of field configurations
-/// 
+///
 /// # Parameters
-/// 
+///
 /// - `field`: The field configuration to validate
 /// - `validation`: Validation context for error accumulation
-/// 
+///
 /// # Returns
-/// 
+///
 /// - `Ok(())`: Field validation passed
 /// - `Err(Error)`: Field validation failed
 fn validate_field(field: &YoshiFieldOpts, validation: &mut ValidationContext) -> Result<()> {
@@ -1768,29 +1768,29 @@ fn validate_field(field: &YoshiFieldOpts, validation: &mut ValidationContext) ->
                 format!("Invalid context key '{}'. Must be a valid identifier matching ^[a-zA-Z_][a-zA-Z0-9_]*$", context_key)
             );
         }
-        
+
         // Performance hint for context keys
         if context_key.len() > 30 {
             validation.performance_hint("Long context keys may impact metadata storage efficiency");
         }
     }
-    
+
     // Check for conflicting attributes
-    if field.source && field.payload {
+    if field.source && field.shell {
         validation.error(
             field.ty.span(),
-            "Field cannot be both #[yoshi(source)] and #[yoshi(payload)] - choose one role per field"
+            "Field cannot be both #[yoshi(source)] and #[yoshi(shell)] - choose one role per field"
         );
     }
-    
+
     if field.source && field.skip {
         validation.warning("Source field marked as skip may hide important error information in Display output");
     }
-    
-    if field.payload && field.skip {
-        validation.warning("Payload field marked as skip reduces diagnostic utility");
+
+    if field.shell && field.skip {
+        validation.warning("Shell field marked as skip reduces diagnostic utility");
     }
-    
+
     // Validate format_with function reference
     if let Some(ref format_fn) = field.format_with {
         let valid_fn_regex = REGEX_CACHE.get("valid_identifier").unwrap();
@@ -1801,53 +1801,53 @@ fn validate_field(field: &YoshiFieldOpts, validation: &mut ValidationContext) ->
             );
         }
     }
-    
+
     // Performance suggestions based on field configuration
-    if field.source && field.context.is_some() && field.payload {
+    if field.source && field.context.is_some() && field.shell {
         validation.performance_hint("Fields with multiple roles may benefit from being split into separate fields");
     }
-    
+
     Ok(())
 }
 
 /// Generates the Display implementation with optimized formatting and comprehensive documentation.
-/// 
+///
 /// This function creates a high-performance `Display` implementation that respects
 /// custom format strings, handles field skipping, and provides optimal string
 /// formatting performance using Rust 1.87's enhanced formatting capabilities.
-/// 
+///
 /// # Generated Features
-/// 
+///
 /// - Custom format string support with placeholder substitution
 /// - Automatic field formatting with type-aware defaults
 /// - Skip field support for internal state
 /// - Performance-optimized string building
 /// - Comprehensive error context in output
-/// 
+///
 /// # Parameters
-/// 
+///
 /// - `opts`: The complete enum configuration
 /// - `variants`: A slice of `YoshiVariantOpts` representing the enum variants.
 /// - `validation`: Validation context for error reporting
-/// 
+///
 /// # Returns
-/// 
+///
 /// - `Ok(TokenStream2)`: Generated Display implementation
 /// - `Err(Error)`: Code generation failed
 fn generate_display_impl(opts: &YoshiErrorOpts, variants: &[YoshiVariantOpts], validation: &mut ValidationContext) -> Result<TokenStream2> {
     let enum_name = &opts.ident;
     let (impl_generics, ty_generics, where_clause) = opts.generics.split_for_impl();
-    
+
     let match_arms = variants.iter().map(|variant| {
         generate_display_arm(variant, validation)
     }).collect::<Result<Vec<_>>>()?;
-    
+
     let doc_comment = if let Some(ref prefix) = opts.doc_prefix {
         format!("{} - Generated Display implementation with optimized formatting", prefix)
     } else {
         "Generated Display implementation with optimized formatting using Rust 1.87 enhancements".to_string()
     };
-    
+
     Ok(quote! {
         #[doc = #doc_comment]
         impl #impl_generics ::core::fmt::Display for #enum_name #ty_generics #where_clause {
@@ -1861,38 +1861,38 @@ fn generate_display_impl(opts: &YoshiErrorOpts, variants: &[YoshiVariantOpts], v
 }
 
 /// Generates a single match arm for the Display implementation with advanced formatting.
-/// 
+///
 /// This function creates an optimized match arm that handles custom format strings,
 /// automatic field formatting, and performance-optimized string construction.
-/// 
+///
 /// # Features
-/// 
+///
 /// - Placeholder substitution in custom format strings
 /// - Automatic field enumeration for default formatting
 /// - Skip field support with conditional compilation
 /// - Type-aware formatting suggestions
 /// - Performance optimization for common patterns
-/// 
+///
 /// # Parameters
-/// 
+///
 /// - `variant`: The variant to generate a match arm for
 /// - `validation`: Validation context for warnings and hints
-/// 
+///
 /// # Returns
-/// 
+///
 /// - `Ok(TokenStream2)`: Generated match arm code
 /// - `Err(Error)`: Match arm generation failed
 fn generate_display_arm(variant: &YoshiVariantOpts, _validation: &mut ValidationContext) -> Result<TokenStream2> {
     let variant_name = &variant.ident;
     let enum_name = format_ident!("Self");
-    
+
     let (pattern, format_logic) = match variant.fields.style {
         Style::Unit => {
             let ident_string = variant.ident.to_string();
             let display_text = variant.display.as_deref()
                 .unwrap_or(&ident_string);
             (
-                quote! { #enum_name::#variant_name }, 
+                quote! { #enum_name::#variant_name },
                 quote! { f.write_str(#display_text) }
             )
         }
@@ -1901,9 +1901,9 @@ fn generate_display_arm(variant: &YoshiVariantOpts, _validation: &mut Validation
             let field_patterns: Vec<_> = (0..fields.len())
                 .map(|i| format_ident!("field_{}", i))
                 .collect();
-            
+
             let pattern = quote! { #enum_name::#variant_name(#(#field_patterns),*) };
-            
+
             if let Some(display_format) = &variant.display {
                 let format_logic = generate_format_logic(display_format, &field_patterns, fields);
                 (pattern, format_logic)
@@ -1911,7 +1911,7 @@ fn generate_display_arm(variant: &YoshiVariantOpts, _validation: &mut Validation
                 // Enhanced default formatting for unnamed fields
                 let format_logic = if field_patterns.len() == 1 {
                     let field = &field_patterns[0];
-                    quote! { 
+                    quote! {
                         write!(f, "{}: {}", stringify!(#variant_name), #field)
                     }
                 } else {
@@ -1925,7 +1925,7 @@ fn generate_display_arm(variant: &YoshiVariantOpts, _validation: &mut Validation
                         }
                     }
 
-                    quote! { 
+                    quote! {
                         write!(f, #format_str, #(#args),*)
                     }
                 };
@@ -1937,9 +1937,9 @@ fn generate_display_arm(variant: &YoshiVariantOpts, _validation: &mut Validation
             let field_patterns: Vec<_> = fields.iter()
                 .map(|f| f.ident.as_ref().unwrap())
                 .collect();
-            
+
             let pattern = quote! { #enum_name::#variant_name { #(#field_patterns),* } };
-            
+
             if let Some(display_format) = &variant.display {
                 let format_logic = generate_format_logic_named(display_format, &field_patterns, fields);
                 (pattern, format_logic)
@@ -1949,7 +1949,7 @@ fn generate_display_arm(variant: &YoshiVariantOpts, _validation: &mut Validation
                     .filter(|f| !f.skip)
                     .map(|f| f.ident.as_ref().unwrap())
                     .collect();
-                
+
                 let format_logic = if non_skipped_fields.is_empty() {
                     quote! { write!(f, "{}", stringify!(#variant_name)) }
                 } else {
@@ -1965,7 +1965,7 @@ fn generate_display_arm(variant: &YoshiVariantOpts, _validation: &mut Validation
             }
         }
     };
-    
+
     Ok(quote! {
         #pattern => {
             #format_logic
@@ -1974,18 +1974,18 @@ fn generate_display_arm(variant: &YoshiVariantOpts, _validation: &mut Validation
 }
 
 /// Generates optimized format logic for unnamed fields with advanced placeholder substitution.
-/// 
+///
 /// This function creates efficient formatting code for unnamed struct fields,
 /// supporting positional placeholders and type-aware formatting optimizations.
-/// 
+///
 /// # Parameters
-/// 
+///
 /// - `format_str`: The format string with placeholders
 /// - `field_patterns`: The field identifiers to substitute
 /// - `fields`: Field configuration (for future enhancements)
-/// 
+///
 /// # Returns
-/// 
+///
 /// Optimized `TokenStream2` for format logic
 fn generate_format_logic(format_str: &str, field_patterns: &[Ident], fields: &[YoshiFieldOpts]) -> TokenStream2 {
     let mut format_args = Vec::new();
@@ -2017,7 +2017,7 @@ fn generate_format_logic(format_str: &str, field_patterns: &[Ident], fields: &[Y
             format_args.push(quote! { #placeholder });
         }
     }
-    
+
     if format_args.is_empty() && format_str.contains("{}") {
         // Fallback for simple `{}` when no named placeholders are used
         quote! {
@@ -2031,32 +2031,32 @@ fn generate_format_logic(format_str: &str, field_patterns: &[Ident], fields: &[Y
 }
 
 /// Generates advanced format logic for named fields with comprehensive placeholder support.
-/// 
+///
 /// This function creates sophisticated formatting code for named struct fields,
 /// supporting field name placeholders, source field handling, and performance
 /// optimizations for complex format strings.
-/// 
+///
 /// # Features
-/// 
+///
 /// - Named field placeholder substitution
 /// - Special 'source' placeholder handling
 /// - Performance optimization for static strings
 /// - Type-aware formatting hints
 /// - Skip field integration
-/// 
+///
 /// # Parameters
-/// 
+///
 /// - `format_str`: The format string with named placeholders
 /// - `field_patterns`: The field identifiers available for substitution
 /// - `fields`: Field configurations for advanced handling
-/// 
+///
 /// # Returns
-/// 
+///
 /// Optimized `TokenStream2` for advanced format logic
 fn generate_format_logic_named(format_str: &str, field_patterns: &[&Ident], fields: &[YoshiFieldOpts]) -> TokenStream2 {
     let placeholder_regex = REGEX_CACHE.get("display_placeholder").unwrap();
     let mut format_args = Vec::new();
-    
+
     // Collect mapping of field Ident to its YoshiFieldOpts config
     let field_configs: HashMap<&Ident, &YoshiFieldOpts> = fields.iter()
         .filter_map(|f| f.ident.as_ref().map(|ident| (ident, f)))
@@ -2065,7 +2065,7 @@ fn generate_format_logic_named(format_str: &str, field_patterns: &[&Ident], fiel
     // Generate token streams for each argument based on placeholders
     for cap in placeholder_regex.captures_iter(format_str) {
         let placeholder = &cap[1];
-        
+
         if let Some(&field_ident) = field_patterns.iter().find(|&&ident| ident == placeholder) {
             if let Some(field_config) = field_configs.get(field_ident) {
                 if field_config.skip {
@@ -2095,45 +2095,45 @@ fn generate_format_logic_named(format_str: &str, field_patterns: &[&Ident], fiel
             format_args.push(quote! { #placeholder = format!("<UNKNOWN_FIELD: {}>", #placeholder) });
         }
     }
-    
+
     quote! {
         write!(f, #format_str, #(#format_args),*)
     }
 }
 
 /// Generates the Error trait implementation with enhanced source chaining and documentation.
-/// 
+///
 /// This function creates a comprehensive `std::error::Error` implementation that
 /// properly handles source error chaining, integrates with Rust 1.87's enhanced
 /// error handling capabilities, and provides optimal performance for error introspection.
-/// 
+///
 /// # Generated Features
-/// 
+///
 /// - Proper source error chaining with type safety
 /// - Enhanced provide method for error introspection
 /// - Performance-optimized source traversal
 /// - Comprehensive documentation for generated methods
-/// 
+///
 /// # Parameters
-/// 
+///
 /// - `opts`: The complete enum configuration
 /// - `variants`: A slice of `YoshiVariantOpts` representing the enum variants.
 /// - `_validation`: Validation context (reserved for future enhancements)
-/// 
+///
 /// # Returns
-/// 
+///
 /// - `Ok(TokenStream2)`: Generated Error trait implementation
 /// - `Err(Error)`: Implementation generation failed
 fn generate_error_impl(opts: &YoshiErrorOpts, variants: &[YoshiVariantOpts], _validation: &mut ValidationContext) -> Result<TokenStream2> {
     let enum_name = &opts.ident;
     let (impl_generics, ty_generics, where_clause) = opts.generics.split_for_impl();
-    
+
     let source_match_arms = variants.iter().map(|variant| {
         generate_source_arm(variant)
     }).collect::<Vec<_>>();
-    
+
     let doc_comment = "Generated Error trait implementation with enhanced source chaining and Rust 1.87 optimizations";
-    
+
     Ok(quote! {
         #[doc = #doc_comment]
         impl #impl_generics ::std::error::Error for #enum_name #ty_generics #where_clause {
@@ -2147,32 +2147,32 @@ fn generate_error_impl(opts: &YoshiErrorOpts, variants: &[YoshiVariantOpts], _va
 }
 
 /// Generates a match arm for the Error::source implementation with enhanced type handling.
-/// 
+///
 /// This function creates optimized match arms that properly handle source error
 /// extraction from variants, supporting various field configurations and
 /// providing type-safe error chaining.
-/// 
+///
 /// # Features
-/// 
+///
 /// - Automatic source field detection
 /// - Type-safe error reference handling
 /// - Performance-optimized pattern matching
 /// - Comprehensive field pattern generation
-/// 
+///
 /// # Parameters
-/// 
+///
 /// - `variant`: The variant to generate a source match arm for
-/// 
+///
 /// # Returns
-/// 
+///
 /// Optimized `TokenStream2` for source error extraction
 fn generate_source_arm(variant: &YoshiVariantOpts) -> TokenStream2 {
     let variant_name = &variant.ident;
     let enum_name = format_ident!("Self");
-    
+
     // Find the source field with enhanced detection
     let source_field = variant.fields.fields.iter().find(|f| f.source);
-    
+
     match variant.fields.style {
         Style::Unit => {
             quote! { #enum_name::#variant_name => None, }
@@ -2189,7 +2189,7 @@ fn generate_source_arm(variant: &YoshiVariantOpts) -> TokenStream2 {
                     }
                 })
                 .collect();
-            
+
             if source_field.is_some() {
                 quote! {
                     #enum_name::#variant_name(#(#field_patterns),*) => Some(source),
@@ -2208,7 +2208,7 @@ fn generate_source_arm(variant: &YoshiVariantOpts) -> TokenStream2 {
                         let ident = f.ident.as_ref().unwrap();
                         quote! { #ident: _ }
                     }).collect();
-                
+
                 quote! {
                     #enum_name::#variant_name { #source_ident, #(#other_fields),* } => Some(#source_ident),
                 }
@@ -2225,39 +2225,39 @@ fn generate_source_arm(variant: &YoshiVariantOpts) -> TokenStream2 {
 }
 
 /// Generates comprehensive conversion to Yoshi implementation with intelligent kind mapping.
-/// 
+///
 /// This function creates an optimized `From<T> for yoshi_std::Yoshi` implementation
 /// that intelligently maps error variants to appropriate `YoshiKind` values,
 /// applies context and metadata, and leverages Rust 1.87's enhanced trait system.
-/// 
+///
 /// # Generated Features
-/// 
+///
 /// - Intelligent YoshiKind mapping based on variant attributes
 /// - Automatic context and suggestion application
 /// - Severity level mapping with intelligent defaults
 /// - Metadata extraction from fields
 /// - Performance monitoring integration
-/// 
+///
 /// # Parameters
-/// 
+///
 /// - `opts`: The complete enum configuration
 /// - `variants`: A slice of `YoshiVariantOpts` representing the enum variants.
 /// - `_validation`: Validation context (reserved for future enhancements)
-/// 
+///
 /// # Returns
-/// 
+///
 /// - `Ok(TokenStream2)`: Generated Yoshi conversion implementation
 /// - `Err(Error)`: Conversion implementation generation failed
 fn generate_yoshi_conversion(opts: &YoshiErrorOpts, variants: &[YoshiVariantOpts], _validation: &mut ValidationContext) -> Result<TokenStream2> {
     let enum_name = &opts.ident;
     let (impl_generics, ty_generics, where_clause) = opts.generics.split_for_impl();
-    
+
     let conversion_arms = variants.iter().map(|variant| {
         generate_yoshi_conversion_arm(variant, opts)
     }).collect::<Vec<_>>();
-    
+
     let doc_comment = "Generated conversion to Yoshi with intelligent kind mapping and enhanced metadata preservation";
-    
+
     Ok(quote! {
         #[doc = #doc_comment]
         impl #impl_generics ::core::convert::From<#enum_name #ty_generics> for ::yoshi_std::Yoshi #where_clause {
@@ -2272,31 +2272,31 @@ fn generate_yoshi_conversion(opts: &YoshiErrorOpts, variants: &[YoshiVariantOpts
 }
 
 /// Generates a conversion arm for a specific variant with comprehensive configuration support.
-/// 
+///
 /// This function creates an optimized conversion implementation for a single
 /// error variant, handling kind mapping, context application, metadata extraction,
 /// and performance optimization.
-/// 
+///
 /// # Features
-/// 
+///
 /// - Intelligent YoshiKind selection based on variant attributes
 /// - Automatic context and suggestion application
 /// - Severity level mapping with intelligent defaults
 /// - Metadata extraction from fields
 /// - Performance monitoring integration
-/// 
+///
 /// # Parameters
-/// 
+///
 /// - `variant`: The variant to generate conversion logic for
 /// - `opts`: The overall enum configuration for context
-/// 
+///
 /// # Returns
-/// 
+///
 /// Optimized `TokenStream2` for variant conversion logic
 fn generate_yoshi_conversion_arm(variant: &YoshiVariantOpts, opts: &YoshiErrorOpts) -> TokenStream2 {
     let variant_name = &variant.ident;
     let enum_name = &opts.ident;
-    
+
     // Determine the target YoshiKind with enhanced intelligence
     let yoshi_kind = if let Some(ref kind) = variant.kind {
         if let Some(ref convert_fn) = variant.convert_with {
@@ -2312,7 +2312,7 @@ fn generate_yoshi_conversion_arm(variant: &YoshiVariantOpts, opts: &YoshiErrorOp
             ::yoshi_std::Yoshi::foreign(err)
         }
     };
-    
+
     let pattern_fields = match variant.fields.style {
         Style::Unit => quote!{},
         Style::Tuple => {
@@ -2334,25 +2334,25 @@ fn generate_yoshi_conversion_arm(variant: &YoshiVariantOpts, opts: &YoshiErrorOp
         Style::Tuple => quote! { #enum_name::#variant_name(#pattern_fields) },
         Style::Struct => quote! { #enum_name::#variant_name { #pattern_fields } },
     };
-    
+
     let mut yoshi_construction = quote! {
         let mut yoshi_err = #yoshi_kind;
     };
-    
+
     // Add context if specified
     if let Some(ref context) = variant.context {
         yoshi_construction.extend(quote! {
             yoshi_err = yoshi_err.context(#context);
         });
     }
-    
+
     // Add suggestion if specified
     if let Some(ref suggestion) = variant.suggestion {
         yoshi_construction.extend(quote! {
             yoshi_err = yoshi_err.with_suggestion(#suggestion);
         });
     }
-    
+
     // Add context metadata from fields
     for field in &variant.fields.fields {
         if let Some(ref context_key) = field.context {
@@ -2362,16 +2362,16 @@ fn generate_yoshi_conversion_arm(variant: &YoshiVariantOpts, opts: &YoshiErrorOp
                 });
             }
         }
-        
+
         // Add payloads
-        if field.payload {
+        if field.shell {
             if let Some(ref field_ident) = field.ident {
                 yoshi_construction.extend(quote! {
-                    yoshi_err = yoshi_err.with_payload(#field_ident);
+                    yoshi_err = yoshi_err.with_shell(#field_ident);
                 });
             }
         }
-        
+
         // Add suggestions from field-level attributes
         if let Some(ref suggestion) = field.suggestion {
             yoshi_construction.extend(quote! {
@@ -2379,7 +2379,7 @@ fn generate_yoshi_conversion_arm(variant: &YoshiVariantOpts, opts: &YoshiErrorOp
             });
         }
     }
-    
+
     // Add error code if available
     if let Some(error_code) = variant.error_code {
         let error_code_str = if let Some(ref prefix) = opts.error_code_prefix {
@@ -2391,11 +2391,11 @@ fn generate_yoshi_conversion_arm(variant: &YoshiVariantOpts, opts: &YoshiErrorOp
             yoshi_err = yoshi_err.with_metadata("error_code", #error_code_str);
         });
     }
-    
+
     yoshi_construction.extend(quote! {
         yoshi_err
     });
-    
+
     quote! {
         #variant_pattern => {
             #yoshi_construction
@@ -2404,34 +2404,34 @@ fn generate_yoshi_conversion_arm(variant: &YoshiVariantOpts, opts: &YoshiErrorOp
 }
 
 /// Generates specific YoshiKind construction based on the kind attribute.
-/// 
+///
 /// This function creates optimized YoshiKind construction code that maps variant
 /// fields to appropriate YoshiKind struct fields, providing intelligent defaults
 /// and performance optimizations.
-/// 
+///
 /// # Parameters
-/// 
+///
 /// - `kind`: The YoshiKind string identifier
 /// - `variant`: The variant information for field mapping
-/// 
+///
 /// # Returns
-/// 
+///
 /// Optimized `TokenStream2` for YoshiKind construction
 fn generate_specific_yoshi_kind(kind: &str, variant: &YoshiVariantOpts) -> TokenStream2 {
     // Find field mappings
     let source_field = variant.fields.fields.iter()
         .find(|f| f.source)
         .and_then(|f| f.ident.as_ref());
-    
+
     let message_field = variant.fields.fields.iter()
         .find(|f| f.ident.as_ref().map_or(false, |id| {
             let name = id.to_string().to_lowercase();
             name.contains("message") || name.contains("msg")
         }))
         .and_then(|f| f.ident.as_ref());
-    
+
     let variant_ident = &variant.ident;  // Get the Ident directly
-    
+
     match kind {
         "Io" => {
             if let Some(source_ident) = source_field {
@@ -2447,7 +2447,7 @@ fn generate_specific_yoshi_kind(kind: &str, variant: &YoshiVariantOpts) -> Token
                 .unwrap_or_else(|| quote! { format!("{}", stringify!(#variant_ident)).into() });
             let source = source_field.map(|id| quote! { Some(Box::new(::yoshi_std::Yoshi::from(#id))) })
                 .unwrap_or_else(|| quote! { None });
-            
+
             quote! {
                 ::yoshi_std::Yoshi::new(::yoshi_std::YoshiKind::Network {
                     message: #message,
@@ -2461,7 +2461,7 @@ fn generate_specific_yoshi_kind(kind: &str, variant: &YoshiVariantOpts) -> Token
                 .unwrap_or_else(|| quote! { format!("{}", stringify!(#variant_ident)).into() });
             let source = source_field.map(|id| quote! { Some(Box::new(::yoshi_std::Yoshi::from(#id))) })
                 .unwrap_or_else(|| quote! { None });
-            
+
             quote! {
                 ::yoshi_std::Yoshi::new(::yoshi_std::YoshiKind::Config {
                     message: #message,
@@ -2479,10 +2479,10 @@ fn generate_specific_yoshi_kind(kind: &str, variant: &YoshiVariantOpts) -> Token
                 .and_then(|f| f.ident.as_ref())
                 .map(|id| quote! { #id.to_string().into() })
                 .unwrap_or_else(|| quote! { "unknown".into() });
-            
+
             let message = message_field.map(|id| quote! { #id.to_string().into() })
                 .unwrap_or_else(|| quote! { format!("{}", stringify!(#variant_ident)).into() });
-            
+
             quote! {
                 ::yoshi_std::Yoshi::new(::yoshi_std::YoshiKind::Validation {
                     field: #field_name,
@@ -2497,7 +2497,7 @@ fn generate_specific_yoshi_kind(kind: &str, variant: &YoshiVariantOpts) -> Token
                 .unwrap_or_else(|| quote! { format!("{}", stringify!(#variant_ident)).into() });
             let source = source_field.map(|id| quote! { Some(Box::new(::yoshi_std::Yoshi::from(#id))) })
                 .unwrap_or_else(|| quote! { None });
-            
+
             quote! {
                 ::yoshi_std::Yoshi::new(::yoshi_std::YoshiKind::Internal {
                     message: #message,
@@ -2515,7 +2515,7 @@ fn generate_specific_yoshi_kind(kind: &str, variant: &YoshiVariantOpts) -> Token
                 .and_then(|f| f.ident.as_ref())
                 .map(|id| quote! { #id.to_string().into() })
                 .unwrap_or_else(|| quote! { "resource".into() });
-            
+
             let identifier = variant.fields.fields.iter()
                 .find(|f| f.ident.as_ref().map_or(false, |id| {
                     let name = id.to_string().to_lowercase();
@@ -2524,7 +2524,7 @@ fn generate_specific_yoshi_kind(kind: &str, variant: &YoshiVariantOpts) -> Token
                 .and_then(|f| f.ident.as_ref())
                 .map(|id| quote! { #id.to_string().into() })
                 .unwrap_or_else(|| quote! { format!("{}", stringify!(#variant_ident)).into() });
-            
+
             quote! {
                 ::yoshi_std::Yoshi::new(::yoshi_std::YoshiKind::NotFound {
                     resource_type: #resource_type,
@@ -2542,7 +2542,7 @@ fn generate_specific_yoshi_kind(kind: &str, variant: &YoshiVariantOpts) -> Token
                 .and_then(|f| f.ident.as_ref())
                 .map(|id| quote! { #id.to_string().into() })
                 .unwrap_or_else(|| quote! { stringify!(#variant_ident).into() });
-            
+
             let duration = variant.fields.fields.iter()
                 .find(|f| f.ident.as_ref().map_or(false, |id| {
                     let name = id.to_string().to_lowercase();
@@ -2551,7 +2551,7 @@ fn generate_specific_yoshi_kind(kind: &str, variant: &YoshiVariantOpts) -> Token
                 .and_then(|f| f.ident.as_ref())
                 .map(|id| quote! { #id })
                 .unwrap_or_else(|| quote! { ::core::time::Duration::from_secs(30) });
-            
+
             quote! {
                 ::yoshi_std::Yoshi::new(::yoshi_std::YoshiKind::Timeout {
                     operation: #operation,
@@ -2569,7 +2569,7 @@ fn generate_specific_yoshi_kind(kind: &str, variant: &YoshiVariantOpts) -> Token
                 .and_then(|f| f.ident.as_ref())
                 .map(|id| quote! { #id.to_string().into() })
                 .unwrap_or_else(|| quote! { "unknown".into() });
-            
+
             let limit = variant.fields.fields.iter()
                 .find(|f| f.ident.as_ref().map_or(false, |id| {
                     let name = id.to_string().to_lowercase();
@@ -2578,7 +2578,7 @@ fn generate_specific_yoshi_kind(kind: &str, variant: &YoshiVariantOpts) -> Token
                 .and_then(|f| f.ident.as_ref())
                 .map(|id| quote! { #id.to_string().into() })
                 .unwrap_or_else(|| quote! { "unknown".into() });
-            
+
             let current = variant.fields.fields.iter()
                 .find(|f| f.ident.as_ref().map_or(false, |id| {
                     let name = id.to_string().to_lowercase();
@@ -2587,7 +2587,7 @@ fn generate_specific_yoshi_kind(kind: &str, variant: &YoshiVariantOpts) -> Token
                 .and_then(|f| f.ident.as_ref())
                 .map(|id| quote! { #id.to_string().into() })
                 .unwrap_or_else(|| quote! { "unknown".into() });
-            
+
             quote! {
                 ::yoshi_std::Yoshi::new(::yoshi_std::YoshiKind::ResourceExhausted {
                     resource: #resource,
@@ -2620,27 +2620,27 @@ fn generate_specific_yoshi_kind(kind: &str, variant: &YoshiVariantOpts) -> Token
 }
 
 /// Generates additional trait implementations such as `From` conversions and `Error::provide`.
-/// 
+///
 /// This function dynamically generates `From` trait implementations for fields
 /// marked with `#[yoshi(from)]` and `Error::provide` implementations for fields
-/// marked with `#[yoshi(payload)]`. It optimizes for common patterns and provides
+/// marked with `#[yoshi(shell)]`. It optimizes for common patterns and provides
 /// warnings for ambiguous configurations.
-/// 
+///
 /// # Parameters
-/// 
+///
 /// - `opts`: The parsed error enum options.
 /// - `variants`: A slice of `YoshiVariantOpts` representing the enum variants.
 /// - `validation`: The `ValidationContext` for reporting warnings.
-/// 
+///
 /// # Returns
-/// 
+///
 /// A `Result<TokenStream2>` containing the generated implementations or an error.
 fn generate_additional_impls(opts: &YoshiErrorOpts, variants: &[YoshiVariantOpts], validation: &mut ValidationContext) -> Result<TokenStream2> {
     let enum_name = &opts.ident;
     let (impl_generics, ty_generics, where_clause) = opts.generics.split_for_impl();
 
     let mut from_impls = TokenStream2::new();
-    
+
     // Generate `From` implementations for fields marked with `#[yoshi(from)]`
     for variant_opts in variants {
         let variant_name = &variant_opts.ident;
@@ -2692,7 +2692,7 @@ fn generate_additional_impls(opts: &YoshiErrorOpts, variants: &[YoshiVariantOpts
 /// Generate pattern for matching a variant in performance monitoring
 fn generate_variant_pattern(variant: &YoshiVariantOpts) -> TokenStream2 {
     let variant_name = &variant.ident;
-    
+
     match variant.fields.style {
         Style::Unit => quote! { Self::#variant_name },
         Style::Tuple => quote! { Self::#variant_name(..) },
@@ -2701,20 +2701,20 @@ fn generate_variant_pattern(variant: &YoshiVariantOpts) -> TokenStream2 {
 }
 
 /// Generates performance monitoring code for error tracking and metrics.
-/// 
+///
 /// This function creates comprehensive performance monitoring implementations that track:
 /// - Error creation timestamps and frequency
 /// - Error propagation patterns
 /// - Performance impact analysis
 /// - Memory usage tracking
-/// 
+///
 /// # Parameters
-/// 
+///
 /// - `opts`: The parsed error enum options
 /// - `variants`: The parsed variant data
-/// 
+///
 /// # Returns
-/// 
+///
 /// Generated performance monitoring implementations
 fn generate_performance_monitoring(
     opts: &YoshiErrorOpts,
@@ -2722,38 +2722,38 @@ fn generate_performance_monitoring(
 ) -> Result<TokenStream2> {
     let enum_name = &opts.ident;
     let (impl_generics, ty_generics, where_clause) = opts.generics.split_for_impl();
-    
+
     // Generate variant pattern matching for performance metrics
     let variant_match_arms = variants.iter().map(|variant| {
         let variant_name = &variant.ident;
         let variant_pattern = generate_variant_pattern(variant);
         let variant_str = variant_name.to_string();
-        
+
         quote! {
             #variant_pattern => #variant_str,
         }
     });
-    
+
     // Generate error code extraction
     let error_code_match_arms = variants.iter().map(|variant| {
         let variant_pattern = generate_variant_pattern(variant);
         let error_code = variant.error_code.unwrap_or(0);
-        
+
         quote! {
             #variant_pattern => #error_code,
         }
     });
-    
-    // Generate severity extraction  
+
+    // Generate severity extraction
     let severity_match_arms = variants.iter().map(|variant| {
         let variant_pattern = generate_variant_pattern(variant);
         let severity = variant.severity.unwrap_or(opts.default_severity);
-        
+
         quote! {
             #variant_pattern => #severity,
         }
     });
-    
+
     let performance_metrics = quote! {
         impl #impl_generics #enum_name #ty_generics #where_clause {
             /// Gets the variant name for this error instance
@@ -2762,7 +2762,7 @@ fn generate_performance_monitoring(
                     #(#variant_match_arms)*
                 }
             }
-            
+
             /// Gets the error code for this error instance
             pub fn error_code(&self) -> Option<u32> {
                 let code = match self {
@@ -2770,14 +2770,14 @@ fn generate_performance_monitoring(
                 };
                 if code == 0 { None } else { Some(code) }
             }
-            
+
             /// Gets the severity level for this error instance
             pub fn severity(&self) -> Option<u8> {
                 Some(match self {
                     #(#severity_match_arms)*
                 })
             }
-            
+
             /// Performance monitoring data for this error type
             #[cfg(feature = "performance-monitoring")]
             pub fn performance_metrics(&self) -> PerformanceMetrics {
@@ -2788,19 +2788,19 @@ fn generate_performance_monitoring(
                     memory_usage: ::std::mem::size_of_val(self),
                 }
             }
-            
+
             /// Track error creation for performance analysis
             #[cfg(feature = "performance-monitoring")]
             pub fn track_creation(&self) {
                 // Track error creation using external function when available
                 #[cfg(feature = "yoshi-std")]
                 if let Ok(metrics) = self.performance_metrics() {
-                    eprintln!("Performance tracking: {} created at {:?}", 
+                    eprintln!("Performance tracking: {} created at {:?}",
                              metrics.error_type, metrics.creation_time);
                 }
             }
         }
-        
+
         /// Performance metrics structure for error tracking
         #[cfg(feature = "performance-monitoring")]
         #[derive(Debug, Clone)]
@@ -2815,22 +2815,22 @@ fn generate_performance_monitoring(
             pub memory_usage: usize,
         }
     };
-    
+
     Ok(performance_metrics)
 }
 
 /// Generates tracing integration for comprehensive error tracking.
-/// 
+///
 /// This function creates tracing spans and events that integrate with the `tracing` crate
 /// to provide detailed error tracking, correlation, and observability.
-/// 
+///
 /// # Parameters
-/// 
+///
 /// - `opts`: The parsed error enum options
 /// - `variants`: The parsed variant data
-/// 
+///
 /// # Returns
-/// 
+///
 /// Generated tracing integration implementations
 fn generate_tracing_integration(
     opts: &YoshiErrorOpts,
@@ -2838,18 +2838,18 @@ fn generate_tracing_integration(
 ) -> Result<TokenStream2> {
     let enum_name = &opts.ident;
     let (impl_generics, ty_generics, where_clause) = opts.generics.split_for_impl();
-    
+
     // Generate match arms for variant name extraction
     let variant_match_arms = variants.iter().map(|variant| {
         let variant_name = &variant.ident;
         let variant_pattern = generate_variant_pattern(variant);
         let variant_str = variant_name.to_string();
-        
+
         quote! {
             #variant_pattern => #variant_str,
         }
     });
-    
+
     let tracing_impl = quote! {
         impl #impl_generics #enum_name #ty_generics #where_clause {
             /// Create a tracing span for this error
@@ -2858,7 +2858,7 @@ fn generate_tracing_integration(
                 let variant_name = match self {
                     #(#variant_match_arms)*
                 };
-                
+
                 ::tracing::error_span!(
                     "yoshi_error",
                     error_type = stringify!(#enum_name),
@@ -2867,19 +2867,19 @@ fn generate_tracing_integration(
                     severity = self.severity().unwrap_or(50)
                 )
             }
-            
+
             /// Emit a tracing event for this error
             #[cfg(feature = "tracing")]
             pub fn trace_error(&self) {
                 let _span = self.create_span().entered();
-                
+
                 ::tracing::error!(
                     message = %self,
                     error_chain = ?self.source(),
                     "Error occurred"
                 );
             }
-            
+
             /// Create a tracing span with context
             #[cfg(feature = "tracing")]
             pub fn trace_with_context<F, R>(&self, f: F) -> R
@@ -2892,22 +2892,22 @@ fn generate_tracing_integration(
             }
         }
     };
-    
+
     Ok(tracing_impl)
 }
 
 /// Generates Rust 1.87 precise capturing trait implementations.
-/// 
+///
 /// This function creates trait implementations that leverage Rust 1.87's precise capturing
 /// features for better async/Send bounds and improved compiler optimization.
-/// 
+///
 /// # Parameters
-/// 
+///
 /// - `opts`: The parsed error enum options
 /// - `variants`: The parsed variant data
-/// 
+///
 /// # Returns
-/// 
+///
 /// Generated precise capturing trait implementations
 fn generate_precise_capturing_traits(
     opts: &YoshiErrorOpts,
@@ -2915,7 +2915,7 @@ fn generate_precise_capturing_traits(
 ) -> Result<TokenStream2> {
     let enum_name = &opts.ident;
     let (impl_generics, ty_generics, where_clause) = opts.generics.split_for_impl();
-    
+
     let precise_capturing = quote! {
         // Rust 1.87 precise capturing for async compatibility
         impl #impl_generics #enum_name #ty_generics #where_clause {
@@ -2928,14 +2928,14 @@ fn generate_precise_capturing_traits(
             {
                 // Use precise capturing to ensure optimal async bounds
                 let yoshi_error: ::yoshi_std::Yoshi = self.into();
-                
+
                 // Yield to allow other tasks to run
                 #[cfg(feature = "tokio")]
                 ::tokio::task::yield_now().await;
-                
+
                 Err(yoshi_error)
             }
-            
+
             /// Precise error propagation with optimized bounds
             pub fn propagate_with_precision<E>(self) -> ::core::result::Result<(), E>
             where
@@ -2946,22 +2946,22 @@ fn generate_precise_capturing_traits(
             }
         }
     };
-    
+
     Ok(precise_capturing)
 }
 
 /// Generates comprehensive documentation for the error enum and its variants.
-/// 
+///
 /// This function creates detailed documentation that incorporates user-provided
 /// documentation comments and automatically generated usage examples.
-/// 
+///
 /// # Parameters
-/// 
+///
 /// - `opts`: The parsed error enum options
 /// - `variants`: The parsed variant data
-/// 
+///
 /// # Returns
-/// 
+///
 /// Generated documentation implementations
 fn generate_comprehensive_documentation(
     opts: &YoshiErrorOpts,
@@ -2970,25 +2970,25 @@ fn generate_comprehensive_documentation(
     let enum_name = &opts.ident;
     let (impl_generics, ty_generics, where_clause) = opts.generics.split_for_impl();
     let doc_prefix = opts.doc_prefix.as_deref().unwrap_or("Error");
-    
+
     // Extract variant identifiers and their documentation strings
     let variant_match_arms = variants.iter().map(|variant| {
         let variant_pattern = generate_variant_pattern(variant);
         let custom_doc = variant.doc.as_deref().unwrap_or("");
         let severity = variant.severity.unwrap_or(opts.default_severity);
         let kind = variant.kind.as_deref().unwrap_or("General");
-        
+
         let doc_string = if !custom_doc.is_empty() {
             format!("{} (Severity: {}, Kind: {})", custom_doc, severity, kind)
         } else {
             format!("Auto-generated documentation for {} variant (Severity: {}, Kind: {})", variant.ident, severity, kind)
         };
-        
+
         quote! {
             #variant_pattern => #doc_string
         }
     });
-    
+
     let documentation = quote! {
         impl #impl_generics #enum_name #ty_generics #where_clause {
             /// Get comprehensive documentation for this error variant
@@ -2997,19 +2997,19 @@ fn generate_comprehensive_documentation(
                     #(#variant_match_arms,)*
                 }
             }
-            
+
             /// Get the error type name
             pub fn error_type_name() -> &'static str {
                 stringify!(#enum_name)
             }
-            
+
             /// Get the documentation prefix
             pub fn doc_prefix() -> &'static str {
                 #doc_prefix
             }
         }
     };
-    
+
     Ok(documentation)
 }
 ```
@@ -3026,7 +3026,7 @@ File: lib.rs
 #![warn(clippy::pedantic)]
 #![allow(clippy::use_self)]
 #![allow(clippy::enum_variant_names)] // For consistent naming of enum variants like IoError.
-#![allow(clippy::module_name_repetitions)] // Allow for names like YoshiKind, YoshiContext.
+#![allow(clippy::module_name_repetitions)] // Allow for names like YoshiKind, YoContext.
 #![cfg_attr(not(feature = "std"), no_std)]
 //! **Brief:** Comprehensive error handling framework for robust Rust applications.
 //!
@@ -3035,8 +3035,8 @@ File: lib.rs
 //! categorization, context chaining, and optional backtrace capture while maintaining
 //! excellent performance characteristics.
 //!
-//! **Module Classification:** Performance-Critical  
-//! **Complexity Level:** Expert  
+//! **Module Classification:** Performance-Critical
+//! **Complexity Level:** Expert
 //! **API Stability:** Stable
 //!
 // ~=####====A===r===c===M===o===o===n====S===t===u===d===i===o===s====X|0|$>
@@ -3069,7 +3069,7 @@ File: lib.rs
 //! structured error handling. It's particularly useful when you want to:
 //!
 //! - Provide rich debugging information to developers
-//! - Maintain error context across call stacks  
+//! - Maintain error context across call stacks
 //! - Categorize errors for different handling strategies
 //! - Include suggestions and metadata for error recovery
 //!
@@ -3080,9 +3080,9 @@ File: lib.rs
 //! ## Core Types
 //!
 //! - [`Yoshi`]: The main error type providing structured error handling
-//! - [`YoshiKind`]: Error categories with type-specific fields  
-//! - [`YoshiContext`]: Contextual information and metadata
-//! - [`YoshiContextExt`]: Extension trait for `Result` types
+//! - [`YoshiKind`]: Error categories with type-specific fields
+//! - [`YoContext`]: Contextual information and metadata
+//! - [`HatchExt`]: Extension trait for `Result` types
 //! - [`YoshiLocation`]: Source code location capture
 //! - [`YoshiBacktrace`]: Performance-monitored backtrace wrapper
 //! - [`NoStdIo`]: I/O error type for `no_std` environments
@@ -3094,7 +3094,7 @@ File: lib.rs
 //! Basic error creation and context addition:
 //!
 //! ```
-//! use yoshi_std::{Yoshi, YoshiKind, YoshiContextExt};
+//! use yoshi_std::{Yoshi, YoshiKind, HatchExt};
 //! # use std::io;
 //! # use std::io::ErrorKind;
 //! #
@@ -3106,7 +3106,7 @@ File: lib.rs
 //!     // Convert I/O errors to Yoshi errors with additional context
 //!     simulate_io_error()
 //!         .map_err(Yoshi::from)?;
-//!     
+//!
 //!     // Errors can be built up with context as they propagate
 //!     Err(Yoshi::new(YoshiKind::NotFound {
 //!         resource_type: "config file".into(),
@@ -3132,7 +3132,7 @@ File: lib.rs
 //! Working with typed payloads and structured data:
 //!
 //! ```
-//! use yoshi_std::{Yoshi, YoshiKind, YoshiContextExt};
+//! use yoshi_std::{Yoshi, YoshiKind, HatchExt};
 //!
 //! #[derive(Debug)]
 //! struct RequestId(String);
@@ -3143,7 +3143,7 @@ File: lib.rs
 //!         duration: std::time::Duration::from_secs(30),
 //!         expected_max: Some(std::time::Duration::from_secs(10)),
 //!     })
-//!     .with_payload(RequestId(id.to_string()))
+//!     .with_shell(RequestId(id.to_string()))
 //!     .with_metadata("user_id", "12345"))
 //!     .context("Request processing failed")
 //! }
@@ -3151,10 +3151,10 @@ File: lib.rs
 //! # fn main() {
 //! if let Err(error) = process_request("req_001") {
 //!     // Access structured data from the error
-//!     if let Some(request_id) = error.payload::<RequestId>() {
+//!     if let Some(request_id) = error.shell::<RequestId>() {
 //!         println!("Failed request: {:?}", request_id);
 //!     }
-//!     
+//!
 //!     println!("Error details: {}", error);
 //! }
 //! # }
@@ -3164,7 +3164,7 @@ File: lib.rs
 //! [`thiserror`]: https://docs.rs/thiserror
 //!
 // **GitHub:** [ArcMoon Studios](https://github.com/arcmoonstudios)
-// **Copyright:** (c) 2025 ArcMoon Studios  
+// **Copyright:** (c) 2025 ArcMoon Studios
 // **License:** Business Source License 1.1 (BSL-1.1)
 // **License File:** /LICENSE
 // **License Terms:** Non-production use only; commercial/production use requires paid license.
@@ -3280,7 +3280,7 @@ pub struct SystemTime {
 #[cfg(not(feature = "std"))]
 impl SystemTime {
     /// Returns a `SystemTime` with monotonic ordering guarantees.
-    /// 
+    ///
     /// While not wall-clock time, this provides ordering semantics
     /// useful for debugging and event correlation in no_std environments.
     pub fn now() -> Self {
@@ -3323,12 +3323,12 @@ pub struct ThreadId {
 #[cfg(not(feature = "std"))]
 impl ThreadId {
     /// Returns a `ThreadId` with unique identification.
-    /// 
+    ///
     /// In no_std environments, this provides unique identifiers
     /// useful for correlating errors across different execution contexts.
     pub fn current() -> Self {
         static THREAD_COUNTER: AtomicU32 = AtomicU32::new(1);
-        
+
         // Use thread-local storage pattern with atomic fallback
         #[cfg(all(target_has_atomic = "ptr", any(feature = "std", target_thread_local)))]
         {
@@ -3336,14 +3336,14 @@ impl ThreadId {
             thread_local! {
                 static THREAD_ID: Cell<Option<u32>> = const { Cell::new(None) };
             }
-            
+
             THREAD_ID.with(|id| {
                 let current_id = id.get().unwrap_or_else(|| {
                     let new_id = THREAD_COUNTER.fetch_add(1, Ordering::Relaxed);
                     id.set(Some(new_id));
                     new_id
                 });
-                
+
                 Self { id: current_id }
             })
         }
@@ -3419,7 +3419,7 @@ impl<T> OnceLock<T> {
                 core::hint::spin_loop();
             }
         }
-        
+
         unsafe {
             let data_ptr = self.data.get();
             (*data_ptr).as_ref().unwrap_unchecked()
@@ -3527,13 +3527,13 @@ impl OptimizedFormatBuffer {
     /// High-performance string appending with memory-efficient growth
     pub fn append_optimized(&mut self, s: &str) {
         let new_len = self.data.len() + s.len();
-        
+
         // Ensure capacity with intelligent growth strategy
         if new_len > self.data.capacity() {
             let new_capacity = (new_len * 2).next_power_of_two().max(self.reserved_capacity);
             self.data.reserve(new_capacity - self.data.capacity());
         }
-        
+
         // Use efficient string concatenation
         self.data.push_str(s);
     }
@@ -3576,7 +3576,7 @@ impl OptimizedFormatBuffer {
     /// let mut buffer = OptimizedFormatBuffer::new();
     /// buffer.append_optimized("Hello, World!");
     /// assert_eq!(buffer.as_str().len(), 13);
-    /// 
+    ///
     /// buffer.clear();
     /// assert_eq!(buffer.as_str().len(), 0);
     /// assert!(buffer.as_str().is_empty());
@@ -3594,12 +3594,12 @@ impl OptimizedFormatBuffer {
     pub fn append_multiple(&mut self, fragments: &[&str]) {
         let total_len: usize = fragments.iter().map(|s| s.len()).sum();
         let new_len = self.data.len() + total_len;
-        
+
         if new_len > self.data.capacity() {
             let new_capacity = (new_len * 2).next_power_of_two().max(self.reserved_capacity);
             self.data.reserve(new_capacity - self.data.capacity());
         }
-        
+
         for fragment in fragments {
             self.data.push_str(fragment);
         }
@@ -3654,7 +3654,7 @@ pub struct ContextAnalysis {
     pub has_location_info: bool,
     /// Number of metadata key-value pairs attached
     pub metadata_entries: usize,
-    /// Number of typed payload objects attached
+    /// Number of typed shell objects attached
     pub typed_payloads: usize,
     /// Priority level of the primary context (0-255)
     pub primary_context_priority: u8,
@@ -3754,7 +3754,7 @@ fn is_production_mode() -> bool {
 /// Sanitizes error messages to remove potentially sensitive information in production
 fn sanitize_error_message(msg: &str) -> String {
     let mut sanitized = msg.to_string();
-    
+
     // Simple string replacement for common sensitive patterns
     let lower_msg = msg.to_lowercase();
     if lower_msg.contains("password") {
@@ -3766,14 +3766,14 @@ fn sanitize_error_message(msg: &str) -> String {
     if lower_msg.contains("key") {
         sanitized = sanitized.replace("key", "key=[REDACTED]");
     }
-    
+
     // Truncate very long messages that might contain sensitive data dumps
     const MAX_MESSAGE_LENGTH: usize = 256;
     if sanitized.len() > MAX_MESSAGE_LENGTH {
         sanitized.truncate(MAX_MESSAGE_LENGTH);
         sanitized.push_str("... [truncated]");
     }
-    
+
     sanitized
 }
 
@@ -3809,7 +3809,7 @@ impl StringInternPool {
 
     fn intern(&self, s: impl Into<String>) -> Arc<str> {
         let string = s.into();
-        
+
         #[cfg(feature = "std")]
         {
             // Fast path: check if already interned
@@ -3823,7 +3823,7 @@ impl StringInternPool {
 
             // Slow path: intern new string
             let mut pool = self.pool.write().unwrap_or_else(|e| e.into_inner());
-            
+
             // Double-check pattern
             if let Some(interned) = pool.get(&string) {
                 self.hits.fetch_add(1, Ordering::Relaxed);
@@ -3835,7 +3835,7 @@ impl StringInternPool {
             self.misses.fetch_add(1, Ordering::Relaxed);
             arc_str
         }
-        
+
         #[cfg(not(feature = "std"))]
         {
             // For no_std, use direct conversion without pooling for now
@@ -3920,7 +3920,7 @@ pub enum NoStdIoKind {
     /// Permission was denied for the operation.
     PermissionDenied,
     /// A network connection was refused.
-    ConnectionRefused, 
+    ConnectionRefused,
     /// An operation timed out.
     TimedOut,
     /// A generic I/O error occurred.
@@ -3935,25 +3935,25 @@ impl NoStdIoKind {
     pub const fn as_str(&self) -> &'static str {
         match self {
             Self::NotFound => "not found",
-            Self::PermissionDenied => "permission denied", 
+            Self::PermissionDenied => "permission denied",
             Self::ConnectionRefused => "connection refused",
             Self::TimedOut => "timed out",
             Self::Generic => "I/O error",
             Self::Other => "other error",
         }
     }
-    
+
     /// Returns whether this error kind typically indicates a transient condition.
     pub const fn is_transient(&self) -> bool {
         matches!(self, Self::ConnectionRefused | Self::TimedOut | Self::Generic)
     }
-    
+
     /// Returns a severity level for this error kind (0-100).
     pub const fn severity(&self) -> u8 {
         match self {
             Self::NotFound => 30,
             Self::PermissionDenied => 50,
-            Self::ConnectionRefused => 40, 
+            Self::ConnectionRefused => 40,
             Self::TimedOut => 35,
             Self::Generic => 45,
             Self::Other => 40,
@@ -4022,43 +4022,43 @@ impl NoStdIo {
     pub fn new(message: impl Into<String>) -> Self {
         let msg = message.into();
         let lower_msg = msg.to_lowercase();
-        
+
         // Comprehensive pattern matching for better error categorization
         match lower_msg.as_str() {
             // File/resource not found patterns
-            s if s.contains("not found") || s.contains("no such file") || 
+            s if s.contains("not found") || s.contains("no such file") ||
                 s.contains("enoent") || s.contains("file does not exist") => Self::NotFound,
-            
-            // Permission/access denied patterns  
+
+            // Permission/access denied patterns
             s if s.contains("permission denied") || s.contains("access denied") ||
                 s.contains("access is denied") || s.contains("eacces") ||
                 s.contains("unauthorized") || s.contains("forbidden") => Self::PermissionDenied,
-                
+
             // Network connection patterns
             s if s.contains("connection refused") || s.contains("econnrefused") ||
                 s.contains("no route to host") || s.contains("network unreachable") => Self::ConnectionRefused,
-                
+
             // Timeout patterns
-            s if s.contains("timed out") || s.contains("timeout") || 
+            s if s.contains("timed out") || s.contains("timeout") ||
                 s.contains("etimedout") || s.contains("operation timeout") => Self::TimedOut,
-                
+
             // Generic I/O patterns
             s if s.contains("i/o error") || s.contains("io error") ||
                 s.contains("input/output error") => Self::GenericIo(msg.into()),
-                
+
             // Catch-all for unrecognized patterns
             _ => Self::Other(msg.into()),
         }
     }
 
     /// Creates a new I/O error from an error code and message.
-    /// 
+    ///
     /// This method provides more precise error categorization when
     /// both an error code and message are available.
     pub fn from_code_and_message(code: i32, message: impl Into<String>) -> Self {
         match code {
             2 | -2 => Self::NotFound,           // ENOENT
-            13 | -13 => Self::PermissionDenied, // EACCES  
+            13 | -13 => Self::PermissionDenied, // EACCES
             111 | -111 => Self::ConnectionRefused, // ECONNREFUSED
             110 | -110 => Self::TimedOut,       // ETIMEDOUT
             5 | -5 => Self::GenericIo(message.into().into()), // EIO
@@ -4070,7 +4070,7 @@ impl NoStdIo {
     pub fn typed_error(error_type: NoStdIoKind, message: impl Into<String>) -> Self {
         match error_type {
             NoStdIoKind::NotFound => Self::NotFound,
-            NoStdIoKind::PermissionDenied => Self::PermissionDenied, 
+            NoStdIoKind::PermissionDenied => Self::PermissionDenied,
             NoStdIoKind::ConnectionRefused => Self::ConnectionRefused,
             NoStdIoKind::TimedOut => Self::TimedOut,
             NoStdIoKind::Generic => Self::GenericIo(message.into().into()),
@@ -4653,14 +4653,14 @@ impl Error for YoshiKind {
 
 /// Enhanced structured context with performance optimizations and type safety.
 ///
-/// `YoshiContext` provides additional, application-specific information
+/// `YoContext` provides additional, application-specific information
 /// about an error that helps in debugging, logging, and recovery.
 /// It supports messages, metadata, suggestions, and arbitrary typed payloads.
 #[derive(Debug, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(bound(serialize = "", deserialize = "")))]
 #[cfg_attr(docsrs, doc(cfg(feature = "serde")))]
-pub struct YoshiContext {
+pub struct YoContext {
     /// Main message with Arc optimization for shared contexts.
     ///
     /// This field holds a descriptive message for the context.
@@ -4685,7 +4685,7 @@ pub struct YoshiContext {
     /// Typed payloads with optimized storage.
     ///
     /// A vector of arbitrary `Any + Send + Sync + 'static` types, allowing for
-    /// rich, structured data to be attached to an error. Payloads are shared
+    /// rich, structured data to be attached to an error. Shells are shared
     /// across cloned contexts via `Arc` to ensure memory efficiency.
     #[cfg_attr(feature = "serde", serde(skip))]
     pub payloads: Vec<Arc<Box<dyn Any + Send + Sync + 'static>>>,
@@ -4700,10 +4700,10 @@ pub struct YoshiContext {
     pub priority: u8,
 }
 
-impl YoshiContext {
+impl YoContext {
     /// Creates a new context with optimized string allocation.
     ///
-    /// This is the primary way to create a new `YoshiContext`. It automatically
+    /// This is the primary way to create a new `YoContext`. It automatically
     /// captures the current system time and sets a default priority.
     /// Uses string interning for memory efficiency.
     ///
@@ -4714,13 +4714,13 @@ impl YoshiContext {
     ///
     /// # Returns
     ///
-    /// A new `YoshiContext` instance.
+    /// A new `YoContext` instance.
     ///
     /// # Examples
     ///
     /// ```
-    /// # use yoshi_std::YoshiContext;
-    /// let ctx = YoshiContext::new("Attempting to connect to database");
+    /// # use yoshi_std::YoContext;
+    /// let ctx = YoContext::new("Attempting to connect to database");
     /// assert_eq!(ctx.message.as_deref(), Some("Attempting to connect to database"));
     /// assert!(ctx.created_at.is_some());
     /// ```
@@ -4746,13 +4746,13 @@ impl YoshiContext {
     ///
     /// # Returns
     ///
-    /// The `YoshiContext` instance with the new metadata added.
+    /// The `YoContext` instance with the new metadata added.
     ///
     /// # Examples
     ///
     /// ```
-    /// # use yoshi_std::YoshiContext;
-    /// let ctx = YoshiContext::new("Processing user request")
+    /// # use yoshi_std::YoContext;
+    /// let ctx = YoContext::new("Processing user request")
     ///     .with_metadata("user_id", "12345")
     ///     .with_metadata("session_id", "abcde");
     ///
@@ -4777,13 +4777,13 @@ impl YoshiContext {
     ///
     /// # Returns
     ///
-    /// The `YoshiContext` instance with the suggestion added.
+    /// The `YoContext` instance with the suggestion added.
     ///
     /// # Examples
     ///
     /// ```
-    /// # use yoshi_std::YoshiContext;
-    /// let ctx = YoshiContext::new("File not found")
+    /// # use yoshi_std::YoContext;
+    /// let ctx = YoContext::new("File not found")
     ///     .with_suggestion("Ensure the file path is correct and accessible.");
     ///
     /// assert_eq!(ctx.suggestion.as_deref(), Some("Ensure the file path is correct and accessible."));
@@ -4795,31 +4795,31 @@ impl YoshiContext {
         self
     }
 
-    /// Attaches a typed payload with enhanced type safety.
+    /// Attaches a typed shell with enhanced type safety.
     ///
     /// This method allows attaching typed payloads with better type tracking
-    /// for safer retrieval and debugging. Each payload is tagged with its type name.
+    /// for safer retrieval and debugging. Each shell is tagged with its type name.
     ///
     /// # Arguments
     ///
-    /// * `payload` - The data to attach. It must implement `Any`, `Send`, `Sync`, and have a `'static` lifetime.
+    /// * `shell` - The data to attach. It must implement `Any`, `Send`, `Sync`, and have a `'static` lifetime.
     ///
     /// # Returns
     ///
-    /// The `YoshiContext` instance with the payload added.
+    /// The `YoContext` instance with the shell added.
     ///    /// # Examples
     ///
     /// ```
-    /// # use yoshi_std::YoshiContext;
+    /// # use yoshi_std::YoContext;
     /// #[derive(Debug, PartialEq)]
     /// struct ErrorDetails {
     ///     code: u16,
     ///     reason: String,
     /// }
     ///
-    /// let ctx = YoshiContext::new("API call failed")
-    ///     .with_payload(ErrorDetails { code: 404, reason: "Endpoint not found".to_string() })
-    ///     .with_payload(vec![1, 2, 3]);
+    /// let ctx = YoContext::new("API call failed")
+    ///     .with_shell(ErrorDetails { code: 404, reason: "Endpoint not found".to_string() })
+    ///     .with_shell(vec![1, 2, 3]);
     ///
     /// let details = ctx.payloads.iter().find_map(|p| p.downcast_ref::<ErrorDetails>());
     /// assert!(details.is_some());
@@ -4830,42 +4830,42 @@ impl YoshiContext {
     /// ```
     #[must_use]
     #[inline]
-    pub fn with_payload(mut self, payload: impl Any + Send + Sync + 'static) -> Self {
-        // Limit payload count to prevent memory exhaustion
+    pub fn with_shell(mut self, shell: impl Any + Send + Sync + 'static) -> Self {
+        // Limit shell count to prevent memory exhaustion
         const MAX_PAYLOADS: usize = 16;
         if self.payloads.len() < MAX_PAYLOADS {
             // Store as Arc<Box<dyn Any>> to enable cloning of the Vec<Arc<...>>
-            self.payloads.push(Arc::new(Box::new(payload)));
+            self.payloads.push(Arc::new(Box::new(shell)));
         }
         self
     }
-    
-    /// Gets a typed payload from this context.
+
+    /// Gets a typed shell from this context.
     ///
-    /// This method attempts to retrieve a payload of the specified type from
+    /// This method attempts to retrieve a shell of the specified type from
     /// this context. It searches through all payloads and returns the first
     /// one that matches the type.
     ///
     /// # Type Parameters
     ///
-    /// * `T` - The type of payload to retrieve.
+    /// * `T` - The type of shell to retrieve.
     ///
     /// # Returns
     ///
-    /// An `Option` containing a reference to the payload of type `T`, or `None`
-    /// if no such payload exists.
+    /// An `Option` containing a reference to the shell of type `T`, or `None`
+    /// if no such shell exists.
     ///
     /// # Examples
     ///
     /// ```
-    /// # use yoshi_std::YoshiContext;
+    /// # use yoshi_std::YoContext;
     /// #[derive(Debug, PartialEq)]
     /// struct CustomData(u32);
-    /// let ctx = YoshiContext::new("test").with_payload(CustomData(123));
-    /// assert_eq!(ctx.payload::<CustomData>().unwrap().0, 123);
+    /// let ctx = YoContext::new("test").with_shell(CustomData(123));
+    /// assert_eq!(ctx.shell::<CustomData>().unwrap().0, 123);
     /// ```
     #[inline]
-    pub fn payload<T: 'static>(&self) -> Option<&T> {
+    pub fn shell<T: 'static>(&self) -> Option<&T> {
         self.payloads.iter().find_map(|p_arc| p_arc.as_ref().downcast_ref::<T>())
     }
 
@@ -4880,16 +4880,16 @@ impl YoshiContext {
     ///
     /// # Returns
     ///
-    /// The `YoshiContext` instance with the updated priority.
+    /// The `YoContext` instance with the updated priority.
     ///
     /// # Examples
     ///
     /// ```
-    /// # use yoshi_std::YoshiContext;
-    /// let low_priority_ctx = YoshiContext::new("Minor detail").with_priority(50);
+    /// # use yoshi_std::YoContext;
+    /// let low_priority_ctx = YoContext::new("Minor detail").with_priority(50);
     /// assert_eq!(low_priority_ctx.priority, 50);
     ///
-    /// let high_priority_ctx = YoshiContext::new("Critical information").with_priority(250);
+    /// let high_priority_ctx = YoContext::new("Critical information").with_priority(250);
     /// assert_eq!(high_priority_ctx.priority, 250);
     /// ```
     #[must_use]
@@ -4902,7 +4902,7 @@ impl YoshiContext {
     /// Sets location information on this context.
     ///
     /// This method attaches source code location information to the context,
-    /// helping with debugging and error tracing. It consumes `self` and 
+    /// helping with debugging and error tracing. It consumes `self` and
     /// returns a modified `Self`.
     ///
     /// # Arguments
@@ -4911,14 +4911,14 @@ impl YoshiContext {
     ///
     /// # Returns
     ///
-    /// The `YoshiContext` instance with the location set.
+    /// The `YoContext` instance with the location set.
     ///
     /// # Examples
     ///
     /// ```
-    /// # use yoshi_std::{YoshiContext, YoshiLocation};
+    /// # use yoshi_std::{YoContext, YoshiLocation};
     /// let location = YoshiLocation::new("test.rs", 42, 10);
-    /// let ctx = YoshiContext::new("operation failed")
+    /// let ctx = YoContext::new("operation failed")
     ///     .with_location(location);
     ///
     /// assert_eq!(ctx.location.unwrap().file, "test.rs");
@@ -4932,14 +4932,14 @@ impl YoshiContext {
     }
 }
 
-impl Clone for YoshiContext {
+impl Clone for YoContext {
     fn clone(&self) -> Self {
         Self {
             message: self.message.clone(),
             metadata: self.metadata.clone(),
             suggestion: self.suggestion.clone(),
             location: self.location,
-            // Payloads are now Arc<Box<dyn Any>>, so cloning the Vec will share the Arcs
+            // Shells are now Arc<Box<dyn Any>>, so cloning the Vec will share the Arcs
             payloads: self.payloads.clone(),
             created_at: self.created_at,
             priority: self.priority,
@@ -5217,7 +5217,7 @@ impl Display for YoshiBacktrace {
         if let Some(cost) = self.capture_cost_nanos {
             writeln!(f, "Capture cost: {}ns", cost)?;
         }
-        
+
         // Sanitize backtrace for production environments
         if is_production_mode() {
             write!(f, "[Backtrace sanitized for production]")
@@ -5226,7 +5226,7 @@ impl Display for YoshiBacktrace {
             let bt_string = self.inner.to_string();
             const MAX_BACKTRACE_SIZE: usize = 8192; // 8KB limit
             if bt_string.len() > MAX_BACKTRACE_SIZE {
-                write!(f, "{}... [truncated at {} bytes]", 
+                write!(f, "{}... [truncated at {} bytes]",
                        &bt_string[..MAX_BACKTRACE_SIZE], MAX_BACKTRACE_SIZE)
             } else {
                 write!(f, "{}", bt_string)
@@ -5246,7 +5246,7 @@ pub struct YoshiBacktrace {
     locations: Vec<YoshiLocation>,
     /// Timestamp when backtrace was captured
     capture_timestamp: SystemTime,
-    /// Thread ID where backtrace was captured  
+    /// Thread ID where backtrace was captured
     thread_id: ThreadId,
     /// Simple call depth indicator
     call_depth: u32,
@@ -5258,7 +5258,7 @@ impl YoshiBacktrace {
     pub fn new_captured() -> Self {
         Self::new_with_location(yoshi_location!())
     }
-    
+
     /// Creates a backtrace with a specific source location.
     pub fn new_with_location(location: YoshiLocation) -> Self {
         Self {
@@ -5268,38 +5268,38 @@ impl YoshiBacktrace {
             call_depth: 1,
         }
     }
-    
+
     /// Adds a location to the backtrace chain.
     pub fn add_location(&mut self, location: YoshiLocation) {
         self.locations.push(location);
         self.call_depth += 1;
     }
-    
+
     /// Returns the call depth.
     pub const fn call_depth(&self) -> u32 {
         self.call_depth
     }
-    
+
     /// Returns the capture timestamp.
     pub const fn capture_timestamp(&self) -> SystemTime {
         self.capture_timestamp
     }
-    
+
     /// Returns the thread ID where this was captured.
     pub const fn thread_id(&self) -> ThreadId {
         self.thread_id
     }
-    
+
     /// Returns an iterator over the captured locations.
     pub fn locations(&self) -> impl Iterator<Item = &YoshiLocation> {
         self.locations.iter()
     }
-    
+
     /// Returns the most recent (top) location in the backtrace.
     pub fn top_location(&self) -> Option<&YoshiLocation> {
         self.locations.last()
     }
-    
+
     /// Returns a status indicating the backtrace state.
     pub fn status(&self) -> BacktraceStatus {
         if self.locations.is_empty() {
@@ -5316,11 +5316,11 @@ impl core::fmt::Display for YoshiBacktrace {
         writeln!(f, "Minimal backtrace (no_std) captured at: {:?}", self.capture_timestamp)?;
         writeln!(f, "Thread: {} | Call depth: {}", self.thread_id, self.call_depth)?;
         writeln!(f, "Locations:")?;
-        
+
         for (i, location) in self.locations.iter().enumerate() {
             writeln!(f, "  {}: {}", i, location)?;
         }
-        
+
         Ok(())
     }
 }
@@ -5351,7 +5351,7 @@ pub enum BacktraceStatus {
 ///
 /// - `kind`: The primary classification of the error, provided by [`YoshiKind`].
 /// - `backtrace`: An optional [`YoshiBacktrace`] providing stack trace information (only with `std` feature).
-/// - `contexts`: A vector of [`YoshiContext`] instances, providing additional
+/// - `contexts`: A vector of [`YoContext`] instances, providing additional
 ///   details and context about the error's propagation.
 /// - `instance_id`: A unique identifier for each `Yoshi` error instance.
 /// - `created_at`: The `SystemTime` when the error was created (only with `std` feature).
@@ -5373,7 +5373,7 @@ pub enum BacktraceStatus {
 ///
 /// Creating an error with context:
 /// ```
-/// use yoshi_std::{Yoshi, YoshiKind, YoshiContextExt};
+/// use yoshi_std::{Yoshi, YoshiKind, HatchExt};
 /// # use std::io::{self, ErrorKind};
 ///
 /// fn load_data() -> Result<(), Yoshi> {
@@ -5406,7 +5406,7 @@ pub struct Yoshi {
     #[cfg_attr(docsrs, doc(cfg(not(feature = "std"))))]
     backtrace: Option<()>,
     /// Contexts providing additional information about the error.
-    contexts: Vec<YoshiContext>,
+    contexts: Vec<YoContext>,
     /// A unique identifier for this error instance.
     instance_id: u64,
     /// Timestamp when the error was created (only available with `std` feature).
@@ -5417,7 +5417,7 @@ pub struct Yoshi {
 impl Clone for Yoshi {
     /// Creates a clone of the `Yoshi` error.
     ///
-    /// Note: In `std` mode, the backtrace is not cloned (as `std::backtrace::Backtrace` 
+    /// Note: In `std` mode, the backtrace is not cloned (as `std::backtrace::Backtrace`
     /// doesn't implement `Clone`). Instead, the clone will have no backtrace (`None`).
     /// In `no_std` mode, the backtrace is properly cloned as it only contains basic
     /// location information.
@@ -5425,7 +5425,7 @@ impl Clone for Yoshi {
     /// A new unique instance ID is generated for the clone to maintain error tracking.
     fn clone(&self) -> Self {
         let instance_id = ERROR_INSTANCE_COUNTER.fetch_add(1, Ordering::Relaxed);
-        
+
         Self {
             kind: self.kind.clone(),
             #[cfg(feature = "std")]
@@ -5484,7 +5484,7 @@ impl Yoshi {
             #[cfg(feature = "std")]
             created_at: SystemTime::now(),
         };
-        
+
         error
     }
 
@@ -5645,7 +5645,7 @@ impl Yoshi {
 
     /// Adds context with optimized string handling and location capture.
     ///
-    /// This method prepends a new [`YoshiContext`] to the error's context chain.
+    /// This method prepends a new [`YoContext`] to the error's context chain.
     /// It automatically captures the source code location where `context()` is called.
     /// Contexts are typically added as an error propagates up the call stack,
     /// providing a clear trail of what happened at each layer.
@@ -5676,7 +5676,7 @@ impl Yoshi {
     #[track_caller]
     #[inline]
     pub fn context(mut self, msg: impl Into<String>) -> Self {
-        let mut ctx = YoshiContext::new(msg);
+        let mut ctx = YoContext::new(msg);
         ctx.location = Some(yoshi_location!());
         // Append context to the end, then iterate in reverse for Display
         self.contexts.push(ctx);
@@ -5752,15 +5752,15 @@ impl Yoshi {
         self.extend(|c| c.with_suggestion(s))
     }
 
-    /// Attaches typed payload with optimized boxing.
+    /// Attaches typed shell with optimized boxing.
     ///
-    /// This is a convenience method that calls `with_payload` on the
+    /// This is a convenience method that calls `with_shell` on the
     /// *most recently added context*. If no contexts exist, it creates
-    /// a default one and adds the payload to it.
+    /// a default one and adds the shell to it.
     ///
     /// # Arguments
     ///
-    /// * `payload` - The data to attach. It must implement `Any`, `Send`, `Sync`, and have a `'static` lifetime.
+    /// * `shell` - The data to attach. It must implement `Any`, `Send`, `Sync`, and have a `'static` lifetime.
     ///
     /// # Returns
     ///
@@ -5779,17 +5779,17 @@ impl Yoshi {
     ///     source: None,
     ///     component: None,
     /// })
-    /// .with_payload(TransactionId("tx123".into()))
-    /// .with_payload(42u32);
+    /// .with_shell(TransactionId("tx123".into()))
+    /// .with_shell(42u32);
     ///
     /// let ctx = err.primary_context().unwrap();
-    /// let transaction_id = ctx.payload::<TransactionId>().unwrap();
+    /// let transaction_id = ctx.shell::<TransactionId>().unwrap();
     /// assert_eq!(transaction_id.0, "tx123");
     /// ```
     #[must_use]
     #[inline]
-    pub fn with_payload(self, payload: impl Any + Send + Sync + 'static) -> Self {
-        self.extend(|c| c.with_payload(payload))
+    pub fn with_shell(self, shell: impl Any + Send + Sync + 'static) -> Self {
+        self.extend(|c| c.with_shell(shell))
     }
 
     /// Sets the priority on the current context.
@@ -5887,20 +5887,20 @@ impl Yoshi {
             .and_then(|ctx| ctx.suggestion.as_deref())
     }
 
-    /// Gets a typed payload from the primary context.
+    /// Gets a typed shell from the primary context.
     ///
-    /// This method attempts to retrieve a payload of the specified type from
+    /// This method attempts to retrieve a shell of the specified type from
     /// the context with the highest priority. It searches through all payloads
     /// in the primary context and returns the first one that matches the type.
     ///
     /// # Type Parameters
     ///
-    /// * `T` - The type of payload to retrieve.
+    /// * `T` - The type of shell to retrieve.
     ///
     /// # Returns
     ///
-    /// An `Option` containing a reference to the payload of type `T`, or `None`
-    /// if no such payload exists.
+    /// An `Option` containing a reference to the shell of type `T`, or `None`
+    /// if no such shell exists.
     ///
     /// # Examples
     ///
@@ -5915,70 +5915,70 @@ impl Yoshi {
     ///     source: None,
     ///     component: None,
     /// })
-    /// .with_payload(RequestId("req123".to_string()));
+    /// .with_shell(RequestId("req123".to_string()));
     ///
-    /// let payload = err.payload::<RequestId>().unwrap();
-    /// assert_eq!(payload.0, "req123".to_string());
+    /// let shell = err.shell::<RequestId>().unwrap();
+    /// assert_eq!(shell.0, "req123".to_string());
     /// ```
-    /// Gets a typed payload from this context.
+    /// Gets a typed shell from this context.
     ///
-    /// This method attempts to retrieve a payload of the specified type from
+    /// This method attempts to retrieve a shell of the specified type from
     /// this context. It searches through all payloads and returns the first
     /// one that matches the type.
     ///
     /// # Type Parameters
     ///
-    /// * `T` - The type of payload to retrieve.
+    /// * `T` - The type of shell to retrieve.
     ///
     /// # Returns
     ///
-    /// An `Option` containing a reference to the payload of type `T`, or `None`
-    /// if no such payload exists.
+    /// An `Option` containing a reference to the shell of type `T`, or `None`
+    /// if no such shell exists.
     ///
     /// # Examples
     ///
     /// ```
-    /// use yoshi_std::YoshiContext;
+    /// use yoshi_std::YoContext;
     /// #[derive(Debug, PartialEq)]
     /// struct CustomData(u32);
-    /// let ctx = YoshiContext::new("test").with_payload(CustomData(123));
-    /// assert_eq!(ctx.payload::<CustomData>().unwrap().0, 123);
+    /// let ctx = YoContext::new("test").with_shell(CustomData(123));
+    /// assert_eq!(ctx.shell::<CustomData>().unwrap().0, 123);
     /// ```
-    /// Gets a typed payload from this context.
+    /// Gets a typed shell from this context.
     ///
-    /// This method attempts to retrieve a payload of the specified type from
+    /// This method attempts to retrieve a shell of the specified type from
     /// this context. It searches through all payloads and returns the first
     /// one that matches the type.
     ///
     /// # Type Parameters
     ///
-    /// * `T` - The type of payload to retrieve.
+    /// * `T` - The type of shell to retrieve.
     ///
     /// # Returns
     ///
-    /// An `Option` containing a reference to the payload of type `T`, or `None`
-    /// if no such payload exists.
+    /// An `Option` containing a reference to the shell of type `T`, or `None`
+    /// if no such shell exists.
     ///
     /// # Examples
     ///
     /// ```
-    /// use yoshi_std::YoshiContext;
+    /// use yoshi_std::YoContext;
     /// #[derive(Debug, PartialEq)]
     /// struct CustomData(u32);
-    /// let ctx = YoshiContext::new("test").with_payload(CustomData(123));    /// assert_eq!(ctx.payload::<CustomData>().unwrap().0, 123);    /// ```
-    #[inline]    pub fn payload<T: 'static>(&self) -> Option<&T> {
+    /// let ctx = YoContext::new("test").with_shell(CustomData(123));    /// assert_eq!(ctx.shell::<CustomData>().unwrap().0, 123);    /// ```
+    #[inline]    pub fn shell<T: 'static>(&self) -> Option<&T> {
         // First check the primary context if available
         if let Some(primary) = self.primary_context() {
-            if let Some(payload) = primary.payloads.iter().find_map(|p_arc| p_arc.as_ref().downcast_ref::<T>()) {
-                return Some(payload);
+            if let Some(shell) = primary.payloads.iter().find_map(|p_arc| p_arc.as_ref().downcast_ref::<T>()) {
+                return Some(shell);
             }
         }
-        
-        // Then search ALL contexts for the payload
+
+        // Then search ALL contexts for the shell
         // This ensures payloads can be found regardless of context priority
         for context in &self.contexts {
-            if let Some(payload) = context.payloads.iter().find_map(|p_arc| p_arc.as_ref().downcast_ref::<T>()) {
-                return Some(payload);
+            if let Some(shell) = context.payloads.iter().find_map(|p_arc| p_arc.as_ref().downcast_ref::<T>()) {
+                return Some(shell);
             }
         }
         None
@@ -6048,7 +6048,7 @@ impl Yoshi {
 
     /// Advanced error recovery with sophisticated retry logic
     ///
-    /// Attaches an `ErrorRecoveryStrategy` as a typed payload to the most
+    /// Attaches an `ErrorRecoveryStrategy` as a typed shell to the most
     /// recently added context. If no contexts exist, a new default one is
     /// created. This allows the error handling system to suggest or
     /// automatically attempt recovery actions.
@@ -6066,17 +6066,17 @@ impl Yoshi {
     /// # use yoshi_std::{Yoshi, YoshiKind, ErrorRecoveryStrategy};
     /// # use core::time::Duration;
     /// let err = Yoshi::new(YoshiKind::Network { message: "connection lost".into(), source: None, error_code: None })
-    ///     .with_payload(ErrorRecoveryStrategy::ExponentialBackoff {
+    ///     .with_shell(ErrorRecoveryStrategy::ExponentialBackoff {
     ///         initial_delay: Duration::from_secs(1),
     ///         max_retries: 5,
     ///         backoff_multiplier: 2.0,
     ///     });
     ///
-    /// let strategy = err.payload::<ErrorRecoveryStrategy>().unwrap();
+    /// let strategy = err.shell::<ErrorRecoveryStrategy>().unwrap();
     /// assert!(matches!(strategy, ErrorRecoveryStrategy::ExponentialBackoff { .. }));
     /// ```
     pub fn with_recovery_strategy(self, strategy: ErrorRecoveryStrategy) -> Self {
-        self.with_payload(strategy)
+        self.with_shell(strategy)
     }
 
     /// Attempts automatic error recovery based on error type and context
@@ -6086,7 +6086,7 @@ impl Yoshi {
     {
         // Analyze error characteristics for recovery potential
         let recovery_score = self.calculate_recovery_score();
-        
+
         if recovery_score > 0.7 {
             recovery_fn(self)
         } else {
@@ -6101,7 +6101,7 @@ impl Yoshi {
         const RECOVERY_SCORES: [f64; 11] = [
             0.5, // Io
             0.8, // Network
-            0.2, // Config  
+            0.2, // Config
             0.1, // Validation
             0.3, // Internal
             0.4, // NotFound
@@ -6111,7 +6111,7 @@ impl Yoshi {
             0.3, // Multiple
             0.5, // Default
         ];
-        
+
         let base_score = RECOVERY_SCORES[match &self.kind {
             #[cfg(feature = "std")]
             YoshiKind::Io(_) => 0,
@@ -6127,7 +6127,7 @@ impl Yoshi {
             YoshiKind::Foreign { .. } => 8,
             YoshiKind::Multiple { .. } => 9,
         }];
-        
+
         // Constant-time adjustments
         let transient_bonus = if self.is_transient() { 0.2 } else { 0.0 };
         let retry_penalty = if self.contexts.iter().any(|ctx| {
@@ -6140,22 +6140,22 @@ impl Yoshi {
     /// Enhanced context analysis for better debugging
     pub fn analyze_context(&self) -> ContextAnalysis {
         let mut analysis = ContextAnalysis::default();
-        
+
         for ctx in &self.contexts {
             analysis.total_contexts += 1;
-            
+
             if ctx.suggestion.is_some() {
                 analysis.has_suggestions = true;
             }
-            
+
             if !ctx.metadata.is_empty() {
                 analysis.metadata_entries += ctx.metadata.len();
             }
-            
+
             if !ctx.payloads.is_empty() {
                 analysis.typed_payloads += ctx.payloads.len();
             }
-            
+
             if ctx.location.is_some() {
                 analysis.has_location_info = true;
             }
@@ -6178,19 +6178,19 @@ impl Yoshi {
     ///
     /// # Arguments
     ///
-    /// * `op` - A closure that takes a `YoshiContext` and returns a modified one.
+    /// * `op` - A closure that takes a `YoContext` and returns a modified one.
     ///
     /// # Returns
     ///
     /// The modified `Yoshi` error instance.
     fn extend<F>(mut self, op: F) -> Self
     where
-        F: FnOnce(YoshiContext) -> YoshiContext,
+        F: FnOnce(YoContext) -> YoContext,
     {
         if let Some(c0) = self.contexts.last_mut() {
             *c0 = op(mem::take(c0));
         } else {
-            self.contexts.push(op(YoshiContext::default()));
+            self.contexts.push(op(YoContext::default()));
         }
         self
     }
@@ -6237,7 +6237,7 @@ impl Yoshi {
     ///
     /// # Returns
     ///
-    /// An iterator yielding references to `YoshiContext` objects.
+    /// An iterator yielding references to `YoContext` objects.
     ///
     /// # Examples
     ///
@@ -6256,25 +6256,25 @@ impl Yoshi {
     /// // Context 1: Some("step 1 failed")
     /// ```
     #[inline]
-    pub fn contexts(&self) -> impl DoubleEndedIterator<Item = &YoshiContext> {
+    pub fn contexts(&self) -> impl DoubleEndedIterator<Item = &YoContext> {
         self.contexts.iter()
     }
 
     /// Gets the highest priority context.
     ///
-    /// This method finds the `YoshiContext` within the error's context chain
+    /// This method finds the `YoContext` within the error's context chain
     /// that has the highest `priority` value. This can be useful for quickly
     /// identifying the most critical or relevant piece of contextual information.
     ///
     /// # Returns
     ///
-    /// An `Option` containing a reference to the `YoshiContext` with the highest
+    /// An `Option` containing a reference to the `YoContext` with the highest
     /// priority, or `None` if no contexts are present.
     ///
     /// # Examples
     ///
     /// ```
-    /// use yoshi_std::{Yoshi, YoshiKind, YoshiContextExt};
+    /// use yoshi_std::{Yoshi, YoshiKind, HatchExt};
     /// let err = Yoshi::new(YoshiKind::Internal { message: "base error".into(), source: None, component: None })
     ///     .context("Low priority info").with_priority(50)
     ///     .context("Critical detail").with_priority(250)
@@ -6285,7 +6285,7 @@ impl Yoshi {
     /// assert_eq!(primary_ctx.priority, 250);
     /// ```
     #[inline]
-    pub fn primary_context(&self) -> Option<&YoshiContext> {
+    pub fn primary_context(&self) -> Option<&YoContext> {
         self.contexts.iter().max_by_key(|c| c.priority)
     }
 
@@ -6394,7 +6394,7 @@ impl Yoshi {
         }
 
         if let Some(source_err) = self.kind.source() {
-            let is_source_displayed = matches!(self.kind, 
+            let is_source_displayed = matches!(self.kind,
                 YoshiKind::Io(_) | YoshiKind::Foreign { .. }
             );
 
@@ -6413,13 +6413,13 @@ impl Yoshi {
     /// Fallback formatting for compatibility
     fn format_source_chain_fallback(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.kind)?;
-        
+
         for ctx in &self.contexts {
             if let Some(msg) = &ctx.message {
                 write!(f, "\nCaused by: {}", msg)?;
             }
         }
-        
+
         Ok(())
     }
 }
@@ -6433,7 +6433,7 @@ impl Display for Yoshi {
     ///
     /// This implementation constructs a comprehensive error message by:
     /// 1. Displaying the primary [`YoshiKind`].
-    /// 2. Iterating through and formatting all associated [`YoshiContext`]s
+    /// 2. Iterating through and formatting all associated [`YoContext`]s
     ///    in priority order (highest priority first).
     /// 3. Recursively formatting the underlying error source chain, with
     ///    built-in cycle detection.
@@ -6452,7 +6452,7 @@ impl Display for Yoshi {
     /// # Examples
     ///
     /// ```
-    /// use yoshi_std::{Yoshi, YoshiKind, YoshiContextExt};
+    /// use yoshi_std::{Yoshi, YoshiKind, HatchExt};
     /// # use std::io::{self, ErrorKind};
     ///
     /// let base_err = io::Error::new(ErrorKind::NotFound, "file not found");
@@ -6469,7 +6469,7 @@ impl Display for Yoshi {
     /// ```
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         let mut buffer = OptimizedFormatBuffer::with_capacity(1024);
-        
+
         // Format main error with optimization
         let kind_str = format!("{}", self.kind);
         buffer.append_optimized(&kind_str);
@@ -6501,7 +6501,7 @@ impl Display for Yoshi {
                 context_fragments.push(s.as_ref());
             }
         }
-        
+
         // Batch append context fragments for better performance
         buffer.append_multiple(&context_fragments);
 
@@ -6555,7 +6555,7 @@ impl Error for Yoshi {
         self.kind.source()
     }
     // `provide` method removed as it relies on unstable `error_generic_member_access` feature.
-    // Use explicit accessor methods on `Yoshi` and `YoshiContext` instead for data retrieval.
+    // Use explicit accessor methods on `Yoshi` and `YoContext` instead for data retrieval.
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -6742,11 +6742,11 @@ impl<'a> From<&'a str> for Yoshi {
 /// suggestions, metadata, and typed payloads to `Result` errors, transforming
 /// them into `Yoshi` errors if they are not already.
 /// This simplifies error propagation and enrichment.
-pub trait YoshiContextExt<T> {
+pub trait HatchExt<T> {
     /// Adds a new context message to the error.
     ///
     /// If the `Result` is an `Err` variant, the error is converted into a
-    /// `Yoshi` error (if it isn't already) and a new [`YoshiContext`] is
+    /// `Yoshi` error (if it isn't already) and a new [`YoContext`] is
     /// prepended to its context chain with the provided message.
     /// The source code location of the call is captured.
     ///
@@ -6761,7 +6761,7 @@ pub trait YoshiContextExt<T> {
     /// # Examples
     ///
     /// ```
-    /// use yoshi_std::{Result, YoshiContextExt};
+    /// use yoshi_std::{Result, HatchExt};
     /// # use std::io::{self, ErrorKind};
     ///
     /// fn try_read_file() -> std::io::Result<String> {
@@ -6795,7 +6795,7 @@ pub trait YoshiContextExt<T> {
     /// # Examples
     ///
     /// ```
-    /// use yoshi_std::{Result, YoshiContextExt};
+    /// use yoshi_std::{Result, HatchExt};
     /// # use std::io::{self, ErrorKind};
     ///
     /// fn validate_input(input: &str) -> std::io::Result<()> {
@@ -6815,24 +6815,24 @@ pub trait YoshiContextExt<T> {
     /// ```
     #[track_caller]
     fn with_suggestion(self, s: impl Into<String>) -> Result<T>;
-    /// Attaches a typed payload to the error.
+    /// Attaches a typed shell to the error.
     ///
     /// If the `Result` is an `Err` variant, the error is converted into a
-    /// `Yoshi` error (if it isn't already) and a typed payload is added to
+    /// `Yoshi` error (if it isn't already) and a typed shell is added to
     /// its primary context.
     /// The source code location of the call is captured.
     ///
     /// # Arguments
     ///
-    /// * `p` - The payload to attach. It must implement `Any`, `Send`, `Sync`, and have a `'static` lifetime.
+    /// * `p` - The shell to attach. It must implement `Any`, `Send`, `Sync`, and have a `'static` lifetime.
     ///
     /// # Returns
     ///
-    /// A `Result<T>` with the error (if any) extended with the payload.
+    /// A `Result<T>` with the error (if any) extended with the shell.
     ///
     /// # Examples
     ///    /// ```
-    /// use yoshi_std::{Result, YoshiContextExt};
+    /// use yoshi_std::{Result, HatchExt};
     /// # use std::io::{self, ErrorKind};
     /// #[derive(Debug, PartialEq, Clone)]
     /// struct OperationId(u64);
@@ -6843,7 +6843,7 @@ pub trait YoshiContextExt<T> {
     ///
     /// let op_id = OperationId(12345);
     /// let result: Result<()> = perform_operation()
-    ///     .with_payload(op_id.clone());
+    ///     .with_shell(op_id.clone());
     ///
     /// assert!(result.is_err());
     /// let err = result.unwrap_err();
@@ -6852,7 +6852,7 @@ pub trait YoshiContextExt<T> {
     /// assert_eq!(retrieved_op_id, Some(&op_id));
     /// ```
     #[track_caller]
-    fn with_payload(self, p: impl Any + Send + Sync + 'static) -> Result<T>;
+    fn with_shell(self, p: impl Any + Send + Sync + 'static) -> Result<T>;
     /// Sets the priority for the error's primary context.
     ///
     /// If the `Result` is an `Err` variant, the error is converted into a
@@ -6871,7 +6871,7 @@ pub trait YoshiContextExt<T> {
     /// # Examples
     ///
     /// ```
-    /// use yoshi_std::{Result, YoshiContextExt};
+    /// use yoshi_std::{Result, HatchExt};
     /// # use yoshi_std::YoshiKind;
     /// #
     /// let res: Result<()> = Err(yoshi_std::Yoshi::new(YoshiKind::Internal { message: "low importance".into(), source: None, component: None }))
@@ -6887,12 +6887,12 @@ pub trait YoshiContextExt<T> {
     // NEW: Ultra-short aliases for speed typing
     /// Alias for `context`.
     ///
-    /// See [`YoshiContextExt::context`] for detailed documentation.
+    /// See [`HatchExt::context`] for detailed documentation.
     #[track_caller]
     fn ctx(self, msg: impl Into<String>) -> Result<T>;
     /// Alias for `with_suggestion`.
     ///
-    /// See [`YoshiContextExt::with_suggestion`] for detailed documentation.
+    /// See [`HatchExt::with_suggestion`] for detailed documentation.
     #[track_caller]
     fn help(self, s: impl Into<String>) -> Result<T>;
     /// Adds metadata to the error.
@@ -6914,7 +6914,7 @@ pub trait YoshiContextExt<T> {
     /// # Examples
     ///
     /// ```
-    /// use yoshi_std::{Result, YoshiContextExt, YoshiKind};
+    /// use yoshi_std::{Result, HatchExt, YoshiKind};
     ///
     /// let res: Result<()> = Err(yoshi_std::Yoshi::new(YoshiKind::Internal { message: "problem".into(), source: None, component: None }))
     ///     .meta("user_id", "john.doe");
@@ -6927,7 +6927,7 @@ pub trait YoshiContextExt<T> {
     fn meta(self, k: impl Into<String>, v: impl Into<String>) -> Result<T>;
 }
 
-impl<T, E> YoshiContextExt<T> for core::result::Result<T, E>
+impl<T, E> HatchExt<T> for core::result::Result<T, E>
 where
     E: Into<Yoshi> + Send + Sync + 'static, // Updated trait bounds
 {
@@ -6943,14 +6943,14 @@ where
         self.map_err(|e| e.into().with_suggestion(s))
     }    #[track_caller]
     #[inline]
-    fn with_payload(self, p: impl Any + Send + Sync + 'static) -> Result<T> {
+    fn with_shell(self, p: impl Any + Send + Sync + 'static) -> Result<T> {
         self.map_err(|e| {
             let mut yoshi_err = e.into();
-            // Ensure we have a context to attach the payload to with standard priority
+            // Ensure we have a context to attach the shell to with standard priority
             if yoshi_err.contexts.is_empty() {
-                yoshi_err.contexts.push(YoshiContext::default().with_priority(128));
+                yoshi_err.contexts.push(YoContext::default().with_priority(128));
             }
-            yoshi_err.with_payload(p)
+            yoshi_err.with_shell(p)
         })
     }
 
@@ -6981,7 +6981,7 @@ where
             let mut yoshi_err = e.into();
             // Ensure we have a context to attach metadata to with proper priority
             if yoshi_err.contexts.is_empty() {
-                yoshi_err.contexts.push(YoshiContext::default().with_priority(128));
+                yoshi_err.contexts.push(YoContext::default().with_priority(128));
             }
             yoshi_err.with_metadata(k, v)
         })
@@ -7012,7 +7012,7 @@ where
 /// `#[cfg(feature = "std")]`, so it won't be compiled in `no_std`.
 #[cfg(feature = "std")]
 fn capture_bt() -> Option<YoshiBacktrace> {
-    // For more robust behavior, especially in testing environments, 
+    // For more robust behavior, especially in testing environments,
     // check the environment variables directly each time instead of caching
     let should = match std::env::var("RUST_LIB_BACKTRACE").or_else(|_| std::env::var("RUST_BACKTRACE")) {
         Ok(v) => v == "1" || v == "full", // Only enable backtrace for specific values
@@ -7043,14 +7043,14 @@ pub mod memory {
         /// Estimated bytes saved through string interning and optimization
         pub estimated_memory_saved: usize,
     }
-    
+
     /// Get comprehensive memory usage statistics
     pub fn get_memory_stats() -> MemoryStats {
         let (hits, misses) = STRING_INTERN_POOL
             .get()
             .map(|pool| pool.stats())
             .unwrap_or((0, 0));
-            
+
         MemoryStats {
             total_errors_created: error_instance_count(),
             total_contexts_created: 0, // Would need tracking
@@ -7059,7 +7059,7 @@ pub mod memory {
             estimated_memory_saved: hits * 32, // Rough estimate
         }
     }
-    
+
     /// Memory-efficient string creation with automatic interning
     pub fn efficient_string(s: impl Into<String>) -> Arc<str> {
         intern_string(s)
@@ -7081,11 +7081,11 @@ pub mod memory {
 #[cfg(feature = "std")]
 pub mod async_error_handling {
     //! Advanced async error processing utilities with precise capturing and performance optimization.
-    
+
     use super::*;
     use std::future::Future;
     use std::time::Duration;
-    
+
     /// Async error propagation with enhanced context preservation
     pub async fn propagate_async<T, E>(
         future: impl Future<Output = Result<T, E>>,
@@ -7099,7 +7099,7 @@ pub mod async_error_handling {
             Err(error) => Err(error.into().context(context.into())),
         }
     }
-    
+
     /// Async error recovery with exponential backoff
     pub async fn retry_with_backoff<T, F, Fut>(
         mut operation: F,
@@ -7111,7 +7111,7 @@ pub mod async_error_handling {
         Fut: Future<Output = Result<T, Yoshi>>,
     {
         let mut delay = base_delay;
-        
+
         for attempt in 0..=max_retries {
             match operation().await {
                 Ok(result) => return Ok(result),
@@ -7124,10 +7124,10 @@ pub mod async_error_handling {
                 Err(error) => return Err(error),
             }
         }
-        
+
         unreachable!()
     }
-    
+
     /// Async error aggregation for parallel operations
     pub async fn aggregate_errors<I, F, Fut, T>(
         operations: I,
@@ -7143,17 +7143,17 @@ pub mod async_error_handling {
         for fut in futures {
             results.push(fut.await);
         }
-        
+
         let mut successes = Vec::new();
         let mut errors = Vec::new();
-        
+
         for result in results {
             match result {
                 Ok(value) => successes.push(value),
                 Err(error) => errors.push(error),
             }
         }
-        
+
         if errors.is_empty() {
             Ok(successes)
         } else {
@@ -7172,11 +7172,11 @@ pub mod async_error_handling {
 #[cfg(feature = "std")]
 pub mod process_communication {
     //! Cross-process error reporting and coordination with enterprise-grade reliability.
-    
+
     use super::*;
     use std::sync::mpsc;
     use std::thread;
-    
+
     /// Cross-process error reporter with structured logging
     pub struct ProcessErrorReporter {
         sender: mpsc::Sender<ProcessError>,
@@ -7200,37 +7200,37 @@ pub mod process_communication {
         /// Additional metadata for enhanced error context
         pub metadata: HashMap<Arc<str>, Arc<str>>,
     }
-    
+
     impl ProcessErrorReporter {
         /// Creates a new process error reporter with background processing
         pub fn new() -> Self {
             let (sender, receiver) = mpsc::channel::<ProcessError>();
-            
+
             let handle = thread::spawn(move || {
                 while let Ok(error) = receiver.recv() {
                     // Process and log the error
-                    eprintln!("[PROCESS-ERROR] {}: {} (PID: {}, Severity: {})", 
+                    eprintln!("[PROCESS-ERROR] {}: {} (PID: {}, Severity: {})",
                              error.timestamp.elapsed().map(|d| d.as_secs()).unwrap_or(0),
-                             error.error_message, 
-                             error.process_id, 
+                             error.error_message,
+                             error.process_id,
                              error.severity);
-                    
+
                     // Write to structured log file (simple format without serde_json)
-                    println!("STRUCTURED_LOG: {{\"process_id\":{},\"thread_id\":\"{}\",\"message\":\"{}\",\"severity\":{},\"timestamp\":{:?}}}", 
-                            error.process_id, 
-                            error.thread_id, 
-                            error.error_message.replace("\"", "\\\""), 
-                            error.severity, 
+                    println!("STRUCTURED_LOG: {{\"process_id\":{},\"thread_id\":\"{}\",\"message\":\"{}\",\"severity\":{},\"timestamp\":{:?}}}",
+                            error.process_id,
+                            error.thread_id,
+                            error.error_message.replace("\"", "\\\""),
+                            error.severity,
                             error.timestamp);
                 }
             });
-            
+
             Self {
                 sender,
                 _handle: handle,
             }
         }
-        
+
         /// Reports an error to the cross-process system
         pub fn report_error(&self, error: &Yoshi) -> Result<(), mpsc::SendError<ProcessError>> {
             let process_error = ProcessError {
@@ -7244,19 +7244,19 @@ pub mod process_communication {
                     .map(|ctx| ctx.metadata.clone())
                     .unwrap_or_default(),
             };
-            
+
             self.sender.send(process_error)
         }
     }
-    
+
     /// Global process error coordinator
     static PROCESS_REPORTER: OnceLock<ProcessErrorReporter> = OnceLock::new();
-    
+
     /// Gets or initializes the global process error reporter
     pub fn global_reporter() -> &'static ProcessErrorReporter {
         PROCESS_REPORTER.get_or_init(ProcessErrorReporter::new)
     }
-    
+
     /// Reports an error to the global cross-process system
     pub fn report_global_error(error: &Yoshi) {
         if let Err(e) = global_reporter().report_error(error) {
@@ -7272,21 +7272,21 @@ pub mod process_communication {
 #[cfg(all(feature = "unstable-metrics", target_arch = "x86_64"))]
 pub mod simd_optimization {
     //! SIMD-accelerated string processing for optimal error formatting performance.
-    
+
     use super::*;
-    
+
     /// SIMD-optimized string formatting buffer
     pub struct SimdFormatBuffer {
         data: Vec<u8>,
         capacity: usize,
     }
-    
+
     impl SimdFormatBuffer {
         /// Creates a new SIMD-optimized format buffer
         pub fn new() -> Self {
             Self::with_capacity(4096)
         }
-        
+
         /// Creates a buffer with specified capacity aligned for SIMD operations
         pub fn with_capacity(capacity: usize) -> Self {
             // Align capacity to 32-byte boundaries for AVX2 operations
@@ -7296,16 +7296,16 @@ pub mod simd_optimization {
                 capacity: aligned_capacity,
             }
         }
-        
+
         /// SIMD-accelerated string concatenation
         pub fn append_simd(&mut self, s: &str) {
             let bytes = s.as_bytes();
             let new_len = self.data.len() + bytes.len();
-            
+
             if new_len > self.capacity {
                 self.grow_aligned(new_len);
             }
-            
+
             // Use SIMD operations for large strings
             if bytes.len() >= 32 {
                 unsafe { self.append_simd_internal(bytes) };
@@ -7313,57 +7313,57 @@ pub mod simd_optimization {
                 self.data.extend_from_slice(bytes);
             }
         }
-        
+
         /// Internal SIMD implementation using safe intrinsics
         #[target_feature(enable = "avx2")]
         unsafe fn append_simd_internal(&mut self, bytes: &[u8]) {
             #[cfg(target_arch = "x86_64")]
             {
                 use std::arch::x86_64::*;
-                
+
                 let chunks = bytes.chunks_exact(32);
                 let remainder = chunks.remainder();
-                
+
                 for chunk in chunks {
                     let simd_data = _mm256_loadu_si256(chunk.as_ptr() as *const __m256i);
                     let dst_ptr = self.data.as_mut_ptr().add(self.data.len()) as *mut __m256i;
                     _mm256_storeu_si256(dst_ptr, simd_data);
                     self.data.set_len(self.data.len() + 32);
                 }
-                
+
                 // Handle remaining bytes
                 if !remainder.is_empty() {
                     self.data.extend_from_slice(remainder);
                 }
             }
         }
-        
+
         /// Grows the buffer with proper alignment
         fn grow_aligned(&mut self, min_capacity: usize) {
             let new_capacity = ((min_capacity * 2) + 31) & !31;
             self.data.reserve(new_capacity - self.data.capacity());
             self.capacity = new_capacity;
         }
-        
+
         /// Returns the formatted string
         pub fn as_str(&self) -> &str {
             // SAFETY: We only append valid UTF-8 strings
             unsafe { std::str::from_utf8_unchecked(&self.data) }
         }
-        
+
         /// Clears the buffer while preserving capacity
         pub fn clear(&mut self) {
             self.data.clear();
         }
     }
-    
+
     /// SIMD-optimized error formatting
     pub fn format_error_simd(error: &Yoshi) -> String {
         let mut buffer = SimdFormatBuffer::new();
-        
+
         // Format main error
         buffer.append_simd(&format!("{}", error.kind()));
-        
+
         // Add contexts with SIMD acceleration
         for context in error.contexts() {
             if let Some(ref message) = context.message {
@@ -7371,7 +7371,7 @@ pub mod simd_optimization {
                 buffer.append_simd(message);
             }
         }
-        
+
         buffer.as_str().to_string()
     }
 }
@@ -7383,11 +7383,11 @@ pub mod simd_optimization {
 #[cfg(feature = "unstable-metrics")]
 pub mod cross_process_metrics {
     //! Global error metrics and telemetry system with cross-process coordination.
-    
+
     use super::*;
     use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
     use std::collections::HashMap;
-    
+
     /// Global error metrics collector
     #[derive(Debug)]
     pub struct ErrorMetrics {
@@ -7397,7 +7397,7 @@ pub mod cross_process_metrics {
         memory_usage: AtomicUsize,
         processing_time: AtomicU64,
     }
-    
+
     impl ErrorMetrics {
         /// Creates a new metrics collector
         pub fn new() -> Self {
@@ -7409,40 +7409,40 @@ pub mod cross_process_metrics {
                 processing_time: AtomicU64::new(0),
             }
         }
-        
+
         /// Records an error occurrence
         pub fn record_error(&self, error: &Yoshi) {
             self.total_errors.fetch_add(1, Ordering::Relaxed);
-            
+
             // Record by severity
             let severity = error.severity() as usize;
             self.errors_by_severity[severity].fetch_add(1, Ordering::Relaxed);
-            
+
             // Estimate memory usage
-            let estimated_size = std::mem::size_of_val(error) + 
+            let estimated_size = std::mem::size_of_val(error) +
                 error.contexts().map(|ctx| {
                     ctx.message.as_ref().map(|m| m.len()).unwrap_or(0) +
                     ctx.metadata.len() * 64 // Rough estimate
                 }).sum::<usize>();
-            
+
             self.memory_usage.fetch_add(estimated_size, Ordering::Relaxed);
         }
-        
+
         /// Gets total error count
         pub fn total_errors(&self) -> u64 {
             self.total_errors.load(Ordering::Relaxed)
         }
-        
+
         /// Gets errors by severity level
         pub fn errors_by_severity(&self, severity: u8) -> u64 {
             self.errors_by_severity[severity as usize].load(Ordering::Relaxed)
         }
-        
+
         /// Gets estimated memory usage
         pub fn memory_usage(&self) -> usize {
             self.memory_usage.load(Ordering::Relaxed)
         }
-        
+
         /// Generates a metrics report
         pub fn generate_report(&self) -> MetricsReport {
             MetricsReport {
@@ -7471,25 +7471,25 @@ pub mod cross_process_metrics {
         /// Timestamp when the report was generated
         pub timestamp: SystemTime,
     }
-    
+
     /// Global metrics instance
     static GLOBAL_METRICS: OnceLock<ErrorMetrics> = OnceLock::new();
-    
+
     /// Gets the global metrics collector
     pub fn global_metrics() -> &'static ErrorMetrics {
         GLOBAL_METRICS.get_or_init(ErrorMetrics::new)
     }
-    
+
     /// Records an error in global metrics
     pub fn record_global_error(error: &Yoshi) {
         global_metrics().record_error(error);
     }
-    
+
     /// Gets a global metrics report
     pub fn global_report() -> MetricsReport {
         global_metrics().generate_report()
     }
-    
+
     /// Resets global metrics (primarily for testing)
     #[cfg(test)]
     pub fn reset_global_metrics() {
@@ -7530,7 +7530,7 @@ mod tests {
         let after_first_count = error_instance_count();
         // Allow for some variance due to potential concurrent test execution
         assert!(after_first_count >= initial_count + 1, "Creating first error should increment counter by at least 1");
-        
+
         let _err2 = Yoshi::new(YoshiKind::Internal {
             message: "test".into(),
             source: None,
@@ -7753,7 +7753,7 @@ mod tests {
         .with_metadata("id", "123")
         .with_metadata("status", "failed");
 
-        // Access metadata directly from the YoshiContext
+        // Access metadata directly from the YoContext
         let ctx = err.primary_context().expect("Should have a primary context");
         let map = &ctx.metadata;
         assert_eq!(map.get(&Arc::from("id")), Some(&Arc::from("123")));
@@ -7790,29 +7790,29 @@ mod tests {
         }
 
         let err = Yoshi::new(YoshiKind::Internal {
-            message: "Operation failed with custom payload".into(),
+            message: "Operation failed with custom shell".into(),
             source: None,
             component: None,
         })
-        .with_payload(CustomErrorPayload {
+        .with_shell(CustomErrorPayload {
             code: 500,
             message: "Internal server error details".into(),
         })
-        .with_payload("a string payload".to_string())
-        .with_payload(42u32);
+        .with_shell("a string shell".to_string())
+        .with_shell(42u32);
 
-        // Access payloads using the more robust `YoshiContext::payload` method
+        // Access payloads using the more robust `YoContext::shell` method
         let ctx = err.primary_context().expect("Should have a primary context");
 
-        let custom_payload = ctx.payload::<CustomErrorPayload>();
+        let custom_payload = ctx.shell::<CustomErrorPayload>();
         assert!(custom_payload.is_some());
         assert_eq!(custom_payload.unwrap().code, 500);
 
-        let string_payload = ctx.payload::<String>();
+        let string_payload = ctx.shell::<String>();
         assert!(string_payload.is_some());
-        assert_eq!(string_payload.unwrap(), &"a string payload".to_string());
+        assert_eq!(string_payload.unwrap(), &"a string shell".to_string());
 
-        let u32_payload = ctx.payload::<u32>();
+        let u32_payload = ctx.shell::<u32>();
         assert!(u32_payload.is_some());
         assert_eq!(*u32_payload.unwrap(), 42);
     }
@@ -7829,17 +7829,17 @@ mod tests {
         let result: core::result::Result<u32, NoStdIo> = Err(NoStdIo::new("db write failed"));
 
         let yoshi_result = result
-            .with_payload(TransactionId("tx123".into()))
+            .with_shell(TransactionId("tx123".into()))
             .context("Failed to commit transaction".to_string());
 
         assert!(yoshi_result.is_err());
         let err = yoshi_result.unwrap_err();
 
         assert!(format!("{}", err).contains("db write failed"));
-        assert!(format!("{}", err).contains("Caused by: Failed to commit transaction"));        // Access payload using the corrected `Yoshi::payload` method that searches all contexts
-        let transaction_id = err.payload::<TransactionId>();
-            
-        assert!(transaction_id.is_some(), "Should find TransactionId payload");
+        assert!(format!("{}", err).contains("Caused by: Failed to commit transaction"));        // Access shell using the corrected `Yoshi::shell` method that searches all contexts
+        let transaction_id = err.shell::<TransactionId>();
+
+        assert!(transaction_id.is_some(), "Should find TransactionId shell");
         assert_eq!(transaction_id.unwrap().0, "tx123".to_string());
 
         Ok(())

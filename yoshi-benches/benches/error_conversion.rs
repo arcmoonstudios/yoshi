@@ -46,33 +46,34 @@ use yoshi_std::{Result, Yoshi, YoshiKind};
 
 /// Custom error types for conversion benchmarks - Pure Rust implementations
 #[derive(Debug)]
+#[allow(clippy::enum_variant_names)] // Allow for specific naming convention
 enum CustomError {
     /// Database connection error
-    DatabaseError {
+    Database {
         /// Error message
         message: String,
     },
     /// Authentication error (used in comprehensive benchmarks)
     #[allow(dead_code)]
-    AuthError {
+    Auth {
         /// User ID that failed authentication
         user_id: u64,
     },
     /// Validation error (used in comprehensive benchmarks)
     #[allow(dead_code)]
-    ValidationError,
+    Validation,
 }
 
 impl std::fmt::Display for CustomError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            CustomError::DatabaseError { message } => {
-                write!(f, "Database connection failed: {}", message)
+            CustomError::Database { message } => {
+                write!(f, "Database connection failed: {message}")
             }
-            CustomError::AuthError { user_id } => {
-                write!(f, "Authentication failed for user: {}", user_id)
+            CustomError::Auth { user_id } => {
+                write!(f, "Authentication failed for user: {user_id}")
             }
-            CustomError::ValidationError => {
+            CustomError::Validation => {
                 write!(f, "Validation failed")
             }
         }
@@ -112,16 +113,16 @@ fn bench_direct_conversions(c: &mut Criterion) {
     group.bench_function("string_to_yoshi", |b| {
         b.iter(|| {
             let error: Yoshi = black_box("Database connection timeout".to_string()).into();
-            black_box(error)
-        })
+            black_box(error);
+        });
     });
 
     // &str to Yoshi conversion
     group.bench_function("str_to_yoshi", |b| {
         b.iter(|| {
             let error: Yoshi = black_box("Invalid user credentials").into();
-            black_box(error)
-        })
+            black_box(error);
+        });
     });
 
     // std::io::Error to Yoshi conversion
@@ -130,19 +131,19 @@ fn bench_direct_conversions(c: &mut Criterion) {
             let io_error =
                 std::io::Error::new(std::io::ErrorKind::NotFound, black_box("File not found"));
             let error: Yoshi = black_box(io_error).into();
-            black_box(error)
-        })
+            black_box(error);
+        });
     });
 
     // Custom error to Yoshi conversion using Yoshi::foreign
     group.bench_function("custom_error_to_yoshi", |b| {
         b.iter(|| {
-            let custom_error = CustomError::DatabaseError {
+            let custom_error = CustomError::Database {
                 message: black_box("Connection pool exhausted".to_string()),
             };
             let error: Yoshi = Yoshi::foreign(black_box(custom_error));
-            black_box(error)
-        })
+            black_box(error);
+        });
     });
 
     group.finish();
@@ -158,8 +159,8 @@ fn bench_result_conversions(c: &mut Criterion) {
         b.iter(|| {
             let std_result: std::result::Result<i32, String> = Ok(black_box(42));
             let yoshi_result: Result<i32> = std_result.map_err(Yoshi::from);
-            black_box(yoshi_result)
-        })
+            let _ = black_box(yoshi_result);
+        });
     });
 
     // Error case conversion
@@ -168,8 +169,8 @@ fn bench_result_conversions(c: &mut Criterion) {
             let std_result: std::result::Result<i32, String> =
                 Err(black_box("Operation failed".to_string()));
             let yoshi_result: Result<i32> = std_result.map_err(Yoshi::from);
-            black_box(yoshi_result)
-        })
+            let _ = black_box(yoshi_result);
+        });
     });
 
     // Chain multiple conversions
@@ -186,8 +187,8 @@ fn bench_result_conversions(c: &mut Criterion) {
                         Err(Yoshi::from("Number must be positive"))
                     }
                 });
-            black_box(result)
-        })
+            let _ = black_box(result);
+        });
     });
 
     group.finish();
@@ -202,8 +203,8 @@ fn bench_foreign_error_integration(c: &mut Criterion) {
     group.bench_function("simple_foreign_error", |b| {
         b.iter(|| {
             let error = Yoshi::foreign(black_box(std::fmt::Error));
-            black_box(error)
-        })
+            black_box(error);
+        });
     });
 
     // Complex foreign error conversion via Yoshi::foreign()
@@ -218,19 +219,20 @@ fn bench_foreign_error_integration(c: &mut Criterion) {
                 ]),
             };
             let error = Yoshi::foreign(black_box(complex_error));
-            black_box(error)
-        })
+            black_box(error);
+        });
     });
 
     group.finish();
 }
 
 /// Benchmarks error chain operations using Yoshi's native context capabilities
+#[allow(clippy::cast_sign_loss)] // `chain_depth` is always positive from the array
 fn bench_error_chain_operations(c: &mut Criterion) {
     let mut group = c.benchmark_group("error_chain_operations");
     group.measurement_time(Duration::from_secs(10));
 
-    for chain_depth in [1, 3, 5, 10].iter() {
+    for chain_depth in &[1, 3, 5, 10] {
         group.throughput(Throughput::Elements(*chain_depth as u64));
 
         group.bench_with_input(
@@ -248,12 +250,12 @@ fn bench_error_chain_operations(c: &mut Criterion) {
                     // Build error chain using Yoshi's context system
                     for i in 1..chain_depth {
                         current_error = current_error.context(
-                            black_box(format!("Layer {} context", i)), // `Yoshi::context` takes String
+                            black_box(format!("Layer {i} context")), // `Yoshi::context` takes String, direct format arg
                         );
                     }
 
-                    black_box(current_error)
-                })
+                    black_box(current_error);
+                });
             },
         );
     }
@@ -262,11 +264,12 @@ fn bench_error_chain_operations(c: &mut Criterion) {
 }
 
 /// Benchmarks multiple error aggregation using Yoshi's Multiple variant
+#[allow(clippy::cast_sign_loss)] // `error_count` is always positive from the array
 fn bench_multiple_error_aggregation(c: &mut Criterion) {
     let mut group = c.benchmark_group("multiple_error_aggregation");
     group.measurement_time(Duration::from_secs(10));
 
-    for error_count in [2, 5, 10, 20].iter() {
+    for error_count in &[2, 5, 10, 20] {
         group.throughput(Throughput::Elements(*error_count as u64));
 
         group.bench_with_input(
@@ -278,8 +281,8 @@ fn bench_multiple_error_aggregation(c: &mut Criterion) {
 
                     for i in 0..error_count {
                         let error = Yoshi::new(YoshiKind::Validation {
-                            field: black_box(format!("field_{}", i).into()),
-                            message: black_box(format!("Validation error {}", i).into()),
+                            field: black_box(format!("field_{i}").into()), // Direct format arg
+                            message: black_box(format!("Validation error {i}").into()), // Direct format arg
                             expected: None,
                             actual: None,
                         });
@@ -291,8 +294,8 @@ fn bench_multiple_error_aggregation(c: &mut Criterion) {
                         primary_index: Some(0),
                     });
 
-                    black_box(aggregated)
-                })
+                    black_box(aggregated);
+                });
             },
         );
     }
@@ -313,8 +316,8 @@ fn bench_error_downcasting(c: &mut Criterion) {
         b.iter(|| {
             // Simulate accessing the underlying source (std::error::Error trait is in scope)
             let source_result = yoshi_error.source();
-            black_box(source_result)
-        })
+            black_box(source_result);
+        });
     });
 
     // Failed downcast
@@ -324,8 +327,8 @@ fn bench_error_downcasting(c: &mut Criterion) {
         b.iter(|| {
             // Try to access source from a string-based error (should be None)
             let source_result = yoshi_error.source();
-            black_box(source_result)
-        })
+            black_box(source_result);
+        });
     });
 
     group.finish();
@@ -344,11 +347,11 @@ fn bench_context_preservation(c: &mut Criterion) {
             );
             let yoshi_error = Yoshi::from(io_error)
                 .context("During database connection".to_string()) // Use .context(String)
-                .with_metadata("operation", "SELECT * FROM users".to_string())
-                .with_metadata("timeout_ms", "5000".to_string());
+                .with_metadata("operation", "SELECT * FROM users") // Use &str for metadata
+                .with_metadata("timeout_ms", "5000"); // Use &str for metadata
 
-            black_box(yoshi_error)
-        })
+            black_box(yoshi_error);
+        });
     });
 
     group.finish();

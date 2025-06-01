@@ -1,3 +1,8 @@
+<!-- markdownlint-disable MD018 -->
+<!--
+  Disabling the following rules:
+  - MD018/no-missing-space-atx: No space after hash on atx style heading
+-->
 # Troubleshooting the Yoshi Error Framework
 
 This document provides solutions to common issues and debugging tips when working with the Yoshi error handling framework. Yoshi is designed for robustness and performance, but like any complex library, understanding its nuances can streamline your development process.
@@ -6,34 +11,34 @@ This document provides solutions to common issues and debugging tips when workin
 
 Before diving into specific issues, consider these general steps:
 
-1.  **Verify Feature Flags**: Ensure you have enabled the necessary features in your `Cargo.toml`.
-    *   `std`: For standard library features (I/O errors, backtraces, `std::collections::HashMap`, etc.).
-    *   `derive`: To use the `#[derive(YoshiError)]` procedural macro.
-    *   `serde`: For `serde::Serialize` and `serde::Deserialize` implementations on `YoshiContext`.
-    *   `tracing`: For integration with the `tracing` crate.
-    *   `unstable-metrics`: For advanced performance metrics collection (may require nightly Rust or specific target architectures).
-    *   `simd-optimized`: For SIMD-accelerated string processing (requires `x86_64` target and appropriate Rust compilation flags).
+1. **Verify Feature Flags**: Ensure you have enabled the necessary features in your `Cargo.toml`.
+    * `std`: For standard library features (I/O errors, backtraces, `std::collections::HashMap`, etc.).
+    * `derive`: To use the `#[derive(YoshiError)]` procedural macro.
+    * `serde`: For `serde::Serialize` and `serde::Deserialize` implementations on `YoContext`.
+    * `tracing`: For integration with the `tracing` crate.
+    * `unstable-metrics`: For advanced performance metrics collection (may require nightly Rust or specific target architectures).
+    * `simd-optimized`: For SIMD-accelerated string processing (requires `x86_64` target and appropriate Rust compilation flags).
 
-2.  **Check Yoshi Version**: Make sure your `yoshi`, `yoshi-std`, and `yoshi-derive` crate versions are compatible and up-to-date.
+2.**Check Yoshi Version**: Make sure your `yoshi`, `yoshi-std`, and `yoshi-derive` crate versions are compatible and up-to-date.
 
-3.  **Read Compiler Errors Carefully**: Rust's compiler diagnostics are usually very informative. Pay close attention to suggested fixes and `note:` lines.
+3.*Read Compiler Errors Carefully**: Rust's compiler diagnostics are usually very informative. Pay close attention to suggested fixes and `note:` lines.
 
-4.  **Consult Documentation**: Refer to the crate's `docs.rs` documentation for detailed API usage.
+4.*Consult Documentation**: Refer to the crate's `docs.rs` documentation for detailed API usage.
 
 ## Common Compilation Errors and Solutions
 
 ### 1. `no method named ... found` or `trait not in scope`
 
-**Problem:** You're trying to use a method like `.context()`, `.meta()`, `.help()`, or `.with_payload()` on a `Result` type, but the compiler complains the method doesn't exist.
+**Problem:** You're trying to use a method like `.context()`, `.meta()`, `.help()`, or `.with_shell()` on a `Result` type, but the compiler complains the method doesn't exist.
 
-**Reason:** These methods are provided by the `YoshiContextExt` trait, which needs to be in scope.
+**Reason:** These methods are provided by the `HatchExt` trait, which needs to be in scope.
 
-**Solution:** Import the `YoshiContextExt` trait:
+**Solution:** Import the `HatchExt` trait:
 
 ```rust
-use yoshi::YoshiContextExt; // For your facade crate usage
+use yoshi::HatchExt; // For your facade crate usage
 // or
-use yoshi_std::YoshiContextExt; // For direct yoshi-std usage
+use yoshi_std::HatchExt; // For direct yoshi-std usage
 
 2. mismatched types in YoshiKind fields
 
@@ -63,9 +68,9 @@ error_code: Some(500), // Provide as u32
 });
 ```
 
-3. the trait bound ... is not satisfied for Send/Sync/'static
+3.the trait bound ... is not satisfied for Send/Sync/'static
 
-Problem: You're trying to use a custom error type as a source for YoshiKind::Foreign or attach a custom struct as a payload, but the compiler complains about missing Send, Sync, or 'static bounds.
+Problem: You're trying to use a custom error type as a source for YoshiKind::Foreign or attach a custom struct as a shell, but the compiler complains about missing Send, Sync, or 'static bounds.
 
 Reason: For thread safety and long-term storage, Yoshi requires Error sources and Any payloads to be Send + Sync + 'static. Your custom type might not implicitly satisfy these or might contain non-Send/Sync fields (e.g., Rc, RefCell).
 
@@ -73,7 +78,7 @@ Solution:
 
 For Custom Error Types as Sources: Ensure your custom error struct or enum derives Send and Sync (if applicable) and its fields are also Send + Sync + 'static.
 
-For Payloads: Ensure the type you're passing to with_payload() is Send + Sync + 'static. If it's not, you might need to wrap it in Arc or Mutex if sharing across threads, or consider if it truly needs to be part of the error payload.
+For Shells: Ensure the type you're passing to with_shell() is Send + Sync + 'static. If it's not, you might need to wrap it in Arc or Mutex if sharing across threads, or consider if it truly needs to be part of the error shell.
 
 ```rust
 // Assume MyCustomData is NOT Send + Sync + 'static
@@ -81,12 +86,12 @@ For Payloads: Ensure the type you're passing to with_payload() is Send + Sync + 
 
 // Incorrect usage if MyCustomData doesn't meet bounds:
 // let error = Yoshi::new(YoshiKind::Internal { message: "Internal".into(), source: None, component: None })
-// .with_payload(MyCustomData { non_send_field: std::rc::Rc::new(()) }); // Compile error
+// .with_shell(MyCustomData { non_send_field: std::rc::Rc::new(()) }); // Compile error
 
 // If it's genuinely needed, consider its design. If it's just for debugging, Debug impl might be enough.
 ```
 
-4. Macro-related errors (yoshi!, #[derive(YoshiError)])
+4.Macro-related errors (yoshi!, #[derive(YoshiError)])
 
 Problem: macro-error: unexpected token in input, no rules expected ... or missing derive implementations.
 
@@ -125,17 +130,17 @@ yoshi-derive = { version = "0.1", optional = true } # Optional, if you use yoshi
 
 ### 5. `type annotations needed` for `Arc<str>` in HashMap lookups
 
-**Problem:** When retrieving values from `YoshiContext.metadata` (which is `HashMap<Arc<str>, Arc<str>>`), the compiler might ask for type annotations, especially if you try to `get()` with `&str`.
+**Problem:** When retrieving values from `YoContext.metadata` (which is `HashMap<Arc<str>, Arc<str>>`), the compiler might ask for type annotations, especially if you try to `get()` with `&str`.
 
 **Reason:** `HashMap::get` takes a `Q: ?Sized + Hash + Eq` where `K: Borrow<Q>`. While `Arc<str>` implements `Borrow<str>`, the compiler sometimes needs help inferring this.
 
 **Solution:** Explicitly convert your lookup key to `Arc<str>` using `.into()` or use `&Arc::from("key")` for the lookup.
 
 \```rust
-use yoshi_std::YoshiContext;
+use yoshi_std::YoContext;
 use std::sync::Arc;
 
-let mut ctx = YoshiContext::new("Test context");
+let mut ctx = YoContext::new("Test context");
 ctx = ctx.with_metadata("user_id", "123");
 
 // Corrected lookup
@@ -151,12 +156,12 @@ println!("User ID: {:?}", user_id);
 
 **Reason:**
 *   You might be using `{:?}` (Debug format) instead of `{}` (Display format). While Debug shows internal structure, Display is controlled by `fmt::Display` implementation and is designed for human readability.
-*   Context messages, metadata, and suggestions are tied to `YoshiContext` objects. If they are not correctly added to the `Yoshi` error, they won't appear.
+*   Context messages, metadata, and suggestions are tied to `YoContext` objects. If they are not correctly added to the `Yoshi` error, they won't appear.
 *   Some `YoshiKind` variants (like `Foreign` or `Io`) might display their source directly, which can sometimes overshadow additional context unless formatted specifically.
 
 **Solution:**
 *   Always use `println!("{}", my_error)` for the user-friendly formatted output.
-*   Ensure you are chaining `Yoshi::context()`, `with_metadata()`, `with_suggestion()`, etc., correctly. Remember these methods apply to the `Yoshi` instance itself, which manages its internal `contexts` vector. Calling `my_yoshi_context.with_metadata()` on a standalone `YoshiContext` won't add it to a `Yoshi` error unless that context is then added to the `Yoshi` error. The convenience methods on `Yoshi` (e.g., `error.with_metadata(...)`) ensure the additions are correctly applied to the error's primary context.
+*   Ensure you are chaining `Yoshi::context()`, `with_metadata()`, `with_suggestion()`, etc., correctly. Remember these methods apply to the `Yoshi` instance itself, which manages its internal `contexts` vector. Calling `my_yoshi_context.with_metadata()` on a standalone `YoContext` won't add it to a `Yoshi` error unless that context is then added to the `Yoshi` error. The convenience methods on `Yoshi` (e.g., `error.with_metadata(...)`) ensure the additions are correctly applied to the error's primary context.
 *   Inspect `println!("{:?}", my_error)` to see the internal `contexts` vector and confirm data is present.
 
 ### 2. Backtraces are missing or incomplete
@@ -171,9 +176,9 @@ println!("User ID: {:?}", user_id);
 **Solution:**
 *   **Enable `std` feature**: Make sure your `Cargo.toml` has `yoshi = { version = "...", features = ["std"] }`.
 *   **Set `RUST_BACKTRACE`**: Before running your program, set `RUST_BACKTRACE=1` or `RUST_BACKTRACE=full`.
-    *   `RUST_BACKTRACE=1`: basic backtrace.
-    *   `RUST_BACKTRACE=full`: more verbose backtrace (with more symbols).
-    *   `RUST_LIB_BACKTRACE`: similar to `RUST_BACKTRACE` but specifically for library tracing.
+    * `RUST_BACKTRACE=1`: basic backtrace.
+    * `RUST_BACKTRACE=full`: more verbose backtrace (with more symbols).
+    * `RUST_LIB_BACKTRACE`: similar to `RUST_BACKTRACE` but specifically for library tracing.
 *   **Production vs. Development**: Remember that Yoshi's `YoshiBacktrace` capture is designed to be zero-cost in production unless explicitly enabled via these environment variables, to avoid performance overhead.
 
 ### 3. Unexpected performance regressions or high memory usage
@@ -232,7 +237,7 @@ println!("User ID: {:?}", user_id);
 
 **Reason:**
 *   The `serde` feature is not enabled for `yoshi-std`.
-*   `YoshiContext` contains fields that are intentionally skipped from serialization (`location`, `payloads`) because they are not easily serializable or are meant for runtime introspection only.
+*   `YoContext` contains fields that are intentionally skipped from serialization (`location`, `payloads`) because they are not easily serializable or are meant for runtime introspection only.
 
 **Solution:**
 *   Enable the `serde` feature in your `Cargo.toml`:
@@ -243,7 +248,7 @@ println!("User ID: {:?}", user_id);
     # Or specifically for yoshi-std if used directly:
     yoshi-std = { version = "0.1", features = ["serde"] }
     \```
-*   Understand that `location` and `payloads` fields in `YoshiContext` are marked `#[serde(skip)]` by design. If you need to serialize custom payloads, you'll need to extract them manually and serialize them separately.
+*   Understand that `location` and `payloads` fields in `YoContext` are marked `#[serde(skip)]` by design. If you need to serialize custom payloads, you'll need to extract them manually and serialize them separately.
 
 ### 3. `tracing` Integration
 
@@ -284,23 +289,23 @@ println!("User ID: {:?}", user_id);
 
 Yoshi provides powerful introspection tools for debugging complex error scenarios:
 
-1.  **`println!("{}", error)` vs. `println!("{:?}", error)`**:
-    *   `{}` (Display): Provides a human-readable, formatted error message designed for end-users or logs. It prioritizes clarity and follows the `Display` trait implementation.
-    *   `{:?}` (Debug): Prints the raw internal structure of the `Yoshi` struct, including all `YoshiKind` fields, the entire `contexts` vector, and `backtrace` (if captured). This is invaluable for developers debugging error propagation.
+1.*`println!("{}", error)` vs. `println!("{:?}", error)`**:
+    * `{}` (Display): Provides a human-readable, formatted error message designed for end-users or logs. It prioritizes clarity and follows the `Display` trait implementation.
+    * `{:?}` (Debug): Prints the raw internal structure of the `Yoshi` struct, including all `YoshiKind` fields, the entire `contexts` vector, and `backtrace` (if captured). This is invaluable for developers debugging error propagation.
 
-2.  **`Yoshi::instance_id()`**: Each `Yoshi` error gets a unique `u64` ID. This is extremely useful for correlating specific error instances across distributed logs or concurrent systems.
+2.*`Yoshi::instance_id()`**: Each `Yoshi` error gets a unique `u64` ID. This is extremely useful for correlating specific error instances across distributed logs or concurrent systems.
 
-3.  **`Yoshi::kind()`**: Access the root `YoshiKind` enum to programmatically inspect the high-level error classification and its structured fields.
+3.*`Yoshi::kind()`**: Access the root `YoshiKind` enum to programmatically inspect the high-level error classification and its structured fields.
 
-4.  **`Yoshi::contexts()` and `Yoshi::primary_context()`**:
-    *   `error.contexts()`: Returns an iterator over all `YoshiContext` objects attached to the error, in the order they were added (or reverse for display order).
-    *   `error.primary_context()`: Returns the `YoshiContext` with the highest `priority`, or the most recently added if priorities are equal. This is often the most relevant context for a given error.
+4.*`Yoshi::contexts()` and `Yoshi::primary_context()`**:
+    * `error.contexts()`: Returns an iterator over all `YoContext` objects attached to the error, in the order they were added (or reverse for display order).
+    * `error.primary_context()`: Returns the `YoContext` with the highest `priority`, or the most recently added if priorities are equal. This is often the most relevant context for a given error.
 
-5.  **`YoshiContext::metadata`**: Access the `HashMap<Arc<str>, Arc<str>>` to inspect all key-value metadata attached to a specific context.
+5.*`YoContext::metadata`**: Access the `HashMap<Arc<str>, Arc<str>>` to inspect all key-value metadata attached to a specific context.
 
-6.  **`Yoshi::payload::<T>()` or `YoshiContext::payload::<T>()`**: Retrieve custom typed data attached as payloads. This is crucial for passing structured debugging information or recovery instructions.
+6.*`Yoshi::shell::<T>()` or `YoContext::shell::<T>()`**: Retrieve custom typed data attached as payloads. This is crucial for passing structured debugging information or recovery instructions.
 
-7.  **`Yoshi::analyze_context()`**: Returns a `ContextAnalysis` struct with aggregated statistics about the error's contexts (total contexts, depth, metadata entries, etc.).
+7.*`Yoshi::analyze_context()`**: Returns a `ContextAnalysis` struct with aggregated statistics about the error's contexts (total contexts, depth, metadata entries, etc.).
 
 By combining these tools, you can effectively trace the origin, path, and detailed state of any error within your Yoshi-powered application.
 IGNORE_WHEN_COPYING_START

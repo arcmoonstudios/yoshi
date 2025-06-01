@@ -28,22 +28,22 @@
 // **Author:** Lord Xyn
 // **Last Validation:** 2025-05-30
 
-use yoshi::{yoshi, Result, Yoshi, YoshiKind, YoshiContext, YoshiLocation, YoshiContextExt};
+use yoshi::{yoshi, HatchExt, Result, YoContext, Yoshi, YoshiKind, YoshiLocation};
 // Conditional compilation for yoshi-derive and serde if the user's Cargo.toml has features
-#[cfg(feature = "derive")]
-use yoshi_derive::YoshiError; 
 use std::collections::HashMap; // For metadata inspection
 use std::sync::Arc; // For Arc<str> in YoshiKind fields
-use std::time::Duration; // For YoshiKind::Timeout
+use std::time::Duration;
+#[cfg(feature = "derive")]
+use yoshi_derive::YoshiError; // For YoshiKind::Timeout
 
-/// Custom struct to use as a payload.
+/// Custom struct to use as a shell.
 #[derive(Debug, PartialEq, Clone)]
 struct CustomErrorState {
     retries: u32,
     service: String,
 }
 
-/// Recovery strategy payload to attach to errors.
+/// Recovery strategy shell to attach to errors.
 #[derive(Debug, PartialEq, Clone)]
 enum RecoveryStrategy {
     RetryWithDelay(Duration),
@@ -112,7 +112,10 @@ mod example_1_chained_yoshi_errors {
             component: Some("UserService".into()),
         })
         .with_metadata("user_id", "test_user_id".to_string())
-        .with_suggestion("Please try logging in again later. If the issue persists, contact support.".to_string())
+        .with_suggestion(
+            "Please try logging in again later. If the issue persists, contact support."
+                .to_string(),
+        )
     }
 }
 
@@ -155,7 +158,9 @@ mod example_2_multiple_errors {
             primary_index: Some(1), // Email validation is primary
         })
         .context("Failed to register new user due to multiple issues.".to_string())
-        .with_suggestion("Review all error messages and correct input fields. Try again.".to_string())
+        .with_suggestion(
+            "Review all error messages and correct input fields. Try again.".to_string(),
+        )
     }
 
     /// Aggregates multiple errors using direct Yoshi API calls.
@@ -164,16 +169,19 @@ mod example_2_multiple_errors {
             Yoshi::new(YoshiKind::Validation {
                 field: "username".into(),
                 message: "Username already taken".into(),
-                expected: None, actual: Some("existing_user".into())
+                expected: None,
+                actual: Some("existing_user".into()),
             }),
             Yoshi::new(YoshiKind::Validation {
                 field: "email".into(),
                 message: "Invalid email format".into(),
-                expected: Some("user@domain.com".into()), actual: Some("invalid".into())
+                expected: Some("user@domain.com".into()),
+                actual: Some("invalid".into()),
             }),
             Yoshi::new(YoshiKind::Internal {
                 message: "Internal processing error for profile creation".into(),
-                source: None, component: Some("ProfileService".into())
+                source: None,
+                component: Some("ProfileService".into()),
             }),
         ];
         Yoshi::new(YoshiKind::Multiple {
@@ -181,7 +189,9 @@ mod example_2_multiple_errors {
             primary_index: Some(1),
         })
         .context("Failed to register new user due to multiple issues.".to_string())
-        .with_suggestion("Review all error messages and correct input fields. Try again.".to_string())
+        .with_suggestion(
+            "Review all error messages and correct input fields. Try again.".to_string(),
+        )
     }
 }
 
@@ -215,7 +225,7 @@ mod example_3_custom_derive_error {
             operation: String,
             #[yoshi(source)]
             source_err: std::io::Error, // Example of using std::io::Error as source
-            #[yoshi(payload)]
+            #[yoshi(shell)]
             transaction_id: String,
         },
     }
@@ -241,7 +251,8 @@ mod example_3_custom_derive_error {
             transaction_id: "tx_abc_123".to_string(),
         };
         let yoshi_err: Yoshi = custom_db_err.into();
-        yoshi_err.with_suggestion("Check database server status and network connectivity.".to_string())
+        yoshi_err
+            .with_suggestion("Check database server status and network connectivity.".to_string())
     }
 }
 
@@ -261,11 +272,11 @@ mod example_4_detailed_introspection {
         },
         with_metadata = ("pipeline_id", "pipe_001"),
         with_suggestion = "Inspect pipeline logs for details.",
-        with_payload = CustomErrorState { retries: 3, service: "ProcessorA".to_string() }
+        with_shell = CustomErrorState { retries: 3, service: "ProcessorA".to_string() }
         )
         .context("Error occurred during data transformation step.".to_string())
         .with_metadata("step", "transformation")
-        .with_payload(vec![10, 20, 30]) // Another payload
+        .with_shell(vec![10, 20, 30]) // Another shell
         .context("Input validation failed before transformation.".to_string())
         .with_priority(250) // High priority for this context
         .with_metadata("validation_rule", "format_check")
@@ -293,15 +304,21 @@ mod example_4_detailed_introspection {
             println!("  Suggestion: {:?}", primary_ctx.suggestion.as_deref());
 
             // Accessing typed payloads in primary context
-            if let Some(state) = primary_ctx.payload::<CustomErrorState>() {
-                println!("  Payload (CustomErrorState): {:?}", state);
+            if let Some(state) = primary_ctx.shell::<CustomErrorState>() {
+                println!("  Shell (CustomErrorState): {:?}", state);
             }
         }
 
         // Iterating through all contexts (in order of addition, or sorted by priority by iterators)
         println!("\nAll Contexts:");
-        for (i, ctx) in error.contexts().rev().enumerate() { // .rev() to show in display order
-            println!("  Context {}: Message={:?}, Priority={}", i, ctx.message.as_deref(), ctx.priority);
+        for (i, ctx) in error.contexts().rev().enumerate() {
+            // .rev() to show in display order
+            println!(
+                "  Context {}: Message={:?}, Priority={}",
+                i,
+                ctx.message.as_deref(),
+                ctx.priority
+            );
             if let Some(loc) = ctx.location {
                 println!("    Location: {}", loc);
             }
@@ -309,16 +326,21 @@ mod example_4_detailed_introspection {
                 println!("    Metadata: {:?}", ctx.metadata);
             }
             if !ctx.payloads.is_empty() {
-                println!("    Payloads (raw): {} items", ctx.payloads.len());
+                println!("    Shells (raw): {} items", ctx.payloads.len());
                 for (p_idx, payload_arc) in ctx.payloads.iter().enumerate() {
-                    println!("      Payload {}: Type={}, Value={:?}", p_idx, payload_arc.type_id(), payload_arc);
+                    println!(
+                        "      Shell {}: Type={}, Value={:?}",
+                        p_idx,
+                        payload_arc.type_id(),
+                        payload_arc
+                    );
                 }
             }
         }
 
-        // Accessing any payload across all contexts (via convenience method)
-        if let Some(vec_payload) = error.payload::<Vec<i32>>() {
-            println!("\nFound Vec<i32> payload anywhere: {:?}", vec_payload);
+        // Accessing any shell across all contexts (via convenience method)
+        if let Some(vec_payload) = error.shell::<Vec<i32>>() {
+            println!("\nFound Vec<i32> shell anywhere: {:?}", vec_payload);
         }
     }
 
@@ -331,10 +353,13 @@ mod example_4_detailed_introspection {
         })
         .with_metadata("pipeline_id", "pipe_001".to_string())
         .with_suggestion("Inspect pipeline logs for details.".to_string())
-        .with_payload(CustomErrorState { retries: 3, service: "ProcessorA".to_string() })
+        .with_shell(CustomErrorState {
+            retries: 3,
+            service: "ProcessorA".to_string(),
+        })
         .context("Error occurred during data transformation step.".to_string())
         .with_metadata("step", "transformation".to_string())
-        .with_payload(vec![10, 20, 30]) // Another payload
+        .with_shell(vec![10, 20, 30]) // Another shell
         .context("Input validation failed before transformation.".to_string())
         .with_priority(250) // High priority for this context
         .with_metadata("validation_rule", "format_check".to_string());
@@ -358,15 +383,21 @@ mod example_4_detailed_introspection {
             println!("  Suggestion: {:?}", primary_ctx.suggestion.as_deref());
 
             // Accessing typed payloads in primary context
-            if let Some(state) = primary_ctx.payload::<CustomErrorState>() {
-                println!("  Payload (CustomErrorState): {:?}", state);
+            if let Some(state) = primary_ctx.shell::<CustomErrorState>() {
+                println!("  Shell (CustomErrorState): {:?}", state);
             }
         }
 
         // Iterating through all contexts (in order of addition, or sorted by priority by iterators)
         println!("\nAll Contexts:");
-        for (i, ctx) in error.contexts().rev().enumerate() { // .rev() to show in display order
-            println!("  Context {}: Message={:?}, Priority={}", i, ctx.message.as_deref(), ctx.priority);
+        for (i, ctx) in error.contexts().rev().enumerate() {
+            // .rev() to show in display order
+            println!(
+                "  Context {}: Message={:?}, Priority={}",
+                i,
+                ctx.message.as_deref(),
+                ctx.priority
+            );
             if let Some(loc) = ctx.location {
                 println!("    Location: {}", loc);
             }
@@ -374,23 +405,28 @@ mod example_4_detailed_introspection {
                 println!("    Metadata: {:?}", ctx.metadata);
             }
             if !ctx.payloads.is_empty() {
-                println!("    Payloads (raw): {} items", ctx.payloads.len());
+                println!("    Shells (raw): {} items", ctx.payloads.len());
                 for (p_idx, payload_arc) in ctx.payloads.iter().enumerate() {
-                    println!("      Payload {}: Type={}, Value={:?}", p_idx, payload_arc.type_id(), payload_arc);
+                    println!(
+                        "      Shell {}: Type={}, Value={:?}",
+                        p_idx,
+                        payload_arc.type_id(),
+                        payload_arc
+                    );
                 }
             }
         }
 
-        // Accessing any payload across all contexts (via convenience method)
-        if let Some(vec_payload) = error.payload::<Vec<i32>>() {
-            println!("\nFound Vec<i32> payload anywhere: {:?}", vec_payload);
+        // Accessing any shell across all contexts (via convenience method)
+        if let Some(vec_payload) = error.shell::<Vec<i32>>() {
+            println!("\nFound Vec<i32> shell anywhere: {:?}", vec_payload);
         }
     }
 }
 
 /// Example 5: Demonstrating error recovery strategy.
 ///
-/// This shows how to attach a specific `RecoveryStrategy` as a typed payload
+/// This shows how to attach a specific `RecoveryStrategy` as a typed shell
 /// to an error, allowing higher-level error handlers to react appropriately.
 mod example_5_error_recovery_strategy {
     use super::*;
@@ -402,7 +438,7 @@ mod example_5_error_recovery_strategy {
             source: None,
             error_code: Some(503),
         },
-        with_payload = RecoveryStrategy::RetryWithDelay(Duration::from_secs(5)))
+        with_shell = RecoveryStrategy::RetryWithDelay(Duration::from_secs(5)))
     }
 
     /// Creates an error with a recovery strategy using direct API calls.
@@ -412,12 +448,12 @@ mod example_5_error_recovery_strategy {
             source: None,
             error_code: Some(503),
         })
-        .with_payload(RecoveryStrategy::RetryWithDelay(Duration::from_secs(5)))
+        .with_shell(RecoveryStrategy::RetryWithDelay(Duration::from_secs(5)))
     }
 
     /// Consumes the error and attempts recovery.
     pub fn handle_error(error: Yoshi) {
-        if let Some(strategy) = error.payload::<RecoveryStrategy>() {
+        if let Some(strategy) = error.shell::<RecoveryStrategy>() {
             match strategy {
                 RecoveryStrategy::RetryWithDelay(delay) => {
                     println!("\nError suggests retry after: {:?}", delay);
@@ -438,7 +474,6 @@ mod example_5_error_recovery_strategy {
     }
 }
 
-
 // Main function to run examples (for testing/demonstration)
 #[cfg(test)]
 mod tests {
@@ -451,13 +486,23 @@ mod tests {
         assert!(format!("{}", err1).contains("Failed to communicate with authentication service"));
         assert!(format!("{}", err1).contains("TCP connection reset by peer"));
         // Check metadata from original creation
-        assert!(err1.primary_context().unwrap().metadata.get(&"user_id".into()).is_some());
+        assert!(err1
+            .primary_context()
+            .unwrap()
+            .metadata
+            .get(&"user_id".into())
+            .is_some());
 
         let err2 = example_1_chained_yoshi_errors::create_chained_with_api();
         assert!(format!("{}", err2).contains("User login failed unexpectedly"));
         assert!(format!("{}", err2).contains("Failed to communicate with authentication service"));
         assert!(format!("{}", err2).contains("TCP connection reset by peer"));
-        assert!(err2.primary_context().unwrap().metadata.get(&"user_id".into()).is_some());
+        assert!(err2
+            .primary_context()
+            .unwrap()
+            .metadata
+            .get(&"user_id".into())
+            .is_some());
     }
 
     #[test]
@@ -481,13 +526,18 @@ mod tests {
         let err1 = example_3_custom_derive_error::create_and_convert_with_derive();
         assert!(matches!(err1.kind(), YoshiKind::NotFound { .. }));
         assert!(format!("{}", err1).contains("APP-1001")); // Check for error code prefix
-        assert!(err1.primary_context().unwrap().metadata.get(&"source_path".into()).is_some());
+        assert!(err1
+            .primary_context()
+            .unwrap()
+            .metadata
+            .get(&"source_path".into())
+            .is_some());
 
         let err2 = example_3_custom_derive_error::create_and_convert_db_error();
         assert!(matches!(err2.kind(), YoshiKind::Network { .. }));
         assert!(err2.is_transient());
         assert!(err2.suggestion().is_some());
-        assert!(err2.payload::<String>().is_some()); // Check for transaction_id payload
+        assert!(err2.shell::<String>().is_some()); // Check for transaction_id shell
     }
 
     #[test]
@@ -495,14 +545,24 @@ mod tests {
         // This test primarily relies on manual inspection of `println!` output
         // for comprehensive verification, but basic checks are added.
         let error_macro = example_4_detailed_introspection::create_complex_error();
-        assert!(error_macro.primary_context().unwrap().metadata.get(&"pipeline_id".into()).is_some());
-        assert!(error_macro.payload::<CustomErrorState>().is_some());
-        assert!(error_macro.payload::<Vec<i32>>().is_some());
+        assert!(error_macro
+            .primary_context()
+            .unwrap()
+            .metadata
+            .get(&"pipeline_id".into())
+            .is_some());
+        assert!(error_macro.shell::<CustomErrorState>().is_some());
+        assert!(error_macro.shell::<Vec<i32>>().is_some());
 
         let error_api = example_4_detailed_introspection::create_complex_error();
-        assert!(error_api.primary_context().unwrap().metadata.get(&"pipeline_id".into()).is_some());
-        assert!(error_api.payload::<CustomErrorState>().is_some());
-        assert!(error_api.payload::<Vec<i32>>().is_some());
+        assert!(error_api
+            .primary_context()
+            .unwrap()
+            .metadata
+            .get(&"pipeline_id".into())
+            .is_some());
+        assert!(error_api.shell::<CustomErrorState>().is_some());
+        assert!(error_api.shell::<Vec<i32>>().is_some());
 
         // For full demo, uncomment these and run `cargo test -- --nocapture`
         // example_4_detailed_introspection::introspect_with_macro_created_error();
@@ -512,13 +572,19 @@ mod tests {
     #[test]
     fn test_example_5_error_recovery_strategy() {
         let err_macro = example_5_error_recovery_strategy::create_with_macro();
-        let strategy_macro = err_macro.payload::<RecoveryStrategy>().unwrap();
-        assert_eq!(*strategy_macro, RecoveryStrategy::RetryWithDelay(Duration::from_secs(5)));
+        let strategy_macro = err_macro.shell::<RecoveryStrategy>().unwrap();
+        assert_eq!(
+            *strategy_macro,
+            RecoveryStrategy::RetryWithDelay(Duration::from_secs(5))
+        );
         example_5_error_recovery_strategy::handle_error(err_macro);
 
         let err_api = example_5_error_recovery_strategy::create_with_api();
-        let strategy_api = err_api.payload::<RecoveryStrategy>().unwrap();
-        assert_eq!(*strategy_api, RecoveryStrategy::RetryWithDelay(Duration::from_secs(5)));
+        let strategy_api = err_api.shell::<RecoveryStrategy>().unwrap();
+        assert_eq!(
+            *strategy_api,
+            RecoveryStrategy::RetryWithDelay(Duration::from_secs(5))
+        );
         example_5_error_recovery_strategy::handle_error(err_api);
     }
 }

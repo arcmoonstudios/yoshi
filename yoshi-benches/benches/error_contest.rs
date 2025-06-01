@@ -1,4 +1,4 @@
-/* yoshi-benches/benches/error_contest.rs */
+/* yoshi-benches\benches\error_contest.rs */
 #![deny(unsafe_code)]
 #![warn(clippy::all)]
 #![warn(clippy::cargo)]
@@ -7,7 +7,7 @@
 //! framework and alternative solutions (thiserror, anyhow) for empirical validation.
 //!
 //! **Module Classification:** Performance-Critical
-//! **Complexity Level:** Expert  
+//! **Complexity Level:** Expert
 //! **API Stability:** Stable
 //!
 //! ## Mathematical Properties
@@ -52,7 +52,7 @@ use yoshi_std::{Yoshi, YoshiKind};
 
 // Conditionally import comparison frameworks only when comparison feature is enabled
 #[cfg(feature = "comparison")]
-use anyhow::{Context, Result as AnyhowResult};
+use anyhow::Result as AnyhowResult;
 #[cfg(feature = "comparison")]
 use thiserror::Error as ThisError;
 
@@ -84,7 +84,7 @@ pub struct UserOperation {
     pub user_id: u64,
     /// Type of operation being performed
     pub operation_type: String,
-    /// Size of the operation payload
+    /// Size of the operation shell
     pub payload_size: usize,
     /// Timestamp when operation was initiated (may be unused in benchmarks)
     #[allow(dead_code)]
@@ -155,8 +155,7 @@ impl fmt::Display for YoshiAppError {
             } => {
                 write!(
                     f,
-                    "Database connection failed: {} (host: {}:{}, db: {}, retries: {})",
-                    message,
+                    "Database connection failed: {message} (host: {}:{}; db: {}; retries: {})",
                     connection_info.host,
                     connection_info.port,
                     connection_info.database_name,
@@ -170,8 +169,7 @@ impl fmt::Display for YoshiAppError {
             } => {
                 write!(
                     f,
-                    "User validation failed: {} (user_id: {}, operation: {}, rules: {})",
-                    message,
+                    "User validation failed: {message} (user_id: {}; operation: {}; rules: {})",
                     user_operation.user_id,
                     user_operation.operation_type,
                     validation_rules.len()
@@ -184,8 +182,7 @@ impl fmt::Display for YoshiAppError {
             } => {
                 write!(
                     f,
-                    "Network timeout: {} (endpoint: {}, duration: {}ms)",
-                    message, endpoint, timeout_duration
+                    "Network timeout: {message} (endpoint: {endpoint}; duration: {timeout_duration}ms)",
                 )
             }
             YoshiAppError::ConfigurationParse {
@@ -196,14 +193,12 @@ impl fmt::Display for YoshiAppError {
                 if let Some(line) = line_number {
                     write!(
                         f,
-                        "Configuration parse error: {} (file: {}, line: {})",
-                        message, config_path, line
+                        "Configuration parse error: {message} (file: {config_path}; line: {line})",
                     )
                 } else {
                     write!(
                         f,
-                        "Configuration parse error: {} (file: {})",
-                        message, config_path
+                        "Configuration parse error: {message} (file: {config_path})",
                     )
                 }
             }
@@ -215,9 +210,7 @@ impl fmt::Display for YoshiAppError {
             } => {
                 write!(
                     f,
-                    "Resource exhausted: {} ({}: {:.2}% of {:.2})",
-                    message,
-                    resource_type,
+                    "Resource exhausted: {message} ({resource_type}: {:.2}% of {:.2})",
                     (current_usage / limit) * 100.0,
                     limit
                 )
@@ -228,6 +221,7 @@ impl fmt::Display for YoshiAppError {
 
 impl Error for YoshiAppError {}
 
+#[allow(clippy::too_many_lines)] // Allowed for comprehensive From implementation
 impl From<YoshiAppError> for Yoshi {
     fn from(err: YoshiAppError) -> Self {
         match err {
@@ -272,8 +266,8 @@ impl From<YoshiAppError> for Yoshi {
                     .with_metadata("user_id", user_operation.user_id.to_string())
                     .with_metadata("operation_type", user_operation.operation_type.clone())
                     .with_metadata("payload_size", user_operation.payload_size.to_string())
-                    .with_payload(user_operation)
-                    .with_payload(validation_rules)
+                    .with_shell(user_operation)
+                    .with_shell(validation_rules)
             }
             YoshiAppError::NetworkTimeout {
                 message,
@@ -286,7 +280,7 @@ impl From<YoshiAppError> for Yoshi {
                     expected_max: None,
                 };
                 Yoshi::new(yoshi_kind)
-                    .context(format!("Network request to {} timed out", endpoint))
+                    .context(format!("Network request to {endpoint} timed out"))
                     .with_metadata("original_message", message)
                     .with_suggestion("Increase timeout duration or check network connectivity")
             }
@@ -300,10 +294,7 @@ impl From<YoshiAppError> for Yoshi {
                     source: None,
                     config_path: Some(config_path.clone().into()),
                 })
-                .context(format!(
-                    "Failed to parse configuration from {}",
-                    config_path
-                ));
+                .context(format!("Failed to parse configuration from {config_path}"));
 
                 if let Some(line) = line_number {
                     yoshi = yoshi.with_metadata("line_number", line.to_string());
@@ -324,7 +315,7 @@ impl From<YoshiAppError> for Yoshi {
                     usage_percentage: Some((current_usage / limit) * 100.0),
                 };
                 Yoshi::new(yoshi_kind)
-                    .context(format!("System resource {} exhausted", resource_type))
+                    .context(format!("System resource {resource_type} exhausted"))
                     .with_metadata("original_message", message)
                     .with_suggestion("Increase resource limits or optimize resource usage")
             }
@@ -337,7 +328,7 @@ impl From<YoshiAppError> for Yoshi {
 // ============================================================================
 
 #[cfg(feature = "comparison")]
-#[derive(ThisError, Debug)]
+#[derive(ThisError, Debug, Clone)]
 pub enum ThiserrorAppError {
     #[error("Database connection failed: {message} (host: {host}:{port}, db: {database}, retries: {retry_count})")]
     DatabaseConnection {
@@ -392,7 +383,7 @@ fn bench_yoshi_error_creation(c: &mut Criterion) {
                 endpoint: black_box("https://api.example.com".to_string()),
                 timeout_duration: black_box(5000),
             })
-        })
+        });
     });
 
     // Complex error creation with rich context
@@ -400,14 +391,14 @@ fn bench_yoshi_error_creation(c: &mut Criterion) {
         b.iter(|| {
             black_box(YoshiAppError::UserValidation {
                 message: black_box("Invalid user operation detected".to_string()),
-                user_operation: black_box(UserOperation::new(12345, "data_export", 1024000)),
+                user_operation: black_box(UserOperation::new(12345, "data_export", 1_024_000)),
                 validation_rules: black_box(vec![
                     "user_must_be_active".to_string(),
                     "operation_size_limit".to_string(),
                     "rate_limit_check".to_string(),
                 ]),
             })
-        })
+        });
     });
 
     #[cfg(feature = "comparison")]
@@ -420,7 +411,7 @@ fn bench_yoshi_error_creation(c: &mut Criterion) {
                     endpoint: black_box("https://api.example.com".to_string()),
                     timeout_duration: black_box(5000),
                 })
-            })
+            });
         });
 
         // thiserror complex error creation
@@ -432,7 +423,7 @@ fn bench_yoshi_error_creation(c: &mut Criterion) {
                     operation_type: black_box("data_export".to_string()),
                     validation_rules_count: black_box(3),
                 })
-            })
+            });
         }); // anyhow error creation and context addition
         group.bench_function("anyhow_simple", |b| {
             b.iter(|| {
@@ -440,7 +431,7 @@ fn bench_yoshi_error_creation(c: &mut Criterion) {
                     std::io::ErrorKind::TimedOut,
                     "Connection timeout",
                 )))
-            })
+            });
         });
 
         group.bench_function("anyhow_complex", |b| {
@@ -452,8 +443,8 @@ fn bench_yoshi_error_creation(c: &mut Criterion) {
                         .context("Invalid user operation detected")
                         .context(format!("user_id: {}", 12345))
                         .context("operation_type: data_export")
-                })
-            })
+                });
+            });
         });
     }
 
@@ -473,7 +464,7 @@ fn bench_error_conversion(c: &mut Criterion) {
             retry_count: 3,
         };
 
-        b.iter(|| black_box(Yoshi::from(black_box(error.clone()))))
+        b.iter(|| black_box(Yoshi::from(black_box(error.clone()))));
     });
 
     #[cfg(feature = "comparison")]
@@ -488,7 +479,7 @@ fn bench_error_conversion(c: &mut Criterion) {
                 retry_count: 3,
             };
 
-            b.iter(|| black_box(anyhow::Error::from(black_box(error.clone()))))
+            b.iter(|| black_box(anyhow::Error::from(black_box(error.clone()))));
         });
     }
 
@@ -511,12 +502,12 @@ fn bench_error_chaining(c: &mut Criterion) {
 
             black_box(
                 Yoshi::from(base_error)
-                    .context("Failed during configuration loading at application startup") // Added context message
-                    .with_metadata("component", "database_config")
-                    .with_suggestion("Check JSON syntax at line 42")
-                    .with_suggestion("Validate configuration schema"),
-            )
-        })
+                    .context("Failed during configuration loading at application startup") // Changed to &str
+                    .with_metadata("component", "database_config") // Changed to &str
+                    .with_suggestion("Check JSON syntax at line 42") // Changed to &str
+                    .with_suggestion("Validate configuration schema"), // Changed to &str
+            );
+        });
     });
 
     #[cfg(feature = "comparison")]
@@ -533,9 +524,9 @@ fn bench_error_chaining(c: &mut Criterion) {
                         .context("component: database_config")
                         .context("suggestion: Check JSON syntax at line 42")
                         .context("suggestion: Validate configuration schema"),
-                )
-            })
-        })
+                );
+            });
+        });
     }
 
     group.finish();
@@ -555,7 +546,7 @@ fn bench_error_formatting(c: &mut Criterion) {
             limit: 1000.0,
         };
 
-        b.iter(|| black_box(format!("{}", black_box(&error))))
+        b.iter(|| black_box(format!("{}", black_box(&error))));
     });
 
     // Yoshi converted error display
@@ -567,7 +558,7 @@ fn bench_error_formatting(c: &mut Criterion) {
             limit: 1000.0,
         });
 
-        b.iter(|| black_box(format!("{}", black_box(&yoshi_error))))
+        b.iter(|| black_box(format!("{}", black_box(&yoshi_error))));
     });
 
     #[cfg(feature = "comparison")]
@@ -581,7 +572,7 @@ fn bench_error_formatting(c: &mut Criterion) {
                 limit: 1000.0,
             };
 
-            b.iter(|| black_box(format!("{}", black_box(&error))))
+            b.iter(|| black_box(format!("{}", black_box(&error))));
         });
 
         // anyhow error display with context
@@ -594,7 +585,7 @@ fn bench_error_formatting(c: &mut Criterion) {
             .context("current_usage: 950.0")
             .context("limit: 1000.0");
 
-            b.iter(|| black_box(format!("{:?}", black_box(&error))))
+            b.iter(|| black_box(format!("{:?}", black_box(&error))));
         });
     }
 
@@ -602,6 +593,7 @@ fn bench_error_formatting(c: &mut Criterion) {
 }
 
 /// Benchmark memory allocation patterns
+#[allow(clippy::cast_sign_loss)] // `i` as u64 is safe as i is non-negative
 fn bench_memory_efficiency(c: &mut Criterion) {
     let mut group = c.benchmark_group("memory_efficiency");
     group.throughput(Throughput::Elements(100));
@@ -612,13 +604,13 @@ fn bench_memory_efficiency(c: &mut Criterion) {
             let mut errors = Vec::with_capacity(100);
             for i in 0..100 {
                 errors.push(black_box(YoshiAppError::NetworkTimeout {
-                    message: format!("Timeout #{}", i),
+                    message: format!("Timeout #{i}"),
                     endpoint: format!("https://api-{}.example.com", i % 10),
                     timeout_duration: 5000 + (i as u64 * 100),
                 }));
             }
-            black_box(errors)
-        })
+            black_box(errors);
+        });
     });
 
     #[cfg(feature = "comparison")]
@@ -629,13 +621,13 @@ fn bench_memory_efficiency(c: &mut Criterion) {
                 let mut errors = Vec::with_capacity(100);
                 for i in 0..100 {
                     errors.push(black_box(ThiserrorAppError::NetworkTimeout {
-                        message: format!("Timeout #{}", i),
+                        message: format!("Timeout #{i}"), // Direct format argument
                         endpoint: format!("https://api-{}.example.com", i % 10),
                         timeout_duration: 5000 + (i as u64 * 100),
                     }));
                 }
-                black_box(errors)
-            })
+                black_box(errors);
+            });
         });
 
         // Batch error creation - anyhow
@@ -645,7 +637,7 @@ fn bench_memory_efficiency(c: &mut Criterion) {
                 for i in 0..100 {
                     let base_error = std::io::Error::new(
                         std::io::ErrorKind::TimedOut,
-                        format!("Timeout #{}", i),
+                        format!("Timeout #{i}"), // Direct format argument
                     );
                     errors.push(black_box(
                         anyhow::Error::from(base_error)
@@ -653,8 +645,8 @@ fn bench_memory_efficiency(c: &mut Criterion) {
                             .context(format!("duration: {}ms", 5000 + (i as u64 * 100))),
                     ));
                 }
-                black_box(errors)
-            })
+                black_box(errors);
+            });
         });
     }
 
@@ -681,18 +673,19 @@ fn bench_realistic_scenarios(c: &mut Criterion) {
             };
 
             // Handle the error with context
-            match result {
+            let output = match result {
                 Ok(data) => black_box(data),
                 Err(err) => {
                     let enhanced_error = err
-                        .context("Error during user data retrieval") // Added context message
-                        .with_metadata("operation", "user_data_retrieval")
-                        .with_metadata("table", "users")
-                        .with_suggestion("Check database connection pool configuration");
-                    black_box(format!("{}", enhanced_error))
+                        .context("Error during user data retrieval") // Changed to &str
+                        .with_metadata("operation", "user_data_retrieval") // Changed to &str
+                        .with_metadata("table", "users") // Changed to &str
+                        .with_suggestion("Check database connection pool configuration"); // Changed to &str
+                    black_box(format!("{enhanced_error}")) // Direct format argument, no semicolon
                 }
-            }
-        })
+            };
+            black_box(output); // Add semicolon here
+        });
     });
 
     #[cfg(feature = "comparison")]
@@ -711,17 +704,18 @@ fn bench_realistic_scenarios(c: &mut Criterion) {
                 };
 
                 // Handle the error with context
-                match result {
+                let output = match result {
                     Ok(data) => black_box(data),
                     Err(err) => {
                         let enhanced_error = err
                             .context("operation: user_data_retrieval")
                             .context("table: users")
                             .context("suggestion: Check database connection pool configuration");
-                        black_box(format!("{:?}", enhanced_error))
+                        black_box(format!("{enhanced_error:?}")) // Direct format argument, no semicolon
                     }
-                }
-            })
+                };
+                black_box(output); // Add semicolon here
+            });
         });
     }
 

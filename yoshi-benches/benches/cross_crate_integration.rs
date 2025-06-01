@@ -1,9 +1,10 @@
-/* benches/cross_crate_integration.rs */
+/* yoshi-benches\benches\error_contest.rs */
 #![deny(unsafe_code)]
 #![warn(clippy::all)]
 #![warn(clippy::cargo)]
 #![warn(clippy::pedantic)]
-//! **Brief:** Cross-crate integration benchmarks for the complete Yoshi error handling ecosystem.
+//! **Brief:** Comprehensive side-by-side performance comparison between Yoshi error handling
+//! framework and alternative solutions (thiserror, anyhow) for empirical validation.
 //!
 //! **Module Classification:** Performance-Critical
 //! **Complexity Level:** Expert
@@ -12,21 +13,22 @@
 //! ## Mathematical Properties
 //!
 //! **Algorithmic Complexity:**
-//! - Time Complexity: O(1) for facade operations, O(k) for k-level error propagation
-//! - Space Complexity: O(1) base + O(k) for propagation chains with optimal memory layout
-//! - Concurrency Safety: Full Send + Sync guarantees across crate boundaries
+//! - Time Complexity: O(1) for error creation, O(n) for error chaining where n=chain depth
+//! - Space Complexity: O(1) for basic errors, O(n) for complex error context
+//! - Concurrency Safety: Thread-safe error creation and manipulation across all frameworks
 //!
 //! **Performance Characteristics:**
-//! - Expected Performance: < 100ns for complete cross-crate error lifecycle
-//! - Worst-Case Scenarios: < 500ns with full derive macro expansion and formatting
-//! - Optimization Opportunities: Zero-cost abstractions and compile-time optimization
+//! - Expected Performance: Yoshi ≥ 2x faster than alternatives for typical scenarios
+//! - Worst-Case Scenarios: Complex error chaining favors Yoshi's optimized structures
+//! - Optimization Opportunities: Zero-cost error creation and intelligent memory layout
 //!
 // ~=####====A===r===c===M===o===o===n====S===t===u===d===i===o===s====X|0|$>
-//! + [Cross-Crate Integration Benchmarks with Mathematical Precision]
-//!  - [Facade to Implementation: O(1) delegation with zero-cost abstraction verification]
-//!  - [Derive Macro Performance: Compile-time vs runtime cost analysis]
-//!  - [Error Propagation Chains: O(k) scaling across crate boundaries]
-//!  - [Complete Ecosystem Integration: End-to-end performance measurement]
+//! + [Error Framework Performance Contest with Empirical Validation]
+//!  - [Yoshi native error handling: O(1) creation with intelligent optimization]
+//!  - [thiserror comparison: Standard derive-based error handling patterns]
+//!  - [anyhow comparison: Dynamic error boxing with context chaining]
+//!  - [Cross-framework conversion: Performance cost analysis of error boundary crossing]
+//!  - [Memory efficiency: Allocation patterns and cache performance analysis]
 // ~=####====A===r===c===M===o===o===n====S===t===u===d===i===o===s====X|0|$>
 // **GitHub:** [ArcMoon Studios](https://github.com/arcmoonstudios)
 // **Copyright:** (c) 2025 ArcMoon Studios
@@ -38,370 +40,705 @@
 // **Author:** Lord Xyn
 // **Last Validation:** 2025-05-30
 
-use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
-use serde_json::json;
+use criterion::{criterion_group, criterion_main, Criterion, Throughput};
+use std::error::Error;
+use std::fmt;
 use std::hint::black_box;
-use std::time::Duration;
+use std::time::Duration; // Required for YoshiKind::Timeout
 
-// Import from all workspace crates to test integration
-// FacadeYoshi and Yoshi are type aliases to the same struct yoshi_std::Yoshi
-use yoshi::{Yoshi as FacadeYoshi, YoshiKind as FacadeYoshiKind}; // Facade crate
-use yoshi_derive::YoshiError;
-use yoshi_std::{Yoshi, YoshiKind}; // Core implementation // Derive macros
+// Always import Yoshi framework components
+use yoshi::Result as YoshiResult;
+use yoshi_std::{Yoshi, YoshiKind};
 
-// Test error type using derive macro
-#[derive(Debug, YoshiError)]
-enum TestError {
-    // Adjusted kind to "Validation" as per yoshi-derive's mapping
-    #[yoshi(kind = "Validation", display = "Invalid user input: {_input}")]
-    InvalidInput { _input: String },
+// Conditionally import comparison frameworks only when comparison feature is enabled
+#[cfg(feature = "comparison")]
+use anyhow::Result as AnyhowResult;
+#[cfg(feature = "comparison")]
+use thiserror::Error as ThisError;
 
-    // Adjusted kind to "Network" as per yoshi-derive's mapping for database errors
-    #[yoshi(kind = "Network", display = "Database operation failed: {_operation}")]
-    DatabaseError { _operation: String },
-
-    // Adjusted kind to "Network" as per yoshi-derive's mapping
-    #[yoshi(kind = "Network", display = "Network request failed: {url}")]
-    NetworkError { url: String },
+/// Sample data structure for realistic error scenarios
+#[derive(Debug, Clone)]
+pub struct DatabaseConnection {
+    /// Database host address
+    pub host: String,
+    /// Database port number
+    pub port: u16,
+    /// Name of the database
+    pub database_name: String,
 }
 
-/// Benchmarks facade crate performance and delegation
-fn bench_facade_operations(c: &mut Criterion) {
-    let mut group = c.benchmark_group("facade_operations");
-    group.measurement_time(Duration::from_secs(10));
-    group.sample_size(10000);
-
-    // Direct facade error creation
-    group.bench_function("facade_error_creation", |b| {
-        b.iter(|| {
-            let error = FacadeYoshi::new(FacadeYoshiKind::Internal {
-                message: black_box("Facade error".into()),
-                source: None,    // Required field
-                component: None, // Required field
-            });
-            black_box(error);
-        })
-    });
-
-    // Facade vs core implementation comparison
-    group.bench_function("core_error_creation", |b| {
-        b.iter(|| {
-            let error = Yoshi::new(YoshiKind::Internal {
-                message: black_box("Core error".into()),
-                source: None,    // Required field
-                component: None, // Required field
-            });
-            black_box(error);
-        })
-    });
-
-    // Error conversion between facade and core
-    // Note: FacadeYoshi and Yoshi are type aliases, so conversion is an identity operation.
-    group.bench_function("facade_core_conversion", |b| {
-        b.iter(|| {
-            let facade_error = FacadeYoshi::new(FacadeYoshiKind::Internal {
-                message: black_box("Conversion test".into()),
-                source: None,    // Required field
-                component: None, // Required field
-            });
-
-            // Convert to core and back (simulating cross-crate usage)
-            // These are identity conversions due to type aliases.
-            let core_error: Yoshi = black_box(facade_error);
-            let back_to_facade: FacadeYoshi = black_box(core_error);
-            black_box(back_to_facade);
-        })
-    });
-
-    group.finish();
+impl DatabaseConnection {
+    fn new(host: &str, port: u16, database_name: &str) -> Self {
+        Self {
+            host: host.to_string(),
+            port,
+            database_name: database_name.to_string(),
+        }
+    }
 }
 
-/// Benchmarks derive macro generated code performance
-fn bench_derive_macro_performance(c: &mut Criterion) {
-    let mut group = c.benchmark_group("derive_macro_performance");
-    group.measurement_time(Duration::from_secs(10));
-    group.sample_size(10000);
-
-    // Derive macro error creation
-    group.bench_function("derive_invalid_input", |b| {
-        b.iter(|| {
-            let error = TestError::InvalidInput {
-                _input: black_box("test input".to_string()),
-            };
-            black_box(error);
-        })
-    });
-
-    group.bench_function("derive_database_error", |b| {
-        b.iter(|| {
-            let error = TestError::DatabaseError {
-                _operation: black_box("SELECT * FROM users".to_string()),
-            };
-            black_box(error);
-        })
-    });
-
-    group.bench_function("derive_network_error", |b| {
-        b.iter(|| {
-            let error = TestError::NetworkError {
-                url: black_box("https://api.example.com/users".to_string()),
-            };
-            black_box(error);
-        })
-    });
-
-    // Conversion from derive macro errors to Yoshi
-    group.bench_function("derive_to_yoshi_conversion", |b| {
-        b.iter(|| {
-            let test_error = TestError::InvalidInput {
-                _input: black_box("conversion test".to_string()),
-            };
-            // The `YoshiError` derive macro implements `From<TestError> for Yoshi`
-            let yoshi_error: Yoshi = black_box(test_error.into());
-            black_box(yoshi_error);
-        })
-    });
-
-    group.finish();
+/// Sample business object for complex error contexts
+#[derive(Debug, Clone)]
+pub struct UserOperation {
+    /// Unique user identifier
+    pub user_id: u64,
+    /// Type of operation being performed
+    pub operation_type: String,
+    /// Size of the operation shell
+    pub payload_size: usize,
+    /// Timestamp when operation was initiated (may be unused in benchmarks)
+    #[allow(dead_code)]
+    pub timestamp: u64,
 }
 
-/// Benchmarks error propagation across crate boundaries
-fn bench_cross_crate_propagation(c: &mut Criterion) {
-    let mut group = c.benchmark_group("cross_crate_propagation");
-    group.measurement_time(Duration::from_secs(10));
+impl UserOperation {
+    fn new(user_id: u64, operation_type: &str, payload_size: usize) -> Self {
+        Self {
+            user_id,
+            operation_type: operation_type.to_string(),
+            payload_size,
+            timestamp: std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_secs(),
+        }
+    }
+}
 
-    // Test different propagation chain lengths
-    for chain_length in [1, 3, 5, 10].iter() {
-        group.throughput(Throughput::Elements(*chain_length as u64));
+// ============================================================================
+// Yoshi Native Error Implementations (Our Framework)
+// ============================================================================
 
-        group.bench_with_input(
-            BenchmarkId::new("propagation_chain", chain_length),
-            chain_length,
-            |b, &chain_length| {
-                b.iter(|| {
-                    // Start with a derive macro error, converted to core Yoshi
-                    let mut current_error: Yoshi = TestError::InvalidInput {
-                        _input: black_box("initial error".to_string()),
-                    }
-                    .into();
+/// Yoshi native application error showcasing framework capabilities
+#[derive(Debug, Clone)]
+pub enum YoshiAppError {
+    /// Database connection failure with detailed context
+    DatabaseConnection {
+        message: String,
+        connection_info: DatabaseConnection,
+        retry_count: u32,
+    },
+    /// User operation validation failure
+    UserValidation {
+        message: String,
+        user_operation: UserOperation,
+        validation_rules: Vec<String>,
+    },
+    /// Network timeout with recovery suggestions
+    NetworkTimeout {
+        message: String,
+        endpoint: String,
+        timeout_duration: u64,
+    },
+    /// Configuration parsing error with context
+    ConfigurationParse {
+        message: String,
+        config_path: String,
+        line_number: Option<u32>,
+    },
+    /// Resource exhaustion with system state
+    ResourceExhausted {
+        message: String,
+        resource_type: String,
+        current_usage: f64,
+        limit: f64,
+    },
+}
 
-                    // Propagate through multiple layers, simulating cross-crate boundaries
-                    for i in 0..chain_length {
-                        // Use Yoshi::context to add a new context message
-                        current_error = current_error
-                            .context(black_box(format!("layer_context_{}", i)))
-                            // Subsequent `with_metadata` calls apply to the newly added context
-                            .with_metadata(
-                                black_box("operation".to_string()),
-                                black_box(format!("layer_{}", i)),
-                            )
-                            .with_metadata(
-                                black_box("component".to_string()),
-                                black_box(format!("crate_{}", i)),
-                            );
+impl fmt::Display for YoshiAppError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            YoshiAppError::DatabaseConnection {
+                message,
+                connection_info,
+                retry_count,
+            } => {
+                write!(
+                    f,
+                    "Database connection failed: {message} (host: {}:{}; db: {}; retries: {})",
+                    connection_info.host,
+                    connection_info.port,
+                    connection_info.database_name,
+                    retry_count
+                )
+            }
+            YoshiAppError::UserValidation {
+                message,
+                user_operation,
+                validation_rules,
+            } => {
+                write!(
+                    f,
+                    "User validation failed: {message} (user_id: {}; operation: {}; rules: {})",
+                    user_operation.user_id,
+                    user_operation.operation_type,
+                    validation_rules.len()
+                )
+            }
+            YoshiAppError::NetworkTimeout {
+                message,
+                endpoint,
+                timeout_duration,
+            } => {
+                write!(
+                    f,
+                    "Network timeout: {message} (endpoint: {endpoint}; duration: {timeout_duration}ms)",
+                )
+            }
+            YoshiAppError::ConfigurationParse {
+                message,
+                config_path,
+                line_number,
+            } => {
+                if let Some(line) = line_number {
+                    write!(
+                        f,
+                        "Configuration parse error: {message} (file: {config_path}; line: {line})",
+                    )
+                } else {
+                    write!(
+                        f,
+                        "Configuration parse error: {message} (file: {config_path})",
+                    )
+                }
+            }
+            YoshiAppError::ResourceExhausted {
+                message,
+                resource_type,
+                current_usage,
+                limit,
+            } => {
+                write!(
+                    f,
+                    "Resource exhausted: {message} ({resource_type}: {:.2}% of {:.2})",
+                    (current_usage / limit) * 100.0,
+                    limit
+                )
+            }
+        }
+    }
+}
 
-                        // Simulate conversion to facade and back
-                        // No actual runtime conversion cost here as FacadeYoshi is Yoshi
-                        let facade_error: FacadeYoshi = black_box(current_error.clone()); // Clone to allow current_error to be reused for next iteration
-                        current_error = black_box(facade_error); // Assign back, still type alias
-                    }
-                    black_box(current_error);
+impl Error for YoshiAppError {}
+
+#[allow(clippy::too_many_lines)] // Allowed for comprehensive From implementation
+impl From<YoshiAppError> for Yoshi {
+    fn from(err: YoshiAppError) -> Self {
+        match err {
+            YoshiAppError::DatabaseConnection {
+                message,
+                connection_info,
+                retry_count,
+            } => {
+                let yoshi_kind = YoshiKind::Network {
+                    message: message.into(),
+                    source: None,
+                    error_code: Some(5001),
+                };
+                Yoshi::new(yoshi_kind)
+                    .context(format!(
+                        "Database connection failed for {}",
+                        connection_info.database_name
+                    ))
+                    .with_metadata("host", connection_info.host)
+                    .with_metadata("port", connection_info.port.to_string())
+                    .with_metadata("database_name", connection_info.database_name)
+                    .with_metadata("retry_count", retry_count.to_string())
+            }
+            YoshiAppError::UserValidation {
+                message,
+                user_operation,
+                validation_rules,
+            } => {
+                let yoshi_kind = YoshiKind::Validation {
+                    field: format!("user_operation_{}", user_operation.operation_type).into(),
+                    message: message.into(),
+                    expected: Some(
+                        format!("validation_rules: {}", validation_rules.join(", ")).into(),
+                    ),
+                    actual: Some(user_operation.user_id.to_string().into()),
+                };
+                Yoshi::new(yoshi_kind)
+                    .context(format!(
+                        "User validation failed for user {}",
+                        user_operation.user_id
+                    ))
+                    .with_metadata("user_id", user_operation.user_id.to_string())
+                    .with_metadata("operation_type", user_operation.operation_type.clone())
+                    .with_metadata("payload_size", user_operation.payload_size.to_string())
+                    .with_shell(user_operation)
+                    .with_shell(validation_rules)
+            }
+            YoshiAppError::NetworkTimeout {
+                message,
+                endpoint,
+                timeout_duration,
+            } => {
+                let yoshi_kind = YoshiKind::Timeout {
+                    operation: endpoint.clone().into(),
+                    duration: Duration::from_millis(timeout_duration),
+                    expected_max: None,
+                };
+                Yoshi::new(yoshi_kind)
+                    .context(format!("Network request to {endpoint} timed out"))
+                    .with_metadata("original_message", message)
+                    .with_suggestion("Increase timeout duration or check network connectivity")
+            }
+            YoshiAppError::ConfigurationParse {
+                message,
+                config_path,
+                line_number,
+            } => {
+                let mut yoshi = Yoshi::new(YoshiKind::Config {
+                    message: message.into(),
+                    source: None,
+                    config_path: Some(config_path.clone().into()),
                 })
-            },
-        );
+                .context(format!("Failed to parse configuration from {config_path}"));
+
+                if let Some(line) = line_number {
+                    yoshi = yoshi.with_metadata("line_number", line.to_string());
+                }
+
+                yoshi.with_suggestion("Check configuration file syntax and format")
+            }
+            YoshiAppError::ResourceExhausted {
+                message,
+                resource_type,
+                current_usage,
+                limit,
+            } => {
+                let yoshi_kind = YoshiKind::ResourceExhausted {
+                    resource: resource_type.clone().into(),
+                    limit: limit.to_string().into(),
+                    current: current_usage.to_string().into(),
+                    usage_percentage: Some((current_usage / limit) * 100.0),
+                };
+                Yoshi::new(yoshi_kind)
+                    .context(format!("System resource {resource_type} exhausted"))
+                    .with_metadata("original_message", message)
+                    .with_suggestion("Increase resource limits or optimize resource usage")
+            }
+        }
+    }
+}
+
+// ============================================================================
+// thiserror Comparison Implementation (Only when comparison feature enabled)
+// ============================================================================
+
+#[cfg(feature = "comparison")]
+#[derive(ThisError, Debug, Clone)]
+pub enum ThiserrorAppError {
+    #[error("Database connection failed: {message} (host: {host}:{port}, db: {database}, retries: {retry_count})")]
+    DatabaseConnection {
+        message: String,
+        host: String,
+        port: u16,
+        database: String,
+        retry_count: u32,
+    },
+    #[error("User validation failed: {message} (user_id: {user_id}, operation: {operation_type})")]
+    UserValidation {
+        message: String,
+        user_id: u64,
+        operation_type: String,
+        validation_rules_count: usize,
+    },
+    #[error("Network timeout: {message} (endpoint: {endpoint}, duration: {timeout_duration}ms)")]
+    NetworkTimeout {
+        message: String,
+        endpoint: String,
+        timeout_duration: u64,
+    },
+    #[error("Configuration parse error: {message} (file: {config_path})")]
+    ConfigurationParse {
+        message: String,
+        config_path: String,
+        line_number: Option<u32>,
+    },
+    #[error("Resource exhausted: {message} ({resource_type}: {current_usage:.2}% of {limit:.2})")]
+    ResourceExhausted {
+        message: String,
+        resource_type: String,
+        current_usage: f64,
+        limit: f64,
+    },
+}
+
+// ============================================================================
+// Performance Benchmark Functions
+// ============================================================================
+
+/// Benchmark Yoshi native error creation performance
+fn bench_yoshi_error_creation(c: &mut Criterion) {
+    let mut group = c.benchmark_group("error_creation");
+    group.throughput(Throughput::Elements(1));
+
+    // Simple error creation
+    group.bench_function("yoshi_simple", |b| {
+        b.iter(|| {
+            black_box(YoshiAppError::NetworkTimeout {
+                message: black_box("Connection timeout occurred".to_string()),
+                endpoint: black_box("https://api.example.com".to_string()),
+                timeout_duration: black_box(5000),
+            })
+        });
+    });
+
+    // Complex error creation with rich context
+    group.bench_function("yoshi_complex", |b| {
+        b.iter(|| {
+            black_box(YoshiAppError::UserValidation {
+                message: black_box("Invalid user operation detected".to_string()),
+                user_operation: black_box(UserOperation::new(12345, "data_export", 1_024_000)),
+                validation_rules: black_box(vec![
+                    "user_must_be_active".to_string(),
+                    "operation_size_limit".to_string(),
+                    "rate_limit_check".to_string(),
+                ]),
+            })
+        });
+    });
+
+    #[cfg(feature = "comparison")]
+    {
+        // thiserror simple error creation
+        group.bench_function("thiserror_simple", |b| {
+            b.iter(|| {
+                black_box(ThiserrorAppError::NetworkTimeout {
+                    message: black_box("Connection timeout occurred".to_string()),
+                    endpoint: black_box("https://api.example.com".to_string()),
+                    timeout_duration: black_box(5000),
+                })
+            });
+        });
+
+        // thiserror complex error creation
+        group.bench_function("thiserror_complex", |b| {
+            b.iter(|| {
+                black_box(ThiserrorAppError::UserValidation {
+                    message: black_box("Invalid user operation detected".to_string()),
+                    user_id: black_box(12345),
+                    operation_type: black_box("data_export".to_string()),
+                    validation_rules_count: black_box(3),
+                })
+            });
+        }); // anyhow error creation and context addition
+        group.bench_function("anyhow_simple", |b| {
+            b.iter(|| {
+                black_box(anyhow::Error::from(std::io::Error::new(
+                    std::io::ErrorKind::TimedOut,
+                    "Connection timeout",
+                )))
+            });
+        });
+
+        group.bench_function("anyhow_complex", |b| {
+            b.iter(|| {
+                black_box({
+                    let base_error =
+                        std::io::Error::new(std::io::ErrorKind::InvalidInput, "Validation failed");
+                    anyhow::Error::from(base_error)
+                        .context("Invalid user operation detected")
+                        .context(format!("user_id: {}", 12345))
+                        .context("operation_type: data_export")
+                });
+            });
+        });
     }
 
     group.finish();
 }
 
-/// Benchmarks complete ecosystem integration scenarios
-fn bench_ecosystem_integration(c: &mut Criterion) {
-    let mut group = c.benchmark_group("ecosystem_integration");
-    group.measurement_time(Duration::from_secs(15));
+/// Benchmark error conversion to framework types
+fn bench_error_conversion(c: &mut Criterion) {
+    let mut group = c.benchmark_group("error_conversion");
+    group.throughput(Throughput::Elements(1));
 
-    // Complete error lifecycle: creation -> context -> conversion -> formatting
-    group.bench_function("complete_error_lifecycle", |b| {
-        b.iter(|| {
-            // 1. Create error with derive macro
-            let derive_error = TestError::DatabaseError {
-                _operation: black_box("complex_query".to_string()),
+    // Yoshi conversion
+    group.bench_function("yoshi_to_yoshi", |b| {
+        let error = YoshiAppError::DatabaseConnection {
+            message: "Connection refused".to_string(),
+            connection_info: DatabaseConnection::new("localhost", 5432, "production"),
+            retry_count: 3,
+        };
+
+        b.iter(|| black_box(Yoshi::from(black_box(error.clone()))));
+    });
+
+    #[cfg(feature = "comparison")]
+    {
+        // thiserror conversion
+        group.bench_function("thiserror_to_anyhow", |b| {
+            let error = ThiserrorAppError::DatabaseConnection {
+                message: "Connection refused".to_string(),
+                host: "localhost".to_string(),
+                port: 5432,
+                database: "production".to_string(),
+                retry_count: 3,
             };
 
-            // 2. Convert to core Yoshi
-            let mut yoshi_error: Yoshi = black_box(derive_error.into());
-
-            // 3. Add context and chain metadata/payloads to the *newly added* context
-            yoshi_error = yoshi_error
-                .context(black_box("Processing complex query".to_string()))
-                .with_metadata(
-                    black_box("service".to_string()),
-                    black_box("user_service".to_string()),
-                )
-                .with_metadata(
-                    black_box("subsystem".to_string()),
-                    black_box("authentication".to_string()),
-                )
-                .with_payload(black_box(
-                    json!({ // payload applies to the context just added
-                        "user_id": 12345,
-                        "timestamp": "2025-05-30T10:00:00Z"
-                    }),
-                ));
-
-            // 4. Convert to facade (identity operation due to type alias)
-            let facade_error: FacadeYoshi = black_box(yoshi_error.clone());
-
-            // 5. Format for display
-            let formatted = black_box(format!("{}", facade_error));
-            let debug_formatted = black_box(format!("{:?}", facade_error));
-
-            black_box((formatted, debug_formatted));
-        })
-    });
-
-    // Concurrent ecosystem operations
-    group.bench_function("concurrent_ecosystem_operations", |b| {
-        use rayon::prelude::*;
-
-        b.iter(|| {
-            let results: Vec<_> = (0..100)
-                .into_par_iter()
-                .map(|i| {
-                    // Create different error types in parallel
-                    let error = match i % 3 {
-                        0 => TestError::InvalidInput {
-                            _input: format!("input_{}", i),
-                        }
-                        .into(),
-                        1 => TestError::DatabaseError {
-                            _operation: format!("operation_{}", i),
-                        }
-                        .into(),
-                        _ => TestError::NetworkError {
-                            url: format!("https://api.example.com/endpoint/{}", i),
-                        }
-                        .into(),
-                    };
-
-                    let yoshi_error: Yoshi = black_box(error);
-                    let facade_error: FacadeYoshi = black_box(yoshi_error);
-                    black_box(facade_error)
-                })
-                .collect();
-
-            black_box(results);
-        })
-    });
+            b.iter(|| black_box(anyhow::Error::from(black_box(error.clone()))));
+        });
+    }
 
     group.finish();
 }
 
-/// Benchmarks memory efficiency across crate boundaries
-fn bench_cross_crate_memory_efficiency(c: &mut Criterion) {
-    let mut group = c.benchmark_group("cross_crate_memory_efficiency");
-    group.measurement_time(Duration::from_secs(10));
+/// Benchmark error chaining operations
+fn bench_error_chaining(c: &mut Criterion) {
+    let mut group = c.benchmark_group("error_chaining");
+    group.throughput(Throughput::Elements(1));
 
-    // Memory allocation patterns for cross-crate operations
-    group.bench_function("zero_copy_conversions", |b| {
+    // Yoshi error chaining
+    group.bench_function("yoshi_chain", |b| {
         b.iter(|| {
-            let yoshi_error = Yoshi::new(YoshiKind::Internal {
-                message: black_box("Zero copy test".into()),
-                source: None,    // Required field
-                component: None, // Required field
-            });
+            let base_error = YoshiAppError::ConfigurationParse {
+                message: "Invalid JSON syntax".to_string(),
+                config_path: "/etc/app/config.json".to_string(),
+                line_number: Some(42),
+            };
 
-            // Test zero-copy conversion semantics (identity moves)
-            let facade_error: FacadeYoshi = black_box(yoshi_error);
-            let back_to_yoshi: Yoshi = black_box(facade_error);
-            black_box(back_to_yoshi);
-        })
-    });
-
-    // Large error structures across boundaries
-    group.bench_function("large_error_cross_boundary", |b| {
-        b.iter(|| {
-            let large_payload = json!({
-                "data": vec![0u8; 2048], // 2KB payload
-                "metadata": (0..200).collect::<Vec<i32>>(),
-                "timestamps": (0..50).map(|i| format!("2025-05-30T{}:00:00Z", i % 24)).collect::<Vec<_>>()
-            });
-            
-            let mut yoshi_error = Yoshi::new(YoshiKind::Internal {
-                message: black_box("Large error test".into()),
-                source: None, // Required field
-                component: None, // Required field
-            });
-            
-            // Add a context message first to attach payload
-            yoshi_error = yoshi_error.context(black_box("Payload context".to_string()))
-                .with_payload(black_box(large_payload));
-            
-            // Cross-boundary transfer (identity moves)
-            let facade_error: FacadeYoshi = black_box(yoshi_error);
-            let back_to_yoshi: Yoshi = black_box(facade_error);
-            black_box(back_to_yoshi);
-        })
-    });
-
-    group.finish();
-}
-
-/// Benchmarks API compatibility and stability
-fn bench_api_compatibility(c: &mut Criterion) {
-    let mut group = c.benchmark_group("api_compatibility");
-    group.measurement_time(Duration::from_secs(10));
-    group.sample_size(10000);
-
-    // Ensure API methods have consistent performance across crates
-    group.bench_function("consistent_kind_access", |b| {
-        let yoshi_error = Yoshi::new(YoshiKind::Internal {
-            message: black_box("API test".into()),
-            source: None,    // Required field
-            component: None, // Required field
-        });
-
-        let facade_error: FacadeYoshi = yoshi_error; // Identity move
-
-        b.iter(|| {
-            let kind = black_box(facade_error.kind());
-            black_box(kind);
-        })
-    });
-
-    group.bench_function("consistent_context_access", |b| {
-        let mut yoshi_error = Yoshi::new(YoshiKind::Internal {
-            message: black_box("API test".into()),
-            source: None,    // Required field
-            component: None, // Required field
-        });
-
-        // Correctly add context and metadata
-        yoshi_error = yoshi_error
-            .context("test_operation_context".to_string())
-            .with_metadata(
-                black_box("operation".to_string()),
-                black_box("test_operation".to_string()),
+            black_box(
+                Yoshi::from(base_error)
+                    .context("Failed during configuration loading at application startup") // Changed to &str
+                    .with_metadata("component", "database_config") // Changed to &str
+                    .with_suggestion("Check JSON syntax at line 42") // Changed to &str
+                    .with_suggestion("Validate configuration schema"), // Changed to &str
             );
-
-        let facade_error: FacadeYoshi = yoshi_error; // Identity move
-
-        b.iter(|| {
-            let contexts: Vec<_> = black_box(facade_error.contexts().collect());
-            black_box(contexts);
-        })
+        });
     });
+
+    #[cfg(feature = "comparison")]
+    {
+        // anyhow error chaining
+        group.bench_function("anyhow_chain", |b| {
+            b.iter(|| {
+                let base_error =
+                    std::io::Error::new(std::io::ErrorKind::InvalidData, "Invalid JSON syntax");
+
+                black_box(
+                    anyhow::Error::from(base_error)
+                        .context("configuration_loading: application_startup")
+                        .context("component: database_config")
+                        .context("suggestion: Check JSON syntax at line 42")
+                        .context("suggestion: Validate configuration schema"),
+                );
+            });
+        });
+    }
 
     group.finish();
 }
+
+/// Benchmark error formatting and display
+fn bench_error_formatting(c: &mut Criterion) {
+    let mut group = c.benchmark_group("error_formatting");
+    group.throughput(Throughput::Elements(1));
+
+    // Yoshi error display
+    group.bench_function("yoshi_display", |b| {
+        let error = YoshiAppError::ResourceExhausted {
+            message: "Memory limit exceeded".to_string(),
+            resource_type: "heap_memory".to_string(),
+            current_usage: 950.0,
+            limit: 1000.0,
+        };
+
+        b.iter(|| black_box(format!("{}", black_box(&error))));
+    });
+
+    // Yoshi converted error display
+    group.bench_function("yoshi_converted_display", |b| {
+        let yoshi_error = Yoshi::from(YoshiAppError::ResourceExhausted {
+            message: "Memory limit exceeded".to_string(),
+            resource_type: "heap_memory".to_string(),
+            current_usage: 950.0,
+            limit: 1000.0,
+        });
+
+        b.iter(|| black_box(format!("{}", black_box(&yoshi_error))));
+    });
+
+    #[cfg(feature = "comparison")]
+    {
+        // thiserror error display
+        group.bench_function("thiserror_display", |b| {
+            let error = ThiserrorAppError::ResourceExhausted {
+                message: "Memory limit exceeded".to_string(),
+                resource_type: "heap_memory".to_string(),
+                current_usage: 950.0,
+                limit: 1000.0,
+            };
+
+            b.iter(|| black_box(format!("{}", black_box(&error))));
+        });
+
+        // anyhow error display with context
+        group.bench_function("anyhow_display", |b| {
+            let error = anyhow::Error::from(std::io::Error::new(
+                std::io::ErrorKind::OutOfMemory,
+                "Memory limit exceeded",
+            ))
+            .context("resource_type: heap_memory")
+            .context("current_usage: 950.0")
+            .context("limit: 1000.0");
+
+            b.iter(|| black_box(format!("{:?}", black_box(&error))));
+        });
+    }
+
+    group.finish();
+}
+
+/// Benchmark memory allocation patterns
+#[allow(clippy::cast_sign_loss)] // `i` as u64 is safe as i is non-negative
+fn bench_memory_efficiency(c: &mut Criterion) {
+    let mut group = c.benchmark_group("memory_efficiency");
+    group.throughput(Throughput::Elements(100));
+
+    // Batch error creation - Yoshi
+    group.bench_function("yoshi_batch_creation", |b| {
+        b.iter(|| {
+            let mut errors = Vec::with_capacity(100);
+            for i in 0..100 {
+                errors.push(black_box(YoshiAppError::NetworkTimeout {
+                    message: format!("Timeout #{i}"),
+                    endpoint: format!("https://api-{}.example.com", i % 10),
+                    timeout_duration: 5000 + (i as u64 * 100),
+                }));
+            }
+            black_box(errors);
+        });
+    });
+
+    #[cfg(feature = "comparison")]
+    {
+        // Batch error creation - thiserror
+        group.bench_function("thiserror_batch_creation", |b| {
+            b.iter(|| {
+                let mut errors = Vec::with_capacity(100);
+                for i in 0..100 {
+                    errors.push(black_box(ThiserrorAppError::NetworkTimeout {
+                        message: format!("Timeout #{i}"), // Direct format argument
+                        endpoint: format!("https://api-{}.example.com", i % 10),
+                        timeout_duration: 5000 + (i as u64 * 100),
+                    }));
+                }
+                black_box(errors);
+            });
+        });
+
+        // Batch error creation - anyhow
+        group.bench_function("anyhow_batch_creation", |b| {
+            b.iter(|| {
+                let mut errors = Vec::with_capacity(100);
+                for i in 0..100 {
+                    let base_error = std::io::Error::new(
+                        std::io::ErrorKind::TimedOut,
+                        format!("Timeout #{i}"), // Direct format argument
+                    );
+                    errors.push(black_box(
+                        anyhow::Error::from(base_error)
+                            .context(format!("endpoint: https://api-{}.example.com", i % 10))
+                            .context(format!("duration: {}ms", 5000 + (i as u64 * 100))),
+                    ));
+                }
+                black_box(errors);
+            });
+        });
+    }
+
+    group.finish();
+}
+
+/// Benchmark realistic application scenarios
+#[allow(clippy::semicolon_if_nothing_returned)] // Intentional explicit semicolon to return `()` from match arms
+fn bench_realistic_scenarios(c: &mut Criterion) {
+    let mut group = c.benchmark_group("realistic_scenarios");
+
+    // Database operation with error handling - Yoshi
+    group.bench_function("yoshi_database_operation", |b| {
+        b.iter(|| {
+            // Simulate a database operation that might fail
+            let result: YoshiResult<String> = if black_box(true) {
+                Err(YoshiAppError::DatabaseConnection {
+                    message: "Connection pool exhausted".to_string(),
+                    connection_info: DatabaseConnection::new("db-cluster.internal", 5432, "users"),
+                    retry_count: 3,
+                }
+                .into())
+            } else {
+                Ok("User data retrieved".to_string())
+            };
+
+            // Handle the error with context
+            match result {
+                // Use `let _ =` to consume the unit return value
+                Ok(data) => {
+                    black_box(data); // Add semicolon to make arm return ()
+                }
+                Err(err) => {
+                    let enhanced_error = err
+                        .context("Error during user data retrieval") // Changed to &str
+                        .with_metadata("operation", "user_data_retrieval") // Changed to &str
+                        .with_metadata("table", "users") // Changed to &str
+                        .with_suggestion("Check database connection pool configuration"); // Changed to &str
+                    black_box(format!("{enhanced_error}")); // Add semicolon to make arm return ()
+                }
+            }
+        });
+    });
+
+    #[cfg(feature = "comparison")]
+    {
+        // Database operation with error handling - anyhow
+        group.bench_function("anyhow_database_operation", |b| {
+            b.iter(|| {
+                // Simulate a database operation that might fail
+                let result: AnyhowResult<String> = if black_box(true) {
+                    Err(anyhow::Error::from(std::io::Error::new(
+                        std::io::ErrorKind::ConnectionRefused,
+                        "Connection pool exhausted",
+                    )))
+                } else {
+                    Ok("User data retrieved".to_string())
+                };
+
+                // Handle the error with context
+                match result {
+                    // Use `let _ =` to consume the unit return value
+                    Ok(data) => {
+                        black_box(data); // Add semicolon to make arm return ()
+                    }
+                    Err(err) => {
+                        let enhanced_error = err
+                            .context("operation: user_data_retrieval")
+                            .context("table: users")
+                            .context("suggestion: Check database connection pool configuration");
+                        black_box(format!("{enhanced_error:?}")); // Add semicolon to make arm return ()
+                    }
+                }
+            });
+        });
+    }
+
+    group.finish();
+}
+
+// ============================================================================
+// Benchmark Group Registration
+// ============================================================================
 
 criterion_group!(
-    integration_benches,
-    bench_facade_operations,
-    bench_derive_macro_performance,
-    bench_cross_crate_propagation,
-    bench_ecosystem_integration,
-    bench_cross_crate_memory_efficiency,
-    bench_api_compatibility
+    benches,
+    bench_yoshi_error_creation,
+    bench_error_conversion,
+    bench_error_chaining,
+    bench_error_formatting,
+    bench_memory_efficiency,
+    bench_realistic_scenarios
 );
 
-criterion_main!(integration_benches);
+criterion_main!(benches);

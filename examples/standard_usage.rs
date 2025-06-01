@@ -26,7 +26,7 @@
 // **Author:** Lord Xyn
 // **Last Validation:** 2025-05-30
 
-use yoshi::{yoshi, Result, Yoshi, YoshiKind, YoshiContextExt};
+use yoshi::{yoshi, Result, Yoshi, YoshiKind, HatchExt};
 use std::io::{self, ErrorKind};
 
 /// Example 1: Creating a basic internal error.
@@ -99,7 +99,7 @@ mod example_3_io_error_propagation {
         Err(io::Error::new(ErrorKind::PermissionDenied, "file system access denied"))
     }
 
-    /// Propagates an I/O error with context using the `yoshi!` macro and `YoshiContextExt`.
+    /// Propagates an I/O error with context using the `yoshi!` macro and `HatchExt`.
     ///
     /// The `yoshi!` macro wraps the `io::Error`, and `.context()` adds additional
     /// information to the propagating error.
@@ -113,7 +113,7 @@ mod example_3_io_error_propagation {
     /// Propagates an I/O error with context using direct Yoshi API calls.
     ///
     /// This explicitly converts `io::Error` to `Yoshi` using `From` and then
-    /// uses the `YoshiContextExt` trait methods for chaining.
+    /// uses the `HatchExt` trait methods for chaining.
     pub fn propagate_with_api() -> Result<String> {
         simulated_file_read()
             .map_err(Yoshi::from) // Explicitly convert using From trait

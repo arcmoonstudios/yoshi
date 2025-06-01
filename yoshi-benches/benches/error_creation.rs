@@ -25,7 +25,7 @@
 //! + [Comprehensive Error Creation Benchmarks with Mathematical Analysis]
 //!  - [Basic Error Creation: O(1) time complexity with allocation analysis]
 //!  - [Context Attachment: O(k) time complexity for k contexts with memory pooling]
-//!  - [Payload Attachment: O(1) amortized with type erasure overhead analysis]
+//!  - [Shell Attachment: O(1) amortized with type erasure overhead analysis]
 //!  - [Backtrace Capture: Variable complexity with performance cost measurement]
 // ~=####====A===r===c===M===o===o===n====S===t===u===d===i===o===s====X|0|$>
 // **GitHub:** [ArcMoon Studios](https://github.com/arcmoonstudios)
@@ -41,7 +41,14 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use std::hint::black_box;
 use std::time::Duration;
-use yoshi_std::{Yoshi, YoshiKind}; // Only import what we need at module level
+use yoshi_std::{Yoshi, YoshiKind, YoshiLocation}; // Only import what we actually use
+
+#[derive(Debug, Clone)]
+#[allow(clippy::items_after_statements)] // Allowed for benchmark struct definition
+struct CustomPayload {
+    _data: Vec<u32>,   // Use underscore prefix to mark as intentionally unused
+    _metadata: String, // Use underscore prefix to mark as intentionally unused
+}
 
 /// Benchmarks basic error creation operations
 fn bench_basic_error_creation(c: &mut Criterion) {
@@ -57,8 +64,8 @@ fn bench_basic_error_creation(c: &mut Criterion) {
                 source: None,
                 component: Some(black_box("database".into())),
             });
-            black_box(error)
-        })
+            black_box(error);
+        });
     });
 
     // Validation error creation
@@ -70,24 +77,25 @@ fn bench_basic_error_creation(c: &mut Criterion) {
                 expected: Some(black_box("user@domain.com".into())),
                 actual: Some(black_box("invalid-email".into())),
             });
-            black_box(error)
-        })
+            black_box(error);
+        });
     });
 
-    // Network error creation
+    // Network error creation - Corrected fields
     group.bench_function("network_error", |b| {
         b.iter(|| {
             let error = Yoshi::new(YoshiKind::Network {
                 message: black_box("HTTP GET failed".into()),
-                source: None,                     // Source must be Option<Box<Yoshi>>
-                error_code: Some(black_box(500)), // error_code is u32
+                source: None, // `source` expects `Option<Box<Yoshi>>`
+                error_code: Some(black_box(500)), // `error_code` expects `Option<u32>`
             })
+            // Added original endpoint as metadata as NetworkKind does not have `endpoint` field
             .with_metadata(
                 "endpoint",
                 black_box("https://api.example.com/users".to_string()),
-            ); // Add URL as metadata
-            black_box(error)
-        })
+            );
+            black_box(error);
+        });
     });
 
     // Timeout error creation
@@ -98,19 +106,20 @@ fn bench_basic_error_creation(c: &mut Criterion) {
                 duration: Duration::from_secs(30),
                 expected_max: Some(Duration::from_secs(10)),
             });
-            black_box(error)
-        })
+            black_box(error);
+        });
     });
 
     group.finish();
 }
 
 /// Benchmarks error creation with context attachments
+#[allow(clippy::cast_sign_loss)] // `context_count` is always positive from the array
 fn bench_error_with_context(c: &mut Criterion) {
     let mut group = c.benchmark_group("error_with_context");
     group.measurement_time(Duration::from_secs(10));
 
-    for context_count in [1, 3, 5, 10].iter() {
+    for context_count in &[1, 3, 5, 10] {
         group.throughput(Throughput::Elements(*context_count as u64));
 
         group.bench_with_input(
@@ -125,20 +134,20 @@ fn bench_error_with_context(c: &mut Criterion) {
                     });
 
                     for i in 0..context_count {
-                        // Each `.context()` call adds a new `YoshiContext` to the error's chain.
+                        // Each `.context()` call adds a new `YoContext` to the error's chain.
                         // Subsequent `.with_metadata()` and `.with_suggestion()` calls apply to the MOST RECENTLY ADDED context.
                         error = error
-                            .context(format!("Context {}", i).to_string())
+                            .context(format!("Context {i}").to_string())
                             .with_metadata("index".to_string(), i.to_string())
                             .with_metadata(
                                 "timestamp".to_string(),
                                 "2025-05-30T00:00:00Z".to_string(),
                             )
-                            .with_suggestion(format!("Try approach {}", i).to_string());
+                            .with_suggestion(format!("Try approach {i}").to_string());
                     }
 
-                    black_box(error)
-                })
+                    black_box(error);
+                });
             },
         );
     }
@@ -151,36 +160,30 @@ fn bench_error_with_payloads(c: &mut Criterion) {
     let mut group = c.benchmark_group("error_with_payloads");
     group.measurement_time(Duration::from_secs(10));
 
-    #[derive(Debug, Clone)]
-    struct CustomPayload {
-        _data: Vec<u32>,   // Add underscore prefix to prevent unused field warning
-        _metadata: String, // Add underscore prefix to prevent unused field warning
-    }
-
-    for payload_size in [10, 100, 1000].iter() {
-        group.throughput(Throughput::Elements(*payload_size as u64));
+    for payload_size in &[10, 100, 1000] {
+        group.throughput(Throughput::Elements(u64::from(*payload_size))); // Use u64::from for lossless conversion
 
         group.bench_with_input(
             BenchmarkId::new("payload_size", payload_size),
             payload_size,
             |b, &payload_size| {
                 b.iter(|| {
-                    let payload = CustomPayload {
+                    let shell = CustomPayload {
                         _data: (0..payload_size).collect(),
-                        _metadata: format!("Metadata with {} elements", payload_size),
+                        _metadata: format!("Metadata with {payload_size} elements"), // Direct format argument
                     };
 
                     let error = Yoshi::new(YoshiKind::Internal {
-                        message: black_box("Error with payload".into()),
+                        message: black_box("Error with shell".into()),
                         source: None,
                         component: None,
                     })
-                    // Add a context first, then attach payload to that context
-                    .context("Payload context".to_string())
-                    .with_payload(black_box(payload));
+                    // Add a context first, then attach shell to that context
+                    .context("Shell context".to_string())
+                    .with_shell(black_box(shell));
 
-                    black_box(error)
-                })
+                    black_box(error);
+                });
             },
         );
     }
@@ -190,7 +193,6 @@ fn bench_error_with_payloads(c: &mut Criterion) {
 
 /// Benchmarks error creation with location capture
 fn bench_error_with_location(c: &mut Criterion) {
-    use yoshi_std::YoshiLocation;
     let mut group = c.benchmark_group("error_with_location");
     group.measurement_time(Duration::from_secs(10));
 
@@ -205,8 +207,8 @@ fn bench_error_with_location(c: &mut Criterion) {
             })
             .with_location(location); // Attach location to the error's initial context
 
-            black_box(error)
-        })
+            black_box(error);
+        });
     });
 
     group.bench_function("with_macro_location", |b| {
@@ -219,8 +221,8 @@ fn bench_error_with_location(c: &mut Criterion) {
             // Attach location to the error's initial context using the macro
             .with_location(yoshi_std::yoshi_location!());
 
-            black_box(error)
-        })
+            black_box(error);
+        });
     });
 
     group.finish();
@@ -241,8 +243,8 @@ fn bench_error_with_backtrace(c: &mut Criterion) {
                 source: None,
                 component: None,
             });
-            black_box(error)
-        })
+            black_box(error);
+        });
     });
 
     group.bench_function("with_backtrace", |b| {
@@ -254,8 +256,8 @@ fn bench_error_with_backtrace(c: &mut Criterion) {
                 source: None,
                 component: None,
             });
-            black_box(error)
-        })
+            black_box(error);
+        });
     });
 
     group.finish();
@@ -269,15 +271,15 @@ fn bench_error_from_std_types(c: &mut Criterion) {
     group.bench_function("from_string", |b| {
         b.iter(|| {
             let error = Yoshi::from(black_box("Error from string".to_string()));
-            black_box(error)
-        })
+            black_box(error);
+        });
     });
 
     group.bench_function("from_str", |b| {
         b.iter(|| {
             let error = Yoshi::from(black_box("Error from str"));
-            black_box(error)
-        })
+            black_box(error);
+        });
     });
 
     group.bench_function("from_io_error", |b| {
@@ -287,8 +289,8 @@ fn bench_error_from_std_types(c: &mut Criterion) {
                 black_box("Permission denied"),
             );
             let error = Yoshi::from(black_box(io_error));
-            black_box(error)
-        })
+            black_box(error);
+        });
     });
 
     group.finish();
