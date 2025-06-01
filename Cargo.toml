@@ -6,6 +6,10 @@ members = [
     "yoshi-derive",  # procedural macros
     "yoshi-benches", # comprehensive benchmarks
 ]
+# Exclude benchmarks from packaging operations
+exclude = [
+    "yoshi-benches", # benchmarks don't need to be published
+]
 
 # -------- Shared build profiles --------
 [profile.dev]              # fast ≈ release-like debug builds
