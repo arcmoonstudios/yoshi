@@ -1,5 +1,7 @@
 # Yoshi Error Handling Framework
 
+![Yoshi Logo](assets/YoshiLogo.png)
+
 [![License: BSL-1.1](https://img.shields.io/badge/License-BSL_1.1-blue.svg)](LICENSE)
 [![Rust](https://img.shields.io/badge/rust-1.87+-orange.svg)](https://www.rust-lang.org/)
 [![Build Status](https://img.shields.io/badge/build-passing-green.svg)](https://github.com/arcmoonstudios/yoshi)
@@ -773,7 +775,7 @@ thiserror = "1.0"
 
 ## 🙏 Acknowledgments
 
-- Built with inspiration from `anyhow`, `thiserror`, and `eyre`
+- Built with inspiration from `anyhow`, `thiserror`, `snafu`, and `eyre`
 - Performance optimizations inspired by enterprise error handling needs
 - Community feedback and contributions from the Rust ecosystem
 

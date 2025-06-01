@@ -1,5 +1,7 @@
 # Yoshi Derive - Advanced Error Handling Macros
 
+![Yoshi Logo](../assets/YoshiLogo.png)
+
 [![Crates.io](https://img.shields.io/crates/v/yoshi-derive.svg)](https://crates.io/crates/yoshi-derive)
 [![Documentation](https://docs.rs/yoshi-derive/badge.svg)](https://docs.rs/yoshi-derive)
 [![License](https://img.shields.io/badge/license-BSL--1.1-blue.svg)](../LICENSE)

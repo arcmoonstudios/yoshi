@@ -1,5 +1,7 @@
 # yoshi
 
+![Yoshi Logo](../assets/YoshiLogo.png)
+
 [![Crates.io](https://img.shields.io/crates/v/yoshi.svg)](https://crates.io/crates/yoshi)
 [![Docs.rs](https://docs.rs/yoshi/badge.svg)](https://docs.rs/yoshi)
 [![Rust Version](https://img.shields.io/badge/rust-1.70%2B-blue.svg)](https://www.rust-lang.org)

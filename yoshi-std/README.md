@@ -1,5 +1,7 @@
 # yoshi-std
 
+![Yoshi Logo](../assets/YoshiLogo.png)
+
 [![Crates.io](https://img.shields.io/crates/v/yoshi-std.svg)](https://crates.io/crates/yoshi-std)
 [![Documentation](https://docs.rs/yoshi-std/badge.svg)](https://docs.rs/yoshi-std)
 [![License: BSL-1.1](https://img.shields.io/badge/License-BSL--1.1-blue.svg)](LICENSE)
