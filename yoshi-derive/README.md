@@ -56,7 +56,7 @@ pub enum MyAppError {
         #[yoshi(context = "config_file")]
         path: String,
     },
-    
+
     #[yoshi(display = "User not found: {user_id}")]
     #[yoshi(kind = "NotFound")]
     #[yoshi(severity = 60)]
@@ -100,7 +100,7 @@ pub enum MyAppError {
 |-----------|------|-------------|---------|
 | `source` | Flag | Mark as error source | `#[yoshi(source)]` |
 | `context` | `String` | Add to context metadata | `#[yoshi(context = "file_path")]` |
-| `payload` | Flag | Add as typed payload | `#[yoshi(payload)]` |
+| `shell` | Flag | Add as typed shell | `#[yoshi(shell)]` |
 | `skip` | Flag | Skip in Display formatting | `#[yoshi(skip)]` |
 | `suggestion` | `String` | Field-level suggestion | `#[yoshi(suggestion = "Check file")]` |
 
@@ -131,12 +131,12 @@ pub enum AdvancedError {
         message: String,
         #[yoshi(source)]
         cause: Box<dyn Error + Send + Sync + 'static>,
-        #[yoshi(payload)]
+        #[yoshi(shell)]
         system_state: SystemState,
         #[yoshi(context = "timestamp")]
         occurred_at: String,
     },
-    
+
     #[yoshi(error_code = 2001)]
     #[yoshi(display = "Database connection timeout")]
     #[yoshi(kind = "Timeout")]
@@ -146,12 +146,12 @@ pub enum AdvancedError {
         #[yoshi(context = "connection_string")]
         host: String,
         port: u16,
-        #[yoshi(payload)]
+        #[yoshi(shell)]
         connection_info: DatabaseInfo,
         #[yoshi(suggestion = "Check database connectivity")]
         attempted_duration: std::time::Duration,
     },
-    
+
     #[yoshi(error_code = 3001)]
     #[yoshi(display = "Validation failed for field '{field}': {message}")]
     #[yoshi(kind = "Validation")]
@@ -161,7 +161,7 @@ pub enum AdvancedError {
         message: String,
         #[yoshi(context = "validation_rule")]
         rule: String,
-        #[yoshi(payload)]
+        #[yoshi(shell)]
         submitted_value: serde_json::Value,
     },
 }
@@ -221,7 +221,7 @@ impl From<AdvancedError> for yoshi_std::Yoshi {
                     source: Some(Box::new(Yoshi::from(*cause))),
                     component: Some("system".into()),
                 });
-                yoshi_err = yoshi_err.with_payload(system_state);
+                yoshi_err = yoshi_err.with_shell(system_state);
                 yoshi_err = yoshi_err.with_metadata("timestamp", occurred_at);
                 yoshi_err = yoshi_err.with_suggestion("Contact system administrator immediately");
                 yoshi_err
@@ -292,7 +292,7 @@ The derive macro intelligently maps error variants to appropriate `YoshiKind` ca
 - **Error Creation**: O(1) - Zero runtime cost from macros
 - **Display Formatting**: Depends on generated format strings
 - **Context Attachment**: O(1) per context item
-- **Payload Access**: O(1) hash map lookup
+- **Shell Access**: O(1) hash map lookup
 
 ### **Memory Efficiency**
 
@@ -318,7 +318,7 @@ The derive macro performs extensive validation to catch errors early:
 
 - 🚀 Warnings for overly complex display formats
 - 🚀 Hints for optimal field ordering
-- 🚀 Suggestions for payload vs context usage
+- 🚀 Suggestions for shell vs context usage
 - 🚀 Detection of redundant attributes
 
 ### **Security Considerations**
@@ -337,7 +337,7 @@ The derive macro performs extensive validation to catch errors early:
 #[cfg(test)]
 mod tests {
     use super::*;
-    use yoshi_std::YoshiContextExt;
+    use yoshi_std::HatchExt;
 
     #[test]
     fn test_generated_display() {
@@ -345,7 +345,7 @@ mod tests {
             user_id: 12345,
             attempted_query: "SELECT * FROM users WHERE id = 12345".to_string(),
         };
-        
+
         let display_output = format!("{}", error);
         assert!(display_output.contains("User not found: 12345"));
     }
@@ -356,10 +356,10 @@ mod tests {
             source: std::io::Error::new(std::io::ErrorKind::NotFound, "config.json"),
             path: "/etc/app/config.json".to_string(),
         };
-        
+
         let yoshi_error: yoshi_std::Yoshi = error.into();
         assert_eq!(yoshi_error.severity(), 75); // Default severity
-        
+
         // Check that context metadata was attached
         let context = yoshi_error.primary_context().unwrap();
         assert!(context.metadata.contains_key(&std::sync::Arc::from("config_file")));
@@ -377,7 +377,7 @@ mod tests {
             },
             occurred_at: "2025-01-20T10:30:00Z".to_string(),
         };
-        
+
         assert_eq!(system_error.error_code(), Some(1001));
         assert_eq!(system_error.severity(), Some(255));
     }
@@ -392,7 +392,7 @@ mod tests {
 
 ```rust
 use yoshi_derive::YoshiError;
-use yoshi_std::{Result, YoshiContextExt};
+use yoshi_std::{Result, HatchExt};
 
 #[derive(Debug, YoshiError)]
 pub enum ServiceError {
@@ -475,8 +475,8 @@ cargo expand --bin your_binary > expanded.rs
 
 ### **Benchmark Results Summary**
 
-**Latest Performance Analysis:** January 27, 2025  
-**Environment:** Windows x64, Rust 1.84.0  
+**Latest Performance Analysis:** January 27, 2025
+**Environment:** Windows x64, Rust 1.84.0
 **Reference:** [Complete Benchmark Report](../BenchmarkResults.md)
 
 #### **✅ Excellent Performance Areas**
@@ -500,7 +500,7 @@ cargo expand --bin your_binary > expanded.rs
 
 ```text
 ✅ Error Creation:     Target: <1µs     | Actual: 49-162ns    | 🎯 EXCEEDED
-✅ Memory Usage:       Target: <1KB     | Actual: 128-384B    | 🎯 EXCEEDED  
+✅ Memory Usage:       Target: <1KB     | Actual: 128-384B    | 🎯 EXCEEDED
 ✅ Integration:        Target: <50µs    | Actual: 1.4-22µs    | 🎯 EXCEEDED
 ❌ Chain Formatting:   Target: <100µs   | Actual: 9.7ms       | 🚨 97x OVER
 ✅ Simple Formatting:  Target: <10µs    | Actual: 347ns-1.2µs | 🎯 EXCEEDED
@@ -533,7 +533,7 @@ let error = MyError::NetworkTimeout {
 ```text
 Basic Error:     128 bytes  (1 allocation)
 With Context:    256 bytes  (2 allocations)
-With Payload:    384 bytes  (3 allocations)
+With Shell:    384 bytes  (3 allocations)
 Error Chain:     128n bytes (n+1 allocations)
 ```
 
@@ -550,7 +550,7 @@ let yoshi_error: yoshi_std::Yoshi = my_error.into(); // ~5.2µs
 
 ```text
 1 chain:    13.2µs   (acceptable)
-2 chains:   89.4µs   (acceptable) 
+2 chains:   89.4µs   (acceptable)
 5 chains:   1.2ms    (concerning)
 10 chains:  9.7ms    (unacceptable)
 ```
@@ -564,7 +564,7 @@ let yoshi_error: yoshi_std::Yoshi = my_error.into(); // ~5.2µs
 pub fn format_error_chain_optimized(error: &dyn Error) -> String {
     let chain_depth = calculate_chain_depth(error);
     let mut buffer = String::with_capacity(estimate_buffer_size(chain_depth));
-    
+
     let mut current = Some(error);
     while let Some(err) = current {
         buffer.push_str(&err.to_string());
@@ -607,7 +607,7 @@ error.track_creation(); // Records performance metrics
 #### **Future Optimizations**
 
 1. **Implement lazy formatting** - Defer expensive string operations
-2. **Add performance budgets** - CI-based performance regression testing  
+2. **Add performance budgets** - CI-based performance regression testing
 3. **Optimize memory allocation** - Use `SmallVec` and object pooling
 4. **SIMD string processing** - Leverage CPU-specific optimizations
 
