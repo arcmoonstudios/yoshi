@@ -8,7 +8,7 @@ repository = "https://github.com/arcmoonstudios/yoshi"
 license-file = "../LICENSE"
 description = "Core, std-only error type for the Yoshi framework."
 keywords = ["error", "error-handling", "yoshi", "std-only", "no-std"]
-categories = ["error-handling", "development-tools::debugging"]
+categories = ["development-tools::debugging", "rust-patterns"]
 
 [dependencies]
 serde = { version = "1.0.219", optional = true, features = ["derive"] }
