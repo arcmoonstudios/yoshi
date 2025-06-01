@@ -12,29 +12,33 @@ exclude = [
 ]
 
 # -------- Shared build profiles --------
-[profile.dev]              # fast ≈ release-like debug builds
-opt-level        = 1       # some inlining & vectorisation
-codegen-units    = 4       # keep incremental relinking quick
-debug            = true
+[profile.dev] # fast ≈ release-like debug builds
+opt-level = 1           # some inlining & vectorisation
+codegen-units = 4       # keep incremental relinking quick
+debug = true
 debug-assertions = true
-overflow-checks  = true
-incremental      = true    # lightning-fast rebuilds
-panic            = "unwind"
+overflow-checks = true
+incremental = true      # lightning-fast rebuilds
+panic = "unwind"
 
-[profile.dev.package."yoshi-std"]  # micro-optimise hot crate
+[profile.dev.package."yoshi-std"] # micro-optimise hot crate
 opt-level = 2
 
-[profile.release]          # production artefacts
-opt-level        = "z"     # size-optimised but keeps perf high
-lto              = "thin"
-codegen-units    = 1       # maximise cross-crate inlining
-panic            = "abort"
-debug            = false
-strip            = "symbols"
+[profile.release] # production artefacts
+opt-level = "z"   # size-optimised but keeps perf high
+lto = "thin"
+codegen-units = 1 # maximise cross-crate inlining
+panic = "abort"
+debug = false
+strip = "symbols"
 
 # Workspace dependencies for benchmarking
 [workspace.dependencies]
-criterion = { version = "0.6.0", features = ["html_reports", "csv_output", "cargo_bench_support"] }
+criterion = { version = "0.6.0", features = [
+    "html_reports",
+    "csv_output",
+    "cargo_bench_support",
+] }
 anyhow = "1.0.98"
 thiserror = "2.0.12"
 rayon = "1.10.0"
