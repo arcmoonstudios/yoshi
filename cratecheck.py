@@ -173,16 +173,23 @@ class CrateChecker:
         """Run package validation for crates.io"""
         self.print_header("PACKAGE VALIDATION")
 
-        checks = [
-            (["cargo", "package", "--list"], "Package file list"),
-            (["cargo", "package", "--allow-dirty"], "Package creation"),
-        ]
-
+        # Only package the publishable crates
+        packages = ["yoshi", "yoshi-std", "yoshi-derive"]
         all_passed = True
-        for cmd, desc in checks:
-            self.print_step(desc)
-            success, _ = self.run_command(cmd, desc, critical=False)  # Non-critical for now
-            if not success:
+
+        for package in packages:
+            desc_list = f"Package file list for {package}"
+            self.print_step(desc_list)
+            cmd_list = ["cargo", "package", "--list", "-p", package]
+            success_list, _ = self.run_command(cmd_list, desc_list, critical=False)
+            if not success_list:
+                all_passed = False
+
+            desc_pkg = f"Package creation for {package}"
+            self.print_step(desc_pkg)
+            cmd_pkg = ["cargo", "package", "--allow-dirty", "-p", package]
+            success_pkg, _ = self.run_command(cmd_pkg, desc_pkg, critical=False)
+            if not success_pkg:
                 all_passed = False
 
         return all_passed
