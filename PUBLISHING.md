@@ -15,29 +15,32 @@ Before publishing, ensure that:
 
 Due to the dependencies between crates, the Yoshi crates must be published in a specific order:
 
-1. First publish **yoshi-std**:
-   ```
+1.First publish **yoshi-std**:
+
+```bash
    cd yoshi-std
    cargo publish
-   ```
+```
 
-2. Next publish **yoshi-derive** (which depends on yoshi-std):
-   ```
+2.Next publish **yoshi-derive** (which depends on yoshi-std):
+
+```bash
    cd ../yoshi-derive
    cargo publish
-   ```
+```
 
-3. Finally publish **yoshi** (which depends on both yoshi-std and optionally yoshi-derive):
-   ```
+3.Finally publish **yoshi** (which depends on both yoshi-std and optionally yoshi-derive):
+
+```bash
    cd ../yoshi
    cargo publish
-   ```
+```
 
 ## Package Validation
 
 The repository includes a `cratecheck.py` script that validates the packages before publishing:
 
-```
+```python
 python cratecheck.py
 ```
 
