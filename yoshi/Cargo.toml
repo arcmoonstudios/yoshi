@@ -1,50 +1,50 @@
 [package]
-name         = "yoshi"
-version      = "0.1.0"
-edition      = "2021"
+name = "yoshi"
+version = "0.1.0"
+edition = "2021"
 rust-version = "1.87.0"
-authors      = ["Lord Xyn <LordXyn@proton.me>"]
-repository   = "https://github.com/arcmoonstudios/yoshi"
+authors = ["Lord Xyn <LordXyn@proton.me>"]
+repository = "https://github.com/arcmoonstudios/yoshi"
 license-file = "../LICENSE"
-description  = "Facade for the Yoshi error framework."
-keywords     = ["error","error-handling","result","anyhow","thiserror","std-only","yoshi"]
-categories   = ["error-handling","development-tools::debugging"]
+description = "Entry for the Yoshi error framework."
+keywords = ["error", "error-handling", "result", "yoshi", "std-only"]
+categories = ["development-tools", "rust-patterns", "api-bindings"]
 
 [dependencies]
-yoshi-std    = { version = "0.1.0", path = "../yoshi-std", default-features = false }
+yoshi-std = { version = "0.1.0", path = "../yoshi-std", default-features = false }
 yoshi-derive = { version = "0.1.0", path = "../yoshi-derive", optional = true }
-serde   = { version = "1.0.219", optional = true, features = ["derive"] }
+serde = { version = "1.0.219", optional = true, features = ["derive"] }
 tokio = { version = "1.42.0", optional = true, features = ["full"] }
 serde_json = { version = "1.0.140", optional = true }
 once_cell = { version = "1.21.3", optional = true }
 tracing = { version = "0.1.41", optional = true }
-miette  = { version = "7.6.0", optional = true }
+miette = { version = "7.6.0", optional = true }
 
 [features]
-default   = ["std", "rust-1-87", "auto-fix", "smart-diagnostics"]
-std       = ["yoshi-std/std"]
-derive    = ["yoshi-derive", "yoshi-std/derive"]
-serde     = ["dep:serde", "dep:serde_json", "yoshi-std/serde"]
-tracing   = ["dep:tracing", "yoshi-std/tracing"]
+default = ["std", "rust-1-87", "auto-fix", "smart-diagnostics"]
+std = ["yoshi-std/std"]
+derive = ["yoshi-derive", "yoshi-std/derive"]
+serde = ["dep:serde", "dep:serde_json", "yoshi-std/serde"]
+tracing = ["dep:tracing", "yoshi-std/tracing"]
 
 # Enhanced Rust 1.87 features
 rust-1-87 = ["dep:once_cell", "simd-optimized", "precise-capturing"]
-async     = ["dep:tokio", "rust-1-87"]
+async = ["dep:tokio", "rust-1-87"]
 simd-optimized = []
 precise-capturing = []
 
 # convenience
-full = ["std","derive","serde","tracing","rust-1-87","async"]
+full = ["std", "derive", "serde", "tracing", "rust-1-87", "async"]
 
 # pass-through experimental flags
-unstable-metrics            = ["yoshi-std/unstable-metrics"]
-unstable-auto-fix           = ["yoshi-std/unstable-auto-fix"]
-unstable-smart-diagnostics  = ["yoshi-std/unstable-smart-diagnostics"]
+unstable-metrics = ["yoshi-std/unstable-metrics"]
+unstable-auto-fix = ["yoshi-std/unstable-auto-fix"]
+unstable-smart-diagnostics = ["yoshi-std/unstable-smart-diagnostics"]
 
 # Enhanced feature flags
-pipe                        = ["rust-1-87"]
-auto-fix                    = ["unstable-auto-fix", "smart-diagnostics"]
-smart-diagnostics           = ["unstable-smart-diagnostics", "rust-1-87"]
-cross-process               = ["pipe", "serde"]
-performance-monitoring      = ["rust-1-87"]
-cli                         = ["std"]
+pipe = ["rust-1-87"]
+auto-fix = ["unstable-auto-fix", "smart-diagnostics"]
+smart-diagnostics = ["unstable-smart-diagnostics", "rust-1-87"]
+cross-process = ["pipe", "serde"]
+performance-monitoring = ["rust-1-87"]
+cli = ["std"]
