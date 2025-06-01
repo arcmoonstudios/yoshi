@@ -7,8 +7,8 @@ authors = ["Lord Xyn <LordXyn@proton.me>"]
 repository = "https://github.com/arcmoonstudios/yoshi"
 license-file = "../LICENSE"
 description = "Procedural-macro helpers for deriving Yoshi errors."
-keywords = ["proc-macro", "error", "derive", "error-handling"]
-categories = ["development-tools", "rust-patterns", "proc-macro", "yoshi"]
+keywords = ["proc-macro", "error", "derive", "error-handling", "yoshi"]
+categories = ["development-tools", "rust-patterns"]
 
 [lib]
 proc-macro = true
