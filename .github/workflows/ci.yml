@@ -2,9 +2,9 @@ name: Yoshi CI
 
 on:
   push:
-    branches: [master, develop]
+    branches: [main, develop]
   pull_request:
-    branches: [master, develop]
+    branches: [main, develop]
   workflow_dispatch:
 
 env:
@@ -70,6 +70,7 @@ jobs:
         run: |
           echo "Running clippy lints..."
           cargo clippy --all-targets --all-features -- -D warnings
+
   # Basic tests
   test:
     name: 🧪 Test
@@ -154,13 +155,15 @@ jobs:
           # Cache on Cargo.lock changes
           cache-on-failure: true
           # Save cache even if job fails
-          save-if: true      - name: 📖 Check documentation
+          save-if: true
+
+      - name: 📖 Check documentation
         run: |
           echo "Building documentation..."
           cargo doc --all-features --no-deps
-          
+
       - name: 📚 Publish documentation
-        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
           echo "Publishing documentation..."
           cargo doc --all-features --no-deps
