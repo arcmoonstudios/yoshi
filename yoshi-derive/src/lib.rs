@@ -1,10 +1,18 @@
 /* yoshi/yoshi-derive/src/lib.rs */
-#![warn(missing_docs)]
 #![deny(unsafe_code)]
 #![warn(clippy::all)]
-#![warn(clippy::pedantic)]
+#![warn(missing_docs)]
 #![warn(clippy::cargo)]
+#![warn(clippy::pedantic)]
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
+// Allow some specific warnings for proc macro code
+#![allow(clippy::doc_markdown)]
+#![allow(clippy::map_unwrap_or)]
+#![allow(clippy::too_many_lines)]
+#![allow(clippy::unnecessary_wraps)]
+#![allow(clippy::unnecessary_map_or)]
+#![allow(clippy::ignored_unit_patterns)]
+#![allow(clippy::uninlined_format_args)]
 //! **Brief:** The Yoshi error handling framework was designed as an all-in-one solution
 //! for handling errors in any kind of application, taking the developers' sanity as a
 //! first-class citizen. It's designed to be both efficient and user-friendly, ensuring that
@@ -51,7 +59,7 @@
 //!
 //! ## Usage Examples
 //!
-//! ### Basic Error Enum with YoshiError Derive
+//! ### Basic Error Enum with `YoshiError` Derive
 //!
 //! ```rust
 //! use yoshi_derive::YoshiError;
@@ -60,7 +68,7 @@
 //! #[derive(Debug, YoshiError)]
 //! pub enum MyAppError {
 //!     #[yoshi(display = "Failed to parse config: {source}")]
-//!     ParseError {
+//!     ConfigError {
 //!         #[yoshi(source)]
 //!         source: std::io::Error,
 //!         #[yoshi(context = "config_file")]
@@ -79,8 +87,25 @@
 //!     #[yoshi(kind = "Timeout")]
 //!     #[yoshi(transient = true)]
 //!     DatabaseTimeout {
-//!         #[yoshi(payload)]
+//!         #[yoshi(shell)]
 //!         connection_info: DatabaseInfo,
+//!     },
+//!     /// Automatic From conversion for std::io::Error
+//!     #[yoshi(kind = "Io")]
+//!     IoError(#[yoshi(from)] std::io::Error),
+//!
+//!     /// Network errors would use automatic conversion (requires reqwest crate)
+//!     #[yoshi(kind = "Network")]
+//!     #[yoshi(display = "Network operation failed")]
+//!     NetworkError {
+//!         url: String,
+//!     },
+//!
+//!     /// Parse errors with validation kind
+//!     #[yoshi(kind = "Validation")]
+//!     #[yoshi(display = "Parse operation failed")]
+//!     ParseError {
+//!         message: String,
 //!     },
 //! }
 //!
@@ -89,50 +114,43 @@
 //!     host: String,
 //!     port: u16,
 //! }
+//!
+//! // With #[yoshi(from)], these conversions work automatically:
+//! // let io_err: std::io::Error = std::fs::File::open("missing.txt").unwrap_err();
+//! // let my_err: MyAppError = io_err.into(); // or MyAppError::from(io_err)
+//! //
+//! // fn example() -> Result<(), MyAppError> {
+//! //     std::fs::File::open("config.txt")?; // Works with ? operator!
+//! //     Ok(())
+//! // }
 //! ```
 //!
 //! ### Advanced Error Configuration
 //!
-// ```rust,ignore
-// use yoshi_derive::YoshiError;
-// use std::error::Error;
-// use yoshi_std::{Yoshi, YoshiKind};
-//
-// #[derive(Debug, YoshiError)]
-// #[yoshi(error_code_prefix = "APP")]
-// #[yoshi(default_severity = 75)]
-// #[yoshi(performance_monitoring = true)]
-// pub enum AdvancedError {
-//     #[yoshi(error_code = 1001)]
-//     #[yoshi(display = "Critical system failure: {message}")]
-//     #[yoshi(kind = "Internal")]
-//     #[yoshi(severity = 255)]
-//     SystemFailure {
-//         message: String,
-//         #[yoshi(source)]
-//         cause: Box<dyn Error + Send + Sync + 'static>,
-//         #[yoshi(payload)]
-//         system_state: SystemState,
-//     },
-// }
-//
-// #[derive(Debug)]
-// struct SystemState {
-//     memory_usage: f64,
-//     cpu_usage: f64,
-// }
-//
-// // Note: YoshiError derive macro already implements From for us
-// // so we don't need to manually implement it
-// // The correct way to create an Internal error is:
-// fn create_system_failure(message: &str) -> Yoshi {
-//     Yoshi::new(YoshiKind::Internal {
-//         message: message.into(),
-//         source: None,
-//         component: None,
-//     })
-// }
-// ```
+//! ```
+//! use yoshi_derive::YoshiError;
+//!
+//! #[derive(Debug, YoshiError)]
+//! #[yoshi(error_code_prefix = "APP")]
+//! #[yoshi(default_severity = 75)]
+//! pub enum AdvancedError {
+//!     #[yoshi(error_code = 1001)]
+//!     #[yoshi(display = "Critical system failure: {message}")]
+//!     #[yoshi(severity = 255)]
+//!     SystemFailure {
+//!         message: String,
+//!         #[yoshi(source)]
+//!         cause: std::io::Error,
+//!         system_state: SystemState,
+//!     },
+//! }
+//!
+//! #[derive(Debug)]
+//! struct SystemState {
+//!     memory_usage: f64,
+//!     cpu_usage: f64,
+//! }
+//! ```
 // ~=####====A===r===c===M===o===o===n====S===t===u===d===i===o===s====X|0|$>
 //! + [Advanced Procedural Macro Framework with Mathematical Optimization]
 //!  - [Intelligent AST Analysis: O(n) complexity for n enum variants with memoization]
@@ -157,6 +175,7 @@ use proc_macro2::{Span, TokenStream as TokenStream2};
 use quote::{format_ident, quote};
 use regex::Regex;
 use std::collections::HashMap;
+use std::sync::LazyLock; // Add this import for the standard library LazyLock
 use syn::{
     parse_macro_input, spanned::Spanned, Attribute, Data, DeriveInput, Error, Generics, Ident,
     Result, Type, Visibility,
@@ -209,11 +228,16 @@ const ATTRIBUTE_SHORTCUTS: &[(&str, &str)] = &[
         "y_db",
         r#"yoshi(kind = "Network", display = "Database error: {message}")"#,
     ),
+    // From conversion shortcuts
+    ("y_from", "yoshi(from)"),
+    ("y_from_io", "yoshi(from, kind = \"Io\", source)"),
+    ("y_from_net", "yoshi(from, kind = \"Network\", source)"),
+    ("y_from_parse", "yoshi(from, kind = \"Validation\", source)"),
 ];
 
 /// Global cache for compiled regex patterns to avoid recompilation.
 ///
-/// This cache leverages `once_cell` to provide thread-safe, lazy initialization
+/// This cache leverages `std::sync::LazyLock` to provide thread-safe, lazy initialization
 /// of commonly used regex patterns, significantly improving compilation performance
 /// for large codebases with many error enums.
 ///
@@ -222,24 +246,23 @@ const ATTRIBUTE_SHORTCUTS: &[(&str, &str)] = &[
 /// - First access: O(n) where n is pattern complexity
 /// - Subsequent accesses: O(1) with zero allocation
 /// - Memory overhead: ~1KB for all cached patterns
-static REGEX_CACHE: once_cell::sync::Lazy<HashMap<&'static str, Regex>> =
-    once_cell::sync::Lazy::new(|| {
-        let mut cache = HashMap::new();
-        cache.insert("display_placeholder", Regex::new(r"\{(\w+)\}").unwrap());
-        cache.insert(
-            "valid_identifier",
-            Regex::new(r"^[a-zA-Z_][a-zA-Z0-9_]*$").unwrap(),
-        );
-        cache.insert(
-            "context_key",
-            Regex::new(r"^[a-zA-Z_][a-zA-Z0-9_]*$").unwrap(),
-        );
-        cache.insert(
-            "error_code_pattern",
-            Regex::new(r"^[A-Z][A-Z0-9_]*$").unwrap(),
-        );
-        cache
-    });
+static REGEX_CACHE: LazyLock<HashMap<&'static str, Regex>> = LazyLock::new(|| {
+    let mut cache = HashMap::new();
+    cache.insert("display_placeholder", Regex::new(r"\{(\w+)\}").unwrap());
+    cache.insert(
+        "valid_identifier",
+        Regex::new(r"^[a-zA-Z_][a-zA-Z0-9_]*$").unwrap(),
+    );
+    cache.insert(
+        "context_key",
+        Regex::new(r"^[a-zA-Z_][a-zA-Z0-9_]*$").unwrap(),
+    );
+    cache.insert(
+        "error_code_pattern",
+        Regex::new(r"^[A-Z][A-Z0-9_]*$").unwrap(),
+    );
+    cache
+});
 
 /// Configuration for the derive macro with comprehensive validation and Rust 1.87 enhancements.
 ///
@@ -363,7 +386,7 @@ struct YoshiVariantOpts {
     /// Custom display format string for this variant using placeholder syntax
     display: Option<String>,
 
-    /// Maps this variant to a specific YoshiKind (e.g., "Network", "Config", "Validation")
+    /// Maps this variant to a specific `YoshiKind` (e.g., "Network", "Config", "Validation")
     #[darling(default)]
     kind: Option<String>,
 
@@ -406,59 +429,35 @@ struct YoshiVariantOpts {
 ///
 /// - **Source**: The field contains the underlying cause of the error
 /// - **Context**: The field should be added to error context metadata
-/// - **Payload**: The field should be attached as a typed payload
+/// - **Shell**: The field should be attached as a typed shell
 /// - **Skip**: The field should be ignored in Display formatting
 ///
 /// # Examples
 ///
-// ```rust,ignore
-// use yoshi_derive::YoshiError;
-// use std::path::PathBuf;
-// use std::time::SystemTime;
-//
-// // Helper function to format PathBuf for display since it doesn't implement Display
-// fn format_path(path: &PathBuf) -> String {
-//     path.display().to_string()
-// }
-//
-// #[derive(Debug, YoshiError)]
-// pub enum DetailedError {
-//     #[yoshi(display = "File operation failed: {operation} on {path_display}")]
-//     FileError {
-//         #[yoshi(source)]
-//         io_error: std::io::Error,
-//         #[yoshi(context = "file_path")]
-//         #[yoshi(skip)]
-//         path: PathBuf,
-//         #[yoshi(format_with = "format_path")]
-//         #[yoshi(context = "path_display")]
-//         path_display: PathBuf,
-//         #[yoshi(payload)]
-//         file_metadata: FileMetadata,
-//         #[yoshi(skip)]
-//         internal_state: InternalState,
-//         #[yoshi(format_with = "custom_format")]
-//         operation: String,
-//     },
-// }
-//
-// #[derive(Debug)]
-// struct FileMetadata {
-//     size: u64,
-//     modified: SystemTime,
-// }
-//
-// #[derive(Debug)]
-// struct InternalState {
-//     retry_count: u32,
-// }
-//
-// fn custom_format(op: &String) -> String {
-//     format!("Operation: {}", op.to_uppercase())
-// }
-// ```
+/// ```
+/// use yoshi_derive::YoshiError;
+///
+/// // Custom formatting function
+/// fn format_operation(op: &String) -> String {
+///     format!("Operation: {}", op.to_uppercase())
+/// }
+///
+/// #[derive(Debug, YoshiError)]
+/// pub enum DetailedError {
+///     #[yoshi(display = "File operation failed: {operation}")]
+///     FileError {
+///         #[yoshi(source)]
+///         io_error: std::io::Error,
+///         #[yoshi(skip)]
+///         internal_id: u32,
+///         #[yoshi(format_with = "format_operation")]
+///         operation: String,
+///     },
+/// }
+/// ```
 #[derive(Debug, FromField)]
 #[darling(attributes(yoshi))]
+#[allow(clippy::struct_excessive_bools)]
 struct YoshiFieldOpts {
     /// Optional identifier for named fields
     ident: Option<Ident>,
@@ -473,9 +472,9 @@ struct YoshiFieldOpts {
     #[darling(default)]
     context: Option<String>,
 
-    /// Add this field as a typed payload accessible via Error::provide
+    /// Add this field as a typed shell accessible via `Error::provide`
     #[darling(default)]
-    payload: bool,
+    shell: bool,
 
     /// Skip this field in Display formatting (useful for internal state)
     #[darling(default)]
@@ -486,6 +485,27 @@ struct YoshiFieldOpts {
     format_with: Option<String>,
 
     /// Enable automatic From conversion for this field type
+    ///
+    /// When enabled, generates `impl From<FieldType> for EnumType` automatically.    /// This enables ergonomic error conversion and ? operator usage.
+    ///
+    /// # Requirements
+    /// - Only one field per variant can be marked with `from`
+    /// - Best suited for single-field tuple variants
+    /// - Struct variants require other fields to implement `Default`
+    ///
+    /// # Examples
+    /// ```
+    /// use yoshi_derive::YoshiError;
+    ///
+    /// #[derive(Debug, YoshiError)]
+    /// enum SimpleError {
+    ///     Parse(#[yoshi(from)] std::num::ParseIntError),
+    ///     Network(String),
+    /// }
+    ///
+    /// // Automatic conversion works:
+    /// let _result: Result<i32, SimpleError> = "not_a_number".parse().map_err(SimpleError::from);
+    /// ```
     #[darling(default)]
     from: bool,
 
@@ -565,12 +585,12 @@ impl ValidationContext {
     }
 
     /// Adds a fatal error with precise source location information.
-    ///
-    /// # Parameters
+    ///    /// # Parameters
     ///
     /// - `span`: The source code span where the error occurred
     /// - `message`: A descriptive error message for the developer
-    ///    /// # Examples
+    ///
+    /// # Examples
     ///
     /// ```rust,no_run
     /// # use yoshi_derive::*;
@@ -602,11 +622,11 @@ impl ValidationContext {
     }
 
     /// Adds a non-fatal warning about potential issues.
-    ///
-    /// # Parameters
+    ///    /// # Parameters
     ///
     /// - `message`: A descriptive warning message
-    ///    /// # Examples
+    ///
+    /// # Examples
     ///
     /// ```rust,no_run
     /// # use yoshi_derive::*;
@@ -636,11 +656,11 @@ impl ValidationContext {
     }
 
     /// Adds a performance optimization hint.
-    ///
-    /// # Parameters
+    ///    /// # Parameters
     ///
     /// - `message`: A descriptive hint for performance improvement
-    ///    /// # Examples
+    ///
+    /// # Examples
     ///
     /// ```rust,no_run
     /// # use yoshi_derive::*;
@@ -698,11 +718,11 @@ impl ValidationContext {
         for warning in self.warnings {
             // Using eprintln! for warnings since proc_macro::Diagnostic is still unstable in Rust 1.87
             // TODO: Migrate to proc_macro::Diagnostic when it stabilizes
-            eprintln!("warning: {}", warning);
+            eprintln!("warning: {warning}");
         }
 
         for hint in self.performance_hints {
-            eprintln!("performance hint: {}", hint);
+            eprintln!("performance hint: {hint}");
         }
 
         Ok(())
@@ -797,27 +817,22 @@ fn yoshi_error_derive_impl(input: DeriveInput) -> Result<TokenStream2> {
             expand_attribute_shortcuts(&mut variant.attrs);
 
             // Process fields within variants
-            for field in variant.fields.iter_mut() {
+            for field in &mut variant.fields {
                 expand_attribute_shortcuts(&mut field.attrs);
             }
         }
     }
 
     let mut opts = YoshiErrorOpts::from_derive_input(&input_with_expanded_attrs)?;
-    let mut validation = ValidationContext::new();
-
-    // Apply auto-inference before validation
+    let mut validation = ValidationContext::new(); // Apply auto-inference before validation
     apply_auto_inference(&mut opts)?;
 
     // Extract variants data once and ensure it's an enum
-    let variants = match &opts.data {
-        darling::ast::Data::Enum(variants) => variants,
-        _ => {
-            return Err(Error::new(
-                opts.ident.span(),
-                "YoshiError can only be derived on enums",
-            ))
-        }
+    let darling::ast::Data::Enum(variants) = &opts.data else {
+        return Err(Error::new(
+            opts.ident.span(),
+            "YoshiError can only be derived on enums",
+        ));
     };
 
     // Phase 1: Comprehensive validation
@@ -875,7 +890,7 @@ fn yoshi_error_derive_impl(input: DeriveInput) -> Result<TokenStream2> {
 /// # Parameters
 ///
 /// - `attrs`: A mutable reference to a `Vec<Attribute>` to be modified in place.
-fn expand_attribute_shortcuts(attrs: &mut Vec<Attribute>) {
+fn expand_attribute_shortcuts(attrs: &mut [Attribute]) {
     for attr in attrs.iter_mut() {
         if let Some(ident) = attr.path().get_ident() {
             let attr_name = ident.to_string();
@@ -887,7 +902,7 @@ fn expand_attribute_shortcuts(attrs: &mut Vec<Attribute>) {
             {
                 // Replace with expanded form
                 // Parse the expansion as a new attribute
-                if let Ok(new_attr) = syn::parse_str::<syn::Meta>(&expansion) {
+                if let Ok(new_attr) = syn::parse_str::<syn::Meta>(expansion) {
                     attr.meta = new_attr;
                 }
             }
@@ -937,7 +952,7 @@ fn apply_auto_inference(opts: &mut YoshiErrorOpts) -> Result<()> {
 ///
 /// ## Field Type Analysis
 /// - `std::io::Error` → `source = true`
-/// - `Box<dyn std::error::Error>` → `source = true`  
+/// - `Box<dyn std::error::Error>` → `source = true`
 /// - `reqwest::Error` → `source = true`
 /// - Field names containing "path", "file" → `context = "file_path"`
 /// - Field names containing "url", "uri" → `context = "endpoint"`
@@ -1013,13 +1028,11 @@ fn infer_yoshi_attributes(variant: &mut YoshiVariantOpts) -> Result<()> {
             Some("ResourceExhausted") => 150, // High for resource exhaustion
             _ => 75,                          // Default medium severity
         });
-    }
-
-    // Analyze fields for auto-inference
+    } // Analyze fields for auto-inference
     let is_single_tuple_field =
         variant.fields.fields.len() == 1 && matches!(variant.fields.style, Style::Tuple);
 
-    for field in variant.fields.fields.iter_mut() {
+    for field in &mut variant.fields.fields {
         // Infer source fields based on type analysis
         if !field.source && is_error_type(&field.ty) {
             field.source = true;
@@ -1047,21 +1060,33 @@ fn infer_yoshi_attributes(variant: &mut YoshiVariantOpts) -> Result<()> {
         }
 
         // Infer from conversions for simple single-field variants
+        if !field.from && is_single_tuple_field && is_error_type(&field.ty) {
+            field.from = true; // Enable From conversion for single unnamed error field
+        }
+
+        // Infer from conversions for common conversion patterns
         if !field.from && is_single_tuple_field {
-            field.from = true; // Enable From conversion for single unnamed field
+            if let Some(ref field_name) = field.ident {
+                let name = field_name.to_string().to_lowercase();
+                // Common patterns that benefit from From conversion
+                if name.contains("error") || name.contains("cause") || name.contains("source") {
+                    field.from = true;
+                }
+            } else {
+                // Unnamed single field in tuple variant - good candidate for From
+                field.from = true;
+            }
         }
     }
 
     // Infer display format if not provided
     if variant.display.is_none() {
         variant.display = Some(generate_inferred_display_format(variant));
-    }
-
-    // Infer transient flag based on error kind
+    } // Infer transient flag based on error kind
     if !variant.transient {
         variant.transient = matches!(
             variant.kind.as_deref(),
-            Some("Network") | Some("Timeout") | Some("ResourceExhausted")
+            Some("Network" | "Timeout" | "ResourceExhausted")
         );
     }
 
@@ -1078,7 +1103,7 @@ fn infer_yoshi_attributes(variant: &mut YoshiVariantOpts) -> Result<()> {
 /// - `std::io::Error`
 /// - `Box<dyn std::error::Error>`
 /// - `Box<dyn std::error::Error + Send>`
-/// - `Box<dyn std::error::Error + Sync>`  
+/// - `Box<dyn std::error::Error + Sync>`
 /// - `Box<dyn std::error::Error + Send + Sync>`
 /// - Common third-party error types (reqwest, serde_json, etc.)
 ///
@@ -1130,12 +1155,7 @@ fn generate_inferred_display_format(variant: &YoshiVariantOpts) -> String {
             format!("{}", variant.ident)
         }
         Style::Tuple if variant.fields.fields.len() == 1 => {
-            let field = &variant.fields.fields[0];
-            if field.source {
-                format!("{}: {{}}", variant.ident)
-            } else {
-                format!("{}: {{}}", variant.ident)
-            }
+            format!("{}: {{}}", variant.ident)
         }
         Style::Struct => {
             let fields = &variant.fields.fields;
@@ -1284,6 +1304,7 @@ fn validate_enum_structure(
 /// - Severity level range checking and recommendations
 /// - Field configuration consistency checking
 /// - Source field uniqueness validation
+/// - From conversion field validation
 ///
 /// # Parameters
 ///
@@ -1354,6 +1375,41 @@ fn validate_variant(variant: &YoshiVariantOpts, validation: &mut ValidationConte
         }
     }
 
+    // Validate From conversion field requirements
+    let from_fields: Vec<_> = variant.fields.iter().filter(|f| f.from).collect();
+    match (variant.fields.style, from_fields.len()) {
+        (Style::Tuple, n) if n > 1 => {
+            validation.error(
+                variant.ident.span(),
+                "Only one field can be marked as #[yoshi(from)] in tuple variants - automatic From conversion requires unambiguous field selection",
+            );
+        }
+        (Style::Struct, n) if n > 1 => {
+            validation.error(
+                variant.ident.span(),
+                "Only one field can be marked as #[yoshi(from)] in struct variants - use explicit constructors for multi-field conversion",
+            );
+        }
+        (Style::Unit, n) if n > 0 => {
+            validation.error(
+                variant.ident.span(),
+                "Unit variants cannot have #[yoshi(from)] fields - no fields available for conversion",
+            );
+        }
+        (Style::Tuple, 1) if variant.fields.fields.len() == 1 => {
+            // Perfect case: single tuple field with from annotation
+            validation.performance_hint(
+                "Single-field tuple variants with #[yoshi(from)] enable ergonomic ? operator usage",
+            );
+        }
+        (Style::Struct, 1) => {
+            validation.warning(
+                "From conversion on struct variants requires explicit field initialization - consider using constructor functions",
+            );
+        }
+        _ => {} // No from fields or acceptable configuration
+    }
+
     Ok(())
 }
 
@@ -1389,7 +1445,7 @@ fn validate_display_format(
     let field_names: std::collections::HashSet<_> = variant
         .fields
         .iter()
-        .filter_map(|f| f.ident.as_ref().map(|i| i.to_string()))
+        .filter_map(|f| f.ident.as_ref().map(ToString::to_string))
         .collect();
 
     // Validate all placeholders in the format string
@@ -1441,7 +1497,7 @@ fn validate_display_format(
 /// # Valid YoshiKind Values
 ///
 /// - `Io`: I/O related errors
-/// - `Network`: Network connectivity and protocol errors  
+/// - `Network`: Network connectivity and protocol errors
 /// - `Config`: Configuration and settings errors
 /// - `Validation`: Input validation and constraint errors
 /// - `Internal`: Internal logic and invariant errors
@@ -1547,6 +1603,7 @@ fn validate_yoshi_kind_mapping(
 /// - Context key validation for metadata fields
 /// - Type compatibility for source fields
 /// - Performance implications of field configurations
+/// - From conversion attribute validation
 ///
 /// # Parameters
 ///
@@ -1575,10 +1632,10 @@ fn validate_field(field: &YoshiFieldOpts, validation: &mut ValidationContext) ->
     }
 
     // Check for conflicting attributes
-    if field.source && field.payload {
+    if field.source && field.shell {
         validation.error(
             field.ty.span(),
-            "Field cannot be both #[yoshi(source)] and #[yoshi(payload)] - choose one role per field"
+            "Field cannot be both #[yoshi(source)] and #[yoshi(shell)] - choose one role per field",
         );
     }
 
@@ -1588,8 +1645,22 @@ fn validate_field(field: &YoshiFieldOpts, validation: &mut ValidationContext) ->
         );
     }
 
-    if field.payload && field.skip {
-        validation.warning("Payload field marked as skip reduces diagnostic utility");
+    if field.shell && field.skip {
+        validation.warning("Shell field marked as skip reduces diagnostic utility");
+    }
+
+    // Validate from attribute conflicts
+    if field.from && field.source {
+        validation.warning(
+            "Field marked as both #[yoshi(from)] and #[yoshi(source)] - from conversion will wrap the source error"
+        );
+    }
+
+    if field.from && field.skip {
+        validation.error(
+            field.ty.span(),
+            "Field cannot be both #[yoshi(from)] and #[yoshi(skip)] - from fields must be accessible for conversion"
+        );
     }
 
     // Validate format_with function reference
@@ -1607,13 +1678,290 @@ fn validate_field(field: &YoshiFieldOpts, validation: &mut ValidationContext) ->
     }
 
     // Performance suggestions based on field configuration
-    if field.source && field.context.is_some() && field.payload {
+    if field.source && field.context.is_some() && field.shell {
         validation.performance_hint(
             "Fields with multiple roles may benefit from being split into separate fields",
         );
     }
 
+    // From conversion type compatibility validation
+    if field.from {
+        validate_from_type_compatibility(&field.ty, validation);
+    }
+
     Ok(())
+}
+
+/// Validates type compatibility for fields marked with `#[yoshi(from)]`.
+///
+/// This function performs comprehensive type analysis to ensure that types marked
+/// for automatic From conversion are suitable for the generated implementation.
+/// It checks for common conversion patterns, validates type complexity, and
+/// provides optimization hints for better performance.
+///
+/// # Validation Areas
+///
+/// - Error type compatibility for source field conversion
+/// - Primitive type validation for simple conversions
+/// - Complex type analysis for performance implications
+/// - Generic type bounds checking
+/// - Reference type validation
+///
+/// # Parameters
+///
+/// - `ty`: The type to validate for From conversion compatibility
+/// - `validation`: Validation context for error and warning accumulation
+///
+/// # Performance Considerations
+///
+/// - Types implementing Copy are preferred for performance
+/// - Large types benefit from Box wrapping
+/// - Generic types require additional bound validation
+fn validate_from_type_compatibility(ty: &Type, validation: &mut ValidationContext) {
+    let type_string = quote! { #ty }.to_string();
+
+    // Remove whitespace for consistent analysis
+    let normalized_type = type_string.replace(' ', "");
+
+    // Check for ideal From conversion types
+    if is_error_type(ty) {
+        validation.performance_hint(
+            "Error types with #[yoshi(from)] enable excellent ? operator ergonomics",
+        );
+        return;
+    }
+
+    // Validate common primitive and standard library types
+    if is_primitive_or_std_type(&normalized_type) {
+        validation.performance_hint(
+            "Primitive and standard library types work well with From conversions",
+        );
+        return;
+    }
+
+    // Check for potentially problematic types
+    if is_complex_generic_type(&normalized_type) {
+        validation.warning(
+            "Complex generic types with From conversion may require additional trait bounds",
+        );
+    }
+
+    if is_large_struct_type(&normalized_type) {
+        validation.performance_hint(
+            "Large types may benefit from Box wrapping for better performance in From conversions",
+        );
+    }
+
+    // Validate reference types
+    if normalized_type.starts_with('&') {
+        validation.warning(
+            "Reference types in From conversions require careful lifetime management - consider owned types"
+        );
+    }
+
+    // Check for function pointer types
+    if normalized_type.contains("fn(") || normalized_type.starts_with("fn(") {
+        validation.performance_hint(
+            "Function pointer types work well with From conversions for callback patterns",
+        );
+    }
+
+    // Validate Option and Result wrappers
+    if normalized_type.starts_with("Option<") {
+        validation.warning(
+            "Option types in From conversions may create nested Option patterns - consider unwrapping"
+        );
+    }
+
+    if normalized_type.starts_with("Result<") {
+        validation.warning(
+            "Result types in From conversions create Result<Result<...>> patterns - consider error flattening"
+        );
+    }
+
+    // Check for Arc/Rc types
+    if normalized_type.starts_with("Arc<") || normalized_type.starts_with("Rc<") {
+        validation.performance_hint(
+            "Arc/Rc types enable efficient cloning in From conversions but may indicate shared ownership needs"
+        );
+    }
+
+    // Validate string types for optimal patterns
+    if normalized_type.contains("String") || normalized_type.contains("&str") {
+        validation.performance_hint(
+            "String types benefit from Into<String> patterns for flexible From conversions",
+        );
+    }
+
+    // Check for collection types
+    if is_collection_type(&normalized_type) {
+        validation.performance_hint(
+            "Collection types in From conversions may benefit from iterator-based construction for performance"
+        );
+    }
+
+    // Validate custom types
+    if !is_known_type(&normalized_type) {
+        validation.performance_hint(
+            "Custom types with From conversion should implement appropriate trait bounds for optimal ergonomics"
+        );
+    }
+}
+
+/// Checks if a type is a primitive or standard library type suitable for From conversion.
+///
+/// # Parameters
+///
+/// - `type_str`: Normalized type string for analysis
+///
+/// # Returns
+///
+/// `true` if the type is a primitive or common standard library type
+fn is_primitive_or_std_type(type_str: &str) -> bool {
+    matches!(
+        type_str,
+        // Primitive types
+        "bool" | "char" | "i8" | "i16" | "i32" | "i64" | "i128" | "isize" |
+        "u8" | "u16" | "u32" | "u64" | "u128" | "usize" | "f32" | "f64" |
+
+        // Common standard library types
+        "String" | "&str" | "str" |
+        "std::string::String" | "std::path::PathBuf" | "std::path::Path" |
+        "std::ffi::OsString" | "std::ffi::CString" |
+        "std::net::IpAddr" | "std::net::SocketAddr" |
+        "std::time::Duration" | "std::time::Instant" | "std::time::SystemTime"
+    ) || type_str.starts_with("std::") && is_std_convertible_type(type_str)
+}
+
+/// Checks if a standard library type is commonly used in From conversions.
+///
+/// # Parameters
+///
+/// - `type_str`: The type string to analyze
+///
+/// # Returns
+///
+/// `true` if it's a commonly converted standard library type
+fn is_std_convertible_type(type_str: &str) -> bool {
+    type_str.contains("::Error")
+        || type_str.contains("::Addr")
+        || type_str.contains("::Path")
+        || type_str.contains("::Duration")
+        || type_str.contains("::Instant")
+}
+
+/// Checks if a type is a complex generic type that may require additional bounds.
+///
+/// # Parameters
+///
+/// - `type_str`: Normalized type string for analysis
+///
+/// # Returns
+///
+/// `true` if the type is a complex generic requiring additional validation
+fn is_complex_generic_type(type_str: &str) -> bool {
+    let generic_count = type_str.matches('<').count();
+    let nested_generics = type_str.matches("<<").count();
+
+    // Complex if it has multiple generic parameters or nested generics
+    generic_count > 2
+        || nested_generics > 0
+        || (type_str.contains('<') && type_str.contains("dyn") && type_str.contains("trait"))
+}
+
+/// Checks if a type is likely to be large and benefit from Box wrapping.
+///
+/// # Parameters
+///
+/// - `type_str`: Normalized type string for analysis
+///
+/// # Returns
+///
+/// `true` if the type is likely large and should be boxed for performance
+fn is_large_struct_type(type_str: &str) -> bool {
+    // Heuristic: types with many generic parameters or known large types
+    let generic_params = type_str.matches(',').count();
+
+    generic_params > 5
+        || type_str.contains("HashMap")
+        || type_str.contains("BTreeMap")
+        || type_str.contains("Vec<Vec<")
+        || type_str.len() > 100 // Very long type names suggest complexity
+}
+
+/// Checks if a type is a collection type.
+///
+/// # Parameters
+///
+/// - `type_str`: Normalized type string for analysis
+///
+/// # Returns
+///
+/// `true` if the type is a collection type
+fn is_collection_type(type_str: &str) -> bool {
+    type_str.starts_with("Vec<")
+        || type_str.starts_with("HashMap<")
+        || type_str.starts_with("BTreeMap<")
+        || type_str.starts_with("HashSet<")
+        || type_str.starts_with("BTreeSet<")
+        || type_str.starts_with("VecDeque<")
+        || type_str.starts_with("LinkedList<")
+        || type_str.contains("::Vec<")
+        || type_str.contains("::HashMap<")
+        || type_str.contains("::BTreeMap<")
+}
+
+/// Checks if a type is a known/recognized type in the Rust ecosystem.
+///
+/// # Parameters
+///
+/// - `type_str`: Normalized type string for analysis
+///
+/// # Returns
+///
+/// `true` if the type is recognized as a common Rust ecosystem type
+fn is_known_type(type_str: &str) -> bool {
+    is_primitive_or_std_type(type_str) ||
+    is_error_type_string(type_str) ||
+    is_collection_type(type_str) ||
+    type_str.starts_with("Option<") ||
+    type_str.starts_with("Result<") ||
+    type_str.starts_with("Box<") ||
+    type_str.starts_with("Arc<") ||
+    type_str.starts_with("Rc<") ||
+    type_str.starts_with("Cow<") ||
+
+    // Common third-party crate types
+    type_str.contains("serde") ||
+    type_str.contains("tokio") ||
+    type_str.contains("reqwest") ||
+    type_str.contains("uuid") ||
+    type_str.contains("chrono") ||
+    type_str.contains("url") ||
+    type_str.contains("regex")
+}
+
+/// Checks if a type string represents an error type (string-based analysis).
+///
+/// This complements the existing `is_error_type` function by working with
+/// string representations for validation purposes.
+///
+/// # Parameters
+///
+/// - `type_str`: The type string to analyze
+///
+/// # Returns
+///
+/// `true` if the string represents an error type
+fn is_error_type_string(type_str: &str) -> bool {
+    type_str.ends_with("Error")
+        || type_str.ends_with("Error>")
+        || type_str.contains("Error+")
+        || type_str.contains("::Error")
+        || type_str.contains("std::io::Error")
+        || type_str.contains("Box<dynerror::Error")
+        || type_str.contains("anyhow::Error")
+        || type_str.contains("eyre::Report")
 }
 
 /// Generates the Display implementation with optimized formatting and comprehensive documentation.
@@ -1737,7 +2085,7 @@ fn generate_display_arm(
                     for (i, field_ident) in field_patterns.iter().enumerate() {
                         let field_config = &fields[i];
                         if !field_config.skip {
-                            format_str.push_str(&format!(" {{{}}}", field_ident));
+                            format_str = format!("{} {{{}}}", format_str, field_ident);
                             args.push(quote! { #field_ident });
                         }
                     }
@@ -1959,11 +2307,7 @@ fn generate_error_impl(
 ) -> Result<TokenStream2> {
     let enum_name = &opts.ident;
     let (impl_generics, ty_generics, where_clause) = opts.generics.split_for_impl();
-
-    let source_match_arms = variants
-        .iter()
-        .map(|variant| generate_source_arm(variant))
-        .collect::<Vec<_>>();
+    let source_match_arms = variants.iter().map(generate_source_arm).collect::<Vec<_>>();
 
     let doc_comment = "Generated Error trait implementation with enhanced source chaining and Rust 1.87 optimizations";
 
@@ -2213,10 +2557,10 @@ fn generate_yoshi_conversion_arm(
         }
 
         // Add payloads
-        if field.payload {
+        if field.shell {
             if let Some(ref field_ident) = field.ident {
                 yoshi_construction.extend(quote! {
-                    yoshi_err = yoshi_err.with_payload(#field_ident);
+                    yoshi_err = yoshi_err.with_shell(#field_ident);
                 });
             }
         }
@@ -2530,8 +2874,8 @@ fn generate_specific_yoshi_kind(kind: &str, variant: &YoshiVariantOpts) -> Token
 ///
 /// This function dynamically generates `From` trait implementations for fields
 /// marked with `#[yoshi(from)]` and `Error::provide` implementations for fields
-/// marked with `#[yoshi(payload)]`. It optimizes for common patterns and provides
-/// warnings for ambiguous configurations.
+/// marked with `#[yoshi(shell)]`. It optimizes for common patterns and provides
+/// comprehensive error handling for edge cases.
 ///
 /// # Parameters
 ///
@@ -2562,22 +2906,38 @@ fn generate_additional_impls(
                     let field = &fields[0];
                     if field.from {
                         let field_ty = &field.ty;
-                        let field_ident = format_ident!("val");
+                        let field_ident = format_ident!("value");
 
+                        // Generate comprehensive From implementation with documentation
                         from_impls.extend(quote! {
+                            #[doc = concat!("Automatically generated From implementation for ", stringify!(#field_ty), " -> ", stringify!(#enum_name), "::", stringify!(#variant_name))]
                             impl #impl_generics ::core::convert::From<#field_ty> for #enum_name #ty_generics #where_clause {
+                                #[inline]
                                 fn from(#field_ident: #field_ty) -> Self {
                                     #enum_name::#variant_name(#field_ident)
                                 }
                             }
                         });
+
+                        // Generate TryFrom implementation for fallible conversions if beneficial
+                        if is_error_type(&field.ty) {
+                            from_impls.extend(quote! {
+                                #[doc = concat!("Enhanced conversion from ", stringify!(#field_ty), " with error context preservation")]
+                                impl #impl_generics #enum_name #ty_generics #where_clause {
+                                    #[inline]
+                                    pub fn from_source(#field_ident: #field_ty) -> Self {
+                                        #enum_name::#variant_name(#field_ident)
+                                    }
+                                }
+                            });
+                        }
                     }
-                } else {
-                    // Ambiguous case for multi-field unnamed variants with `from`
+                } else if fields.iter().any(|f| f.from) {
+                    // Handle multi-field case with validation errors already reported
                     let from_field_count = fields.iter().filter(|f| f.from).count();
                     if from_field_count > 0 {
                         validation.warning(format!(
-                            "#[yoshi(from)] on multi-field unnamed variant '{}::{}' is ambiguous. Auto-conversion only supports single-field unnamed variants.",
+                            "#[yoshi(from)] on multi-field tuple variant '{}::{}' is not supported. Consider using explicit constructor functions.",
                             enum_name, variant_name
                         ));
                     }
@@ -2585,19 +2945,163 @@ fn generate_additional_impls(
             }
             Style::Struct => {
                 let fields = &variant_opts.fields.fields;
-                let from_field_count = fields.iter().filter(|f| f.from).count();
-                if from_field_count > 0 {
-                    validation.warning(format!(
-                        "#[yoshi(from)] on named variant '{}::{}' is ambiguous. Auto-conversion is best suited for single-field unnamed variants.",
-                        enum_name, variant_name
-                    ));
+                let from_fields: Vec<_> = fields.iter().filter(|f| f.from).collect();
+
+                match from_fields.len() {
+                    1 => {
+                        let from_field = from_fields[0];
+                        let field_ty = &from_field.ty;
+                        let field_name = from_field.ident.as_ref().unwrap();
+                        let field_ident = format_ident!("value");
+
+                        // Generate other field initialization with defaults
+                        let other_fields: Vec<_> = fields
+                            .iter()
+                            .filter(|f| !f.from)
+                            .map(|f| {
+                                let name = f.ident.as_ref().unwrap();
+                                quote! { #name: Default::default() }
+                            })
+                            .collect();
+
+                        from_impls.extend(quote! {
+                            #[doc = concat!("Automatically generated From implementation for ", stringify!(#field_ty), " -> ", stringify!(#enum_name), "::", stringify!(#variant_name))]
+                            #[doc = "Other fields are initialized with Default::default()"]
+                            impl #impl_generics ::core::convert::From<#field_ty> for #enum_name #ty_generics #where_clause
+                            where
+                                #(#other_fields: Default,)*
+                            {
+                                #[inline]
+                                fn from(#field_ident: #field_ty) -> Self {
+                                    #enum_name::#variant_name {
+                                        #field_name: #field_ident,
+                                        #(#other_fields,)*
+                                    }
+                                }
+                            }
+                        });
+                    }
+                    n if n > 1 => {
+                        validation.warning(format!(
+                            "#[yoshi(from)] on multiple fields in struct variant '{}::{}' is not supported. Use explicit constructor functions.",
+                            enum_name, variant_name
+                        ));
+                    }
+                    _ => {
+                        // Zero from_fields - no action needed
+                    }
                 }
             }
-            Style::Unit => {} // Unit variants don't have fields to convert from
+            Style::Unit => {
+                // Unit variants with from fields should be caught by validation
+                if variant_opts.fields.fields.iter().any(|f| f.from) {
+                    validation.error(
+                        variant_name.span(),
+                        "Unit variants cannot have #[yoshi(from)] fields",
+                    );
+                }
+            }
         }
     }
 
+    // Generate helper methods for ergonomic error creation
+    if !from_impls.is_empty() {
+        from_impls.extend(generate_from_helper_methods(opts, variants));
+    }
+
     Ok(from_impls)
+}
+
+/// Generates helper methods for ergonomic error creation and conversion.
+///
+/// This function creates utility methods that make error creation more ergonomic
+/// when using From conversions, including builder patterns and convenience constructors.
+///
+/// # Parameters
+///
+/// - `opts`: The parsed error enum options
+/// - `variants`: The error enum variants
+///
+/// # Returns
+///
+/// Generated helper method implementations
+fn generate_from_helper_methods(
+    opts: &YoshiErrorOpts,
+    variants: &[YoshiVariantOpts],
+) -> TokenStream2 {
+    let enum_name = &opts.ident;
+    let (impl_generics, ty_generics, where_clause) = opts.generics.split_for_impl();
+
+    let mut helper_methods = TokenStream2::new();
+
+    // Generate is_variant methods for variants with from conversions
+    let variant_check_methods = variants.iter()
+        .filter(|variant| variant.fields.fields.iter().any(|f| f.from))
+        .map(|variant| {
+            let variant_name = &variant.ident;
+            let method_name = format_ident!("is_{}", variant_name.to_string().to_lowercase());
+            let pattern = generate_variant_pattern(variant);
+
+            quote! {
+                #[doc = concat!("Returns true if this error is a ", stringify!(#variant_name), " variant")]
+                #[inline]
+                pub fn #method_name(&self) -> bool {
+                    matches!(self, #pattern)
+                }
+            }
+        });
+
+    // Generate conversion helper methods
+    let conversion_helpers = variants.iter()
+        .filter(|variant| variant.fields.fields.iter().any(|f| f.from))
+        .filter_map(|variant| {
+            let variant_name = &variant.ident;
+            let from_field = variant.fields.fields.iter().find(|f| f.from)?;
+
+            match variant.fields.style {
+                Style::Tuple if variant.fields.fields.len() == 1 => {
+                    let field_ty = &from_field.ty;
+                    let method_name = format_ident!("into_{}", variant_name.to_string().to_lowercase());
+
+                    Some(quote! {
+                        #[doc = concat!("Attempts to extract the inner ", stringify!(#field_ty), " from a ", stringify!(#variant_name), " variant")]
+                        #[inline]
+                        pub fn #method_name(self) -> ::core::result::Result<#field_ty, Self> {
+                            match self {
+                                #enum_name::#variant_name(value) => Ok(value),
+                                other => Err(other),
+                            }
+                        }
+                    })
+                }
+                Style::Struct => {
+                    let field_name = from_field.ident.as_ref()?;
+                    let field_ty = &from_field.ty;
+                    let method_name = format_ident!("into_{}_field", field_name);
+
+                    Some(quote! {
+                        #[doc = concat!("Attempts to extract the ", stringify!(#field_name), " field from a ", stringify!(#variant_name), " variant")]
+                        #[inline]
+                        pub fn #method_name(self) -> ::core::result::Result<#field_ty, Self> {
+                            match self {
+                                #enum_name::#variant_name { #field_name, .. } => Ok(#field_name),
+                                other => Err(other),
+                            }
+                        }
+                    })
+                }
+                _ => None,
+            }
+        });
+
+    helper_methods.extend(quote! {
+        impl #impl_generics #enum_name #ty_generics #where_clause {
+            #(#variant_check_methods)*
+            #(#conversion_helpers)*
+        }
+    });
+
+    helper_methods
 }
 
 /// Generate pattern for matching a variant in performance monitoring
@@ -2889,13 +3393,13 @@ fn generate_comprehensive_documentation(
         let severity = variant.severity.unwrap_or(opts.default_severity);
         let kind = variant.kind.as_deref().unwrap_or("General");
 
-        let doc_string = if !custom_doc.is_empty() {
-            format!("{} (Severity: {}, Kind: {})", custom_doc, severity, kind)
-        } else {
+        let doc_string = if custom_doc.is_empty() {
             format!(
                 "Auto-generated documentation for {} variant (Severity: {}, Kind: {})",
                 variant.ident, severity, kind
             )
+        } else {
+            format!("{} (Severity: {}, Kind: {})", custom_doc, severity, kind)
         };
 
         quote! {

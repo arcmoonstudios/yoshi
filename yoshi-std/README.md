@@ -19,12 +19,12 @@
 
 ~=####====A===r===c===M===o===o===n====S===t===u===d===i===o===s====X|0|$>
 
-**GitHub:** [ArcMoon Studios](https://github.com/arcmoonstudios)  
-**Copyright:** (c) 2025 ArcMoon Studios  
-**Author:** Lord Xyn  
-**License:** Business Source License 1.1 (BSL-1.1)  
-**License Terms:** Non-production use only; commercial/production use requires paid license.  
-**Effective Date:** 2025-05-25 | **Change License:** GPL v3  
+**GitHub:** [ArcMoon Studios](https://github.com/arcmoonstudios)
+**Copyright:** (c) 2025 ArcMoon Studios
+**Author:** Lord Xyn
+**License:** Business Source License 1.1 (BSL-1.1)
+**License Terms:** Non-production use only; commercial/production use requires paid license.
+**Effective Date:** 2025-05-25 | **Change License:** GPL v3
 **Contact:** [LordXyn@proton.me](mailto:LordXyn@proton.me)
 
 ---
@@ -95,7 +95,7 @@ match error.kind() {
 ### Context Management
 
 ```rust
-use yoshi_std::{Yoshi, YoshiContext};
+use yoshi_std::{Yoshi, YoContext};
 
 let mut error = Yoshi::new(YoshiKind::Database, "Connection failed");
 
@@ -130,7 +130,7 @@ The primary error type providing comprehensive error handling capabilities.
 | `with_context(key, value)` | Add context key-value pair | O(1) | `Yoshi` |
 | `kind()` | Get error category | O(1) | `&YoshiKind` |
 | `message()` | Get error message | O(1) | `&str` |
-| `context()` | Access context data | O(1) | `&YoshiContext` |
+| `context()` | Access context data | O(1) | `&YoContext` |
 | `source()` | Get underlying error | O(1) | `Option<&dyn Error>` |
 | `chain()` | Iterate through error chain | O(1) | `ErrorChainIter` |
 
@@ -149,13 +149,13 @@ Error categorization enum for type-safe error classification.
 | `ResourceExhausted` | Resource limit errors | Memory exhausted, connection pool full, rate limits |
 | `Internal` | Internal system errors | Unexpected states, assertion failures, logic errors |
 
-### YoshiContext
+### YoContext
 
 Structured context data container for error enrichment.
 
 | Method | Description | Performance | Returns |
 |--------|-------------|-------------|---------|
-| `new()` | Create empty context | O(1) | `YoshiContext` |
+| `new()` | Create empty context | O(1) | `YoContext` |
 | `insert(key, value)` | Add context entry | O(1) avg | `Option<String>` |
 | `get(key)` | Retrieve context value | O(1) avg | `Option<&str>` |
 | `remove(key)` | Remove context entry | O(1) avg | `Option<String>` |
@@ -190,7 +190,7 @@ fn parse_config(content: &str) -> Result<Config, Yoshi> {
 fn load_configuration(path: &str) -> Result<Config, Yoshi> {
     let content = process_file(path)
         .map_err(|e| e.with_context("stage", "file_reading"))?;
-    
+
     parse_config(&content)
         .map_err(|e| e.with_context("stage", "configuration_parsing"))
 }
@@ -203,7 +203,7 @@ match load_configuration("config.json") {
         for (depth, err) in error.chain().enumerate() {
             println!("  {}: {}", depth, err);
         }
-        
+
         // Access root cause
         if let Some(root_cause) = error.root_cause() {
             println!("Root cause: {}", root_cause);
@@ -220,7 +220,7 @@ use tokio::time::{timeout, Duration};
 
 async fn fetch_data(url: &str) -> Result<String, Yoshi> {
     let client = reqwest::Client::new();
-    
+
     let response = timeout(Duration::from_secs(30), client.get(url).send())
         .await
         .map_err(|_| Yoshi::new(YoshiKind::Timeout, "Request timed out")
@@ -229,13 +229,13 @@ async fn fetch_data(url: &str) -> Result<String, Yoshi> {
         .map_err(|e| Yoshi::from_error(YoshiKind::Network, e)
             .with_context("url", url)
             .with_context("operation", "http_request"))?;
-    
+
     if !response.status().is_success() {
         return Err(Yoshi::new(YoshiKind::Network, "HTTP error")
             .with_context("status_code", response.status().as_u16())
             .with_context("url", url));
     }
-    
+
     response.text()
         .await
         .map_err(|e| Yoshi::from_error(YoshiKind::Network, e)
@@ -275,13 +275,13 @@ where
 {
     let mut last_error = None;
     let mut delay = config.base_delay_ms;
-    
+
     for attempt in 1..=config.max_attempts {
         match operation().await {
             Ok(result) => return Ok(result),
             Err(error) => {
                 last_error = Some(error.with_context("attempt", attempt));
-                
+
                 if attempt < config.max_attempts {
                     tokio::time::sleep(Duration::from_millis(delay)).await;
                     delay = (delay * 2).min(config.max_delay_ms);
@@ -289,7 +289,7 @@ where
             }
         }
     }
-    
+
     Err(last_error.unwrap()
         .with_context("max_attempts", config.max_attempts)
         .with_context("operation", "retry_exhausted"))
@@ -309,15 +309,15 @@ impl ErrorAggregator {
     fn new() -> Self {
         Self { errors: Vec::new() }
     }
-    
+
     fn add_error(&mut self, error: Yoshi) {
         self.errors.push(error);
     }
-    
+
     fn has_errors(&self) -> bool {
         !self.errors.is_empty()
     }
-    
+
     fn into_result<T>(self, success_value: T) -> Result<T, Yoshi> {
         if self.errors.is_empty() {
             Ok(success_value)
@@ -326,14 +326,14 @@ impl ErrorAggregator {
                 YoshiKind::Internal,
                 format!("Multiple errors occurred ({} total)", self.errors.len())
             );
-            
+
             for (index, error) in self.errors.into_iter().enumerate() {
                 combined = combined.with_context(
                     format!("error_{}", index),
                     error.to_string()
                 );
             }
-            
+
             Err(combined)
         }
     }
@@ -342,7 +342,7 @@ impl ErrorAggregator {
 // Usage example
 fn validate_batch_data(items: &[DataItem]) -> Result<(), Yoshi> {
     let mut aggregator = ErrorAggregator::new();
-    
+
     for (index, item) in items.iter().enumerate() {
         if let Err(error) = validate_item(item) {
             aggregator.add_error(
@@ -351,7 +351,7 @@ fn validate_batch_data(items: &[DataItem]) -> Result<(), Yoshi> {
             );
         }
     }
-    
+
     aggregator.into_result(())
 }
 ```
@@ -370,16 +370,16 @@ fn serialize_error() -> Result<(), Box<dyn std::error::Error>> {
         .with_context("field", "email")
         .with_context("value", "invalid@domain")
         .with_context("rule", "email_format");
-    
+
     // Serialize to JSON
     let json = serde_json::to_string_pretty(&error)?;
     println!("Serialized error:\n{}", json);
-    
+
     // Deserialize from JSON
     let deserialized: Yoshi = serde_json::from_str(&json)?;
     assert_eq!(error.kind(), deserialized.kind());
     assert_eq!(error.message(), deserialized.message());
-    
+
     Ok(())
 }
 ```
@@ -423,7 +423,7 @@ fn log_error_with_tracing(error: &Yoshi) {
 
 ## Performance Characteristics
 
-**Performance Tier: Enterprise-Ready (Level 2 of 3)**  
+**Performance Tier: Enterprise-Ready (Level 2 of 3)**
 *Level 3 = All edge case optimizations complete*
 
 Based on comprehensive benchmarking, yoshi-std delivers exceptional performance for high-complexity edge case behavior:
@@ -442,7 +442,7 @@ Based on comprehensive benchmarking, yoshi-std delivers exceptional performance 
 | Structure | Base Size | With 4 Contexts | Growth Rate |
 |-----------|-----------|------------------|-------------|
 | `Yoshi` | 64 bytes | 176 bytes | Linear |
-| `YoshiContext` | 24 bytes | 128 bytes | O(n) |
+| `YoContext` | 24 bytes | 128 bytes | O(n) |
 | Error chain | 8 bytes/link | Variable | O(depth) |
 
 ### Comparison with Alternatives
@@ -462,48 +462,48 @@ Based on comprehensive benchmarking, yoshi-std delivers exceptional performance 
 #[cfg(test)]
 mod tests {
     use yoshi_std::{Yoshi, YoshiKind};
-    
+
     #[test]
     fn test_error_creation() {
         let error = Yoshi::new(YoshiKind::Validation, "Test error");
-        
+
         assert_eq!(error.kind(), &YoshiKind::Validation);
         assert_eq!(error.message(), "Test error");
         assert!(error.context().is_empty());
     }
-    
+
     #[test]
     fn test_error_context() {
         let error = Yoshi::new(YoshiKind::Config, "Configuration error")
             .with_context("file", "config.toml")
             .with_context("line", "42");
-        
+
         assert_eq!(error.context().get("file"), Some("config.toml"));
         assert_eq!(error.context().get("line"), Some("42"));
         assert_eq!(error.context().len(), 2);
     }
-    
+
     #[test]
     fn test_error_chaining() {
         let io_error = std::io::Error::new(
             std::io::ErrorKind::NotFound,
             "File not found"
         );
-        
+
         let base_error = Yoshi::from_error(YoshiKind::Io, io_error)
             .with_context("path", "/etc/config");
-        
+
         let wrapper_error = Yoshi::new(YoshiKind::Config, "Failed to load config")
             .with_source(base_error);
-        
+
         let chain: Vec<_> = wrapper_error.chain().collect();
         assert_eq!(chain.len(), 3); // wrapper + base + io_error
     }
-    
+
     // Property-based testing with arbitrary errors
     #[cfg(feature = "proptest")]
     use proptest::prelude::*;
-    
+
     #[cfg(feature = "proptest")]
     proptest! {
         #[test]
@@ -515,16 +515,16 @@ mod tests {
             )
         ) {
             let mut error = Yoshi::new(YoshiKind::Validation, message.clone());
-            
+
             for (key, value) in contexts.iter() {
                 error = error.with_context(key, value);
             }
-            
+
             #[cfg(feature = "serde")]
             {
                 let serialized = serde_json::to_string(&error).unwrap();
                 let deserialized: Yoshi = serde_json::from_str(&serialized).unwrap();
-                
+
                 prop_assert_eq!(error.kind(), deserialized.kind());
                 prop_assert_eq!(error.message(), deserialized.message());
                 prop_assert_eq!(error.context().len(), deserialized.context().len());
@@ -580,11 +580,11 @@ use anyhow::{Result, Context, bail};
 fn old_function() -> Result<String> {
     let content = std::fs::read_to_string("file.txt")
         .context("Failed to read file")?;
-    
+
     if content.is_empty() {
         bail!("File is empty");
     }
-    
+
     Ok(content)
 }
 
@@ -596,13 +596,13 @@ fn new_function() -> Result<String, Yoshi> {
         .map_err(|e| Yoshi::from_error(YoshiKind::Io, e)
             .with_context("operation", "read_file")
             .with_context("path", "file.txt"))?;
-    
+
     if content.is_empty() {
         return Err(Yoshi::new(YoshiKind::Validation, "File is empty")
             .with_context("path", "file.txt")
             .with_context("size", "0"));
     }
-    
+
     Ok(content)
 }
 ```
@@ -617,7 +617,7 @@ use thiserror::Error;
 pub enum AppError {
     #[error("I/O error")]
     Io(#[from] std::io::Error),
-    
+
     #[error("Validation failed: {message}")]
     Validation { message: String },
 }
@@ -698,13 +698,13 @@ where
     F: Future<Output = Result<T, Yoshi>>,
 {
     let start = std::time::Instant::now();
-    
+
     match operation.await {
         Ok(result) => {
             histogram!("operation_duration", start.elapsed())
                 .with_tag("operation", operation_name)
                 .with_tag("status", "success");
-            
+
             Ok(result)
         }
         Err(error) => {
@@ -712,18 +712,18 @@ where
                 .with_tag("operation", operation_name)
                 .with_tag("error_kind", format!("{:?}", error.kind()))
                 .increment(1);
-            
+
             histogram!("operation_duration", start.elapsed())
                 .with_tag("operation", operation_name)
                 .with_tag("status", "error");
-            
+
             error!(
                 error = %error,
                 operation = operation_name,
                 duration_ms = start.elapsed().as_millis(),
                 "Operation failed"
             );
-            
+
             Err(error.with_context("operation", operation_name)
                      .with_context("duration_ms", start.elapsed().as_millis()))
         }
@@ -760,14 +760,14 @@ impl HealthStatus {
             last_error: None,
         }
     }
-    
+
     pub fn add_check(&mut self, check: HealthCheck) {
         if check.error.is_some() && self.status == "healthy" {
             self.status = "degraded".to_string();
         }
         self.checks.push(check);
     }
-    
+
     pub fn with_error(mut self, error: Yoshi) -> Self {
         self.status = "unhealthy".to_string();
         self.last_error = Some(error);

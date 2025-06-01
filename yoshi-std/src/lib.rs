@@ -4,8 +4,9 @@
 #![warn(clippy::cargo)]
 #![warn(clippy::pedantic)]
 #![allow(clippy::use_self)]
+#![allow(clippy::result_large_err)] // Error handling framework intentionally uses large error types for rich context
 #![allow(clippy::enum_variant_names)] // For consistent naming of enum variants like IoError.
-#![allow(clippy::module_name_repetitions)] // Allow for names like YoshiKind, YoshiContext.
+#![allow(clippy::module_name_repetitions)] // Allow for names like YoshiKind, YoContext.
 #![cfg_attr(not(feature = "std"), no_std)]
 //! **Brief:** Comprehensive error handling framework for robust Rust applications.
 //!
@@ -14,8 +15,8 @@
 //! categorization, context chaining, and optional backtrace capture while maintaining
 //! excellent performance characteristics.
 //!
-//! **Module Classification:** Performance-Critical  
-//! **Complexity Level:** Expert  
+//! **Module Classification:** Performance-Critical\
+//! **Complexity Level:** Expert\
 //! **API Stability:** Stable
 //!
 // ~=####====A===r===c===M===o===o===n====S===t===u===d===i===o===s====X|0|$>
@@ -48,7 +49,7 @@
 //! structured error handling. It's particularly useful when you want to:
 //!
 //! - Provide rich debugging information to developers
-//! - Maintain error context across call stacks  
+//! - Maintain error context across call stacks
 //! - Categorize errors for different handling strategies
 //! - Include suggestions and metadata for error recovery
 //!
@@ -59,9 +60,9 @@
 //! ## Core Types
 //!
 //! - [`Yoshi`]: The main error type providing structured error handling
-//! - [`YoshiKind`]: Error categories with type-specific fields  
-//! - [`YoshiContext`]: Contextual information and metadata
-//! - [`YoshiContextExt`]: Extension trait for `Result` types
+//! - [`YoshiKind`]: Error categories with type-specific fields
+//! - [`YoContext`]: Contextual information and metadata
+//! - [`HatchExt`]: Extension trait for `Result` types
 //! - [`YoshiLocation`]: Source code location capture
 //! - [`YoshiBacktrace`]: Performance-monitored backtrace wrapper
 //! - [`NoStdIo`]: I/O error type for `no_std` environments
@@ -73,7 +74,7 @@
 //! Basic error creation and context addition:
 //!
 //! ```
-//! use yoshi_std::{Yoshi, YoshiKind, YoshiContextExt};
+//! use yoshi_std::{Yoshi, YoshiKind};
 //! # use std::io;
 //! # use std::io::ErrorKind;
 //! #
@@ -85,7 +86,7 @@
 //!     // Convert I/O errors to Yoshi errors with additional context
 //!     simulate_io_error()
 //!         .map_err(Yoshi::from)?;
-//!     
+//!
 //!     // Errors can be built up with context as they propagate
 //!     Err(Yoshi::new(YoshiKind::NotFound {
 //!         resource_type: "config file".into(),
@@ -93,8 +94,8 @@
 //!         search_locations: None,
 //!     })
 //!     .with_metadata("config_path", path)
-//!     .with_suggestion("Ensure the configuration file exists and is readable"))
-//!     .context(format!("Failed to load configuration from {}", path))
+//!     .with_suggestion("Ensure the configuration file exists and is readable")
+//!     .context(format!("Failed to load configuration from {}", path)))
 //! }
 //!
 //! # fn main() {
@@ -111,7 +112,7 @@
 //! Working with typed payloads and structured data:
 //!
 //! ```
-//! use yoshi_std::{Yoshi, YoshiKind, YoshiContextExt};
+//! use yoshi_std::{Yoshi, YoshiKind};
 //!
 //! #[derive(Debug)]
 //! struct RequestId(String);
@@ -122,18 +123,18 @@
 //!         duration: std::time::Duration::from_secs(30),
 //!         expected_max: Some(std::time::Duration::from_secs(10)),
 //!     })
-//!     .with_payload(RequestId(id.to_string()))
-//!     .with_metadata("user_id", "12345"))
-//!     .context("Request processing failed")
+//!     .with_shell(RequestId(id.to_string()))
+//!     .with_metadata("user_id", "12345")
+//!     .context("Request processing failed"))
 //! }
 //!
 //! # fn main() {
 //! if let Err(error) = process_request("req_001") {
 //!     // Access structured data from the error
-//!     if let Some(request_id) = error.payload::<RequestId>() {
+//!     if let Some(request_id) = error.shell::<RequestId>() {
 //!         println!("Failed request: {:?}", request_id);
 //!     }
-//!     
+//!
 //!     println!("Error details: {}", error);
 //! }
 //! # }
@@ -154,23 +155,24 @@
 // Add serde helper functions for Arc<str> serialization
 #[cfg(feature = "serde")]
 mod serde_helpers {
-    use super::*;
+    use super::String;
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
     use std::collections::HashMap;
     use std::sync::Arc;
 
-    /// Serialize Option<Arc<str>> as Option<String>
+    /// Serialize `Option<Arc<str>>` as `Option<String>`
+    #[allow(clippy::ref_option)]
     pub fn serialize_arc_str<S>(value: &Option<Arc<str>>, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
-        match value {
-            Some(arc_str) => Some(arc_str.as_ref()).serialize(serializer),
-            None => None::<&str>.serialize(serializer),
-        }
+        value
+            .as_ref()
+            .map(std::convert::AsRef::as_ref)
+            .serialize(serializer)
     }
 
-    /// Deserialize Option<String> as Option<Arc<str>>
+    /// Deserialize `Option<String>` as `Option<Arc<str>>`
     pub fn deserialize_arc_str<'de, D>(deserializer: D) -> Result<Option<Arc<str>>, D::Error>
     where
         D: Deserializer<'de>,
@@ -179,7 +181,7 @@ mod serde_helpers {
         Ok(opt_string.map(|s| Arc::from(s.as_str())))
     }
 
-    /// Serialize HashMap<Arc<str>, Arc<str>> as HashMap<String, String>
+    /// Serialize `HashMap<Arc<str>, Arc<str>>` as `HashMap<String, String>`
     pub fn serialize_arc_str_map<S>(
         value: &HashMap<Arc<str>, Arc<str>>,
         serializer: S,
@@ -194,7 +196,7 @@ mod serde_helpers {
         string_map.serialize(serializer)
     }
 
-    /// Deserialize HashMap<String, String> as HashMap<Arc<str>, Arc<str>>
+    /// Deserialize `HashMap<String, String>` as `HashMap<Arc<str>, Arc<str>>`
     pub fn deserialize_arc_str_map<'de, D>(
         deserializer: D,
     ) -> Result<HashMap<Arc<str>, Arc<str>>, D::Error>
@@ -210,7 +212,9 @@ mod serde_helpers {
 }
 
 #[cfg(feature = "serde")]
-use serde_helpers::*;
+use serde_helpers::{
+    deserialize_arc_str, deserialize_arc_str_map, serialize_arc_str, serialize_arc_str_map,
+};
 
 // Unconditionally enable alloc crate for no_std builds using heap allocations
 #[cfg(not(feature = "std"))]
@@ -218,14 +222,14 @@ extern crate alloc;
 
 // Unified imports for String, Vec, Box, Arc based on 'std' feature
 #[cfg(not(feature = "std"))]
-use alloc::{
+pub use alloc::{
     boxed::Box,
     string::{String, ToString},
     sync::Arc,
     vec::Vec,
 };
 #[cfg(feature = "std")]
-use std::{
+pub use std::{
     boxed::Box,
     string::{String, ToString},
     sync::Arc,
@@ -235,7 +239,6 @@ use std::{
 use core::any::Any; // Import Any for error_generic_member_access and blanket From
 use core::error::Error; // Removed Request as it's unstable
 use core::fmt::{self, Display, Formatter};
-use core::mem;
 use core::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use core::time::Duration;
 
@@ -245,12 +248,7 @@ use core::time::Duration;
 use alloc::collections::BTreeMap as HashMap;
 #[cfg(feature = "std")]
 use std::collections::HashMap; // Using BTreeMap for no_std by default
-
-// Tracing integration
-#[cfg(feature = "tracing")]
-use tracing;
-
-// Unified imports for SystemTime and Thread based on 'std' feature
+                               // Unified imports for SystemTime and Thread based on 'std' feature
 #[cfg(feature = "std")]
 use std::{thread, time::SystemTime};
 #[cfg(not(feature = "std"))]
@@ -477,13 +475,22 @@ impl OptimizedFormatBuffer {
     /// let buffer = OptimizedFormatBuffer::new();
     /// assert_eq!(buffer.as_str(), "");
     /// ```
+    #[must_use]
     pub fn new() -> Self {
         Self {
             data: String::with_capacity(Self::DEFAULT_CAPACITY),
             reserved_capacity: Self::DEFAULT_CAPACITY,
         }
     }
+}
 
+impl Default for OptimizedFormatBuffer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl OptimizedFormatBuffer {
     /// Creates a new optimized format buffer with specified capacity.
     ///
     /// Initializes a new `OptimizedFormatBuffer` with a custom initial capacity.
@@ -505,6 +512,7 @@ impl OptimizedFormatBuffer {
     /// let buffer = OptimizedFormatBuffer::with_capacity(8192);
     /// assert_eq!(buffer.as_str(), "");
     /// ```
+    #[must_use]
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
             data: String::with_capacity(capacity),
@@ -549,6 +557,7 @@ impl OptimizedFormatBuffer {
     /// # Performance
     ///
     /// This operation has O(1) time complexity and does not involve any allocations.
+    #[must_use]
     pub fn as_str(&self) -> &str {
         &self.data
     }
@@ -646,7 +655,7 @@ pub struct ContextAnalysis {
     pub has_location_info: bool,
     /// Number of metadata key-value pairs attached
     pub metadata_entries: usize,
-    /// Number of typed payload objects attached
+    /// Number of typed shell objects attached
     pub typed_payloads: usize,
     /// Priority level of the primary context (0-255)
     pub primary_context_priority: u8,
@@ -718,6 +727,37 @@ pub type Result<T, E = Yoshi> = std::result::Result<T, E>;
 /// ```
 pub type Result<T, E = Yoshi> = core::result::Result<T, E>;
 
+/// Ergonomic type alias for `Result<T, Yoshi>` with thematic naming.
+///
+/// This type alias provides expressive naming that aligns with the Yoshi metaphorical
+/// framework while maintaining zero-cost abstraction guarantees. It automatically
+/// adapts between `std::result::Result` and `core::result::Result` based on features.
+///
+/// # Performance Characteristics
+///
+/// - **Time Complexity**: O(1) for all operations (zero-cost abstraction)
+/// - **Space Complexity**: Identical to `Result<T, Yoshi>` (no overhead)
+/// - **Memory Layout**: Exact same representation as standard `Result`
+///
+/// # Examples
+///
+/// ```rust
+/// use yoshi_std::{Hatch, Yoshi, YoshiKind};
+///
+/// fn load_config() -> Hatch<String> {
+///     Ok("configuration data".into())
+/// }
+///
+/// fn process_data() -> Hatch<u32> {
+///     Err(Yoshi::new(YoshiKind::Internal {
+///         message: "processing failed".into(),
+///         source: None,
+///         component: None,
+///     }))
+/// }
+/// ```
+pub type Hatch<T> = Result<T, Yoshi>;
+
 /// Global error instance counter for debugging and performance monitoring.
 ///
 /// This atomic counter tracks the total number of `Yoshi` error instances
@@ -745,6 +785,9 @@ fn is_production_mode() -> bool {
 
 /// Sanitizes error messages to remove potentially sensitive information in production
 fn sanitize_error_message(msg: &str) -> String {
+    // Define constants first before any statements
+    const MAX_MESSAGE_LENGTH: usize = 256;
+
     let mut sanitized = msg.to_string();
 
     // Simple string replacement for common sensitive patterns
@@ -760,7 +803,6 @@ fn sanitize_error_message(msg: &str) -> String {
     }
 
     // Truncate very long messages that might contain sensitive data dumps
-    const MAX_MESSAGE_LENGTH: usize = 256;
     if sanitized.len() > MAX_MESSAGE_LENGTH {
         sanitized.truncate(MAX_MESSAGE_LENGTH);
         sanitized.push_str("... [truncated]");
@@ -806,7 +848,10 @@ impl StringInternPool {
         {
             // Fast path: check if already interned
             {
-                let pool = self.pool.read().unwrap_or_else(|e| e.into_inner());
+                let pool = self
+                    .pool
+                    .read()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner);
                 if let Some(interned) = pool.get(&string) {
                     self.hits.fetch_add(1, Ordering::Relaxed);
                     return interned.clone();
@@ -814,7 +859,10 @@ impl StringInternPool {
             }
 
             // Slow path: intern new string
-            let mut pool = self.pool.write().unwrap_or_else(|e| e.into_inner());
+            let mut pool = self
+                .pool
+                .write()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
 
             // Double-check pattern
             if let Some(interned) = pool.get(&string) {
@@ -1101,7 +1149,7 @@ impl NoStdIo {
 
 #[cfg(not(feature = "std"))]
 impl Display for NoStdIo {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         match self {
             Self::GenericIo(s) => write!(f, "I/O error (no_std): {s}"),
             Self::NotFound => f.write_str("I/O error (no_std): not found"),
@@ -1353,6 +1401,7 @@ impl YoshiKind {
     /// };
     /// assert_eq!(validation_error.severity(), 20);
     /// ```
+    #[must_use]
     pub const fn severity(&self) -> u8 {
         match self {
             #[cfg(feature = "std")]
@@ -1400,6 +1449,7 @@ impl YoshiKind {
     /// };
     /// assert!(!config_error.is_transient());
     /// ```
+    #[must_use]
     pub const fn is_transient(&self) -> bool {
         matches!(
             self,
@@ -1491,9 +1541,9 @@ impl Clone for YoshiKind {
             } => {
                 // Foreign errors can't be cloned directly, create a new one with same message
                 Self::Internal {
-                    message: format!("Cloned foreign error: {}", error).into(),
+                    message: format!("Cloned foreign error: {error}").into(),
                     source: None,
-                    component: Some(format!("Originally: {}", error_type_name).into()),
+                    component: Some(format!("Originally: {error_type_name}").into()),
                 }
             }
             Self::Multiple {
@@ -1724,14 +1774,14 @@ impl Error for YoshiKind {
 
 /// Enhanced structured context with performance optimizations and type safety.
 ///
-/// `YoshiContext` provides additional, application-specific information
+/// `YoContext` provides additional, application-specific information
 /// about an error that helps in debugging, logging, and recovery.
 /// It supports messages, metadata, suggestions, and arbitrary typed payloads.
 #[derive(Debug, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(bound(serialize = "", deserialize = "")))]
 #[cfg_attr(docsrs, doc(cfg(feature = "serde")))]
-pub struct YoshiContext {
+pub struct YoContext {
     /// Main message with Arc optimization for shared contexts.
     ///
     /// This field holds a descriptive message for the context.
@@ -1775,7 +1825,7 @@ pub struct YoshiContext {
     /// Typed payloads with optimized storage.
     ///
     /// A vector of arbitrary `Any + Send + Sync + 'static` types, allowing for
-    /// rich, structured data to be attached to an error. Payloads are shared
+    /// rich, structured data to be attached to an error. Shells are shared
     /// across cloned contexts via `Arc` to ensure memory efficiency.
     #[cfg_attr(feature = "serde", serde(skip))]
     pub payloads: Vec<Arc<Box<dyn Any + Send + Sync + 'static>>>,
@@ -1790,10 +1840,10 @@ pub struct YoshiContext {
     pub priority: u8,
 }
 
-impl YoshiContext {
+impl YoContext {
     /// Creates a new context with optimized string allocation.
     ///
-    /// This is the primary way to create a new `YoshiContext`. It automatically
+    /// This is the primary way to create a new `YoContext`. It automatically
     /// captures the current system time and sets a default priority.
     /// Uses string interning for memory efficiency.
     ///
@@ -1804,13 +1854,13 @@ impl YoshiContext {
     ///
     /// # Returns
     ///
-    /// A new `YoshiContext` instance.
+    /// A new `YoContext` instance.
     ///
     /// # Examples
     ///
     /// ```
-    /// # use yoshi_std::YoshiContext;
-    /// let ctx = YoshiContext::new("Attempting to connect to database");
+    /// # use yoshi_std::YoContext;
+    /// let ctx = YoContext::new("Attempting to connect to database");
     /// assert_eq!(ctx.message.as_deref(), Some("Attempting to connect to database"));
     /// assert!(ctx.created_at.is_some());
     /// ```
@@ -1836,13 +1886,13 @@ impl YoshiContext {
     ///
     /// # Returns
     ///
-    /// The `YoshiContext` instance with the new metadata added.
+    /// The `YoContext` instance with the new metadata added.
     ///
     /// # Examples
     ///
     /// ```
-    /// # use yoshi_std::YoshiContext;
-    /// let ctx = YoshiContext::new("Processing user request")
+    /// # use yoshi_std::YoContext;
+    /// let ctx = YoContext::new("Processing user request")
     ///     .with_metadata("user_id", "12345")
     ///     .with_metadata("session_id", "abcde");
     ///
@@ -1868,13 +1918,13 @@ impl YoshiContext {
     ///
     /// # Returns
     ///
-    /// The `YoshiContext` instance with the suggestion added.
+    /// The `YoContext` instance with the suggestion added.
     ///
     /// # Examples
     ///
     /// ```
-    /// # use yoshi_std::YoshiContext;
-    /// let ctx = YoshiContext::new("File not found")
+    /// # use yoshi_std::YoContext;
+    /// let ctx = YoContext::new("File not found")
     ///     .with_suggestion("Ensure the file path is correct and accessible.");
     ///
     /// assert_eq!(ctx.suggestion.as_deref(), Some("Ensure the file path is correct and accessible."));
@@ -1886,31 +1936,31 @@ impl YoshiContext {
         self
     }
 
-    /// Attaches a typed payload with enhanced type safety.
+    /// Attaches a typed shell with enhanced type safety.
     ///
     /// This method allows attaching typed payloads with better type tracking
-    /// for safer retrieval and debugging. Each payload is tagged with its type name.
+    /// for safer retrieval and debugging. Each shell is tagged with its type name.
     ///
     /// # Arguments
     ///
-    /// * `payload` - The data to attach. It must implement `Any`, `Send`, `Sync`, and have a `'static` lifetime.
+    /// * `shell` - The data to attach. It must implement `Any`, `Send`, `Sync`, and have a `'static` lifetime.
     ///
     /// # Returns
     ///
-    /// The `YoshiContext` instance with the payload added.
+    /// The `YoContext` instance with the shell added.
     ///    /// # Examples
     ///
     /// ```
-    /// # use yoshi_std::YoshiContext;
+    /// # use yoshi_std::YoContext;
     /// #[derive(Debug, PartialEq)]
     /// struct ErrorDetails {
     ///     code: u16,
     ///     reason: String,
     /// }
     ///
-    /// let ctx = YoshiContext::new("API call failed")
-    ///     .with_payload(ErrorDetails { code: 404, reason: "Endpoint not found".to_string() })
-    ///     .with_payload(vec![1, 2, 3]);
+    /// let ctx = YoContext::new("API call failed")
+    ///     .with_shell(ErrorDetails { code: 404, reason: "Endpoint not found".to_string() })
+    ///     .with_shell(vec![1, 2, 3]);
     ///
     /// let details = ctx.payloads.iter().find_map(|p| p.downcast_ref::<ErrorDetails>());
     /// assert!(details.is_some());
@@ -1921,45 +1971,73 @@ impl YoshiContext {
     /// ```
     #[must_use]
     #[inline]
-    pub fn with_payload(mut self, payload: impl Any + Send + Sync + 'static) -> Self {
-        // Limit payload count to prevent memory exhaustion
+    pub fn with_shell(mut self, shell: impl Any + Send + Sync + 'static) -> Self {
+        // Limit shell count to prevent memory exhaustion
         const MAX_PAYLOADS: usize = 16;
         if self.payloads.len() < MAX_PAYLOADS {
             // Store as Arc<Box<dyn Any>> to enable cloning of the Vec<Arc<...>>
-            self.payloads.push(Arc::new(Box::new(payload)));
+            self.payloads.push(Arc::new(Box::new(shell)));
         }
         self
     }
 
-    /// Gets a typed payload from this context.
+    /// Gets a typed shell from this context.
     ///
-    /// This method attempts to retrieve a payload of the specified type from
+    /// This method attempts to retrieve a shell of the specified type from
     /// this context. It searches through all payloads and returns the first
     /// one that matches the type.
     ///
     /// # Type Parameters
     ///
-    /// * `T` - The type of payload to retrieve.
+    /// * `T` - The type of shell to retrieve.
     ///
     /// # Returns
     ///
-    /// An `Option` containing a reference to the payload of type `T`, or `None`
-    /// if no such payload exists.
+    /// An `Option` containing a reference to the shell of type `T`, or `None`
+    /// if no such shell exists.
     ///
     /// # Examples
     ///
     /// ```
-    /// # use yoshi_std::YoshiContext;
+    /// # use yoshi_std::YoContext;
     /// #[derive(Debug, PartialEq)]
     /// struct CustomData(u32);
-    /// let ctx = YoshiContext::new("test").with_payload(CustomData(123));
-    /// assert_eq!(ctx.payload::<CustomData>().unwrap().0, 123);
+    /// let ctx = YoContext::new("test").with_shell(CustomData(123));
+    /// assert_eq!(ctx.shell::<CustomData>().unwrap().0, 123);
     /// ```
     #[inline]
-    pub fn payload<T: 'static>(&self) -> Option<&T> {
+    #[must_use]
+    pub fn shell<T: 'static>(&self) -> Option<&T> {
         self.payloads
             .iter()
             .find_map(|p_arc| p_arc.as_ref().downcast_ref::<T>())
+    }
+
+    /// Adds a typed shell in-place without taking ownership of the context.
+    ///
+    /// This method allows attaching typed payloads without consuming the context,
+    /// making it suitable for use with mutable references.
+    ///
+    /// # Arguments
+    ///
+    /// * `shell` - The data to attach. It must implement `Any`, `Send`, `Sync`, and have a `'static` lifetime.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use yoshi_std::YoContext;
+    /// let mut ctx = YoContext::new("test");
+    /// ctx.add_shell_in_place(42u32);
+    /// assert!(ctx.shell::<u32>().is_some());
+    /// ```
+    #[inline]
+    pub fn add_shell_in_place(&mut self, shell: impl Any + Send + Sync + 'static) {
+        // Limit shell count to prevent memory exhaustion
+        const MAX_PAYLOADS: usize = 16;
+        if self.payloads.len() < MAX_PAYLOADS {
+            // Store as Arc<Box<dyn Any>> to enable cloning of the Vec<Arc<...>>
+            self.payloads.push(Arc::new(Box::new(shell)));
+        }
     }
 
     /// Sets the priority level for this context.
@@ -1973,16 +2051,16 @@ impl YoshiContext {
     ///
     /// # Returns
     ///
-    /// The `YoshiContext` instance with the updated priority.
+    /// The `YoContext` instance with the updated priority.
     ///
     /// # Examples
     ///
     /// ```
-    /// # use yoshi_std::YoshiContext;
-    /// let low_priority_ctx = YoshiContext::new("Minor detail").with_priority(50);
+    /// # use yoshi_std::YoContext;
+    /// let low_priority_ctx = YoContext::new("Minor detail").with_priority(50);
     /// assert_eq!(low_priority_ctx.priority, 50);
     ///
-    /// let high_priority_ctx = YoshiContext::new("Critical information").with_priority(250);
+    /// let high_priority_ctx = YoContext::new("Critical information").with_priority(250);
     /// assert_eq!(high_priority_ctx.priority, 250);
     /// ```
     #[must_use]
@@ -2005,18 +2083,18 @@ impl YoshiContext {
     ///
     /// # Returns
     ///
-    /// The `YoshiContext` instance with the location set.
+    /// The `YoContext` instance with the location set.
     ///
     /// # Examples
     ///
     /// ```
-    /// # use yoshi_std::{YoshiContext, YoshiLocation};
-    /// let location = YoshiLocation::new("test.rs", 42, 10);
-    /// let ctx = YoshiContext::new("operation failed")
+    /// # use yoshi_std::{YoContext, YoshiLocation};
+    /// let location = YoshiLocation::new("src/main.rs", 10, 5);
+    /// let ctx = YoContext::new("operation failed")
     ///     .with_location(location);
     ///
-    /// assert_eq!(ctx.location.unwrap().file, "test.rs");
-    /// assert_eq!(ctx.location.unwrap().line, 42);
+    /// assert_eq!(ctx.location.unwrap().file, "src/main.rs");
+    /// assert_eq!(ctx.location.unwrap().line, 10);
     /// ```
     #[must_use]
     #[inline]
@@ -2026,14 +2104,14 @@ impl YoshiContext {
     }
 }
 
-impl Clone for YoshiContext {
+impl Clone for YoContext {
     fn clone(&self) -> Self {
         Self {
             message: self.message.clone(),
             metadata: self.metadata.clone(),
             suggestion: self.suggestion.clone(),
             location: self.location,
-            // Payloads are now Arc<Box<dyn Any>>, so cloning the Vec will share the Arcs
+            // Shells are now Arc<Box<dyn Any>>, so cloning the Vec will share the Arcs
             payloads: self.payloads.clone(),
             created_at: self.created_at,
             priority: self.priority,
@@ -2091,6 +2169,7 @@ impl YoshiLocation {
     /// assert_eq!(MY_LOCATION.column, 5);
     /// ```
     #[inline]
+    #[must_use]
     pub const fn new(file: &'static str, line: u32, column: u32) -> Self {
         Self { file, line, column }
     }
@@ -2106,7 +2185,7 @@ impl YoshiLocation {
     /// A string slice containing only the filename.
     ///
     /// # Examples
-    ///    /// ```
+    /// ```
     /// # use yoshi_std::YoshiLocation;
     /// let loc = YoshiLocation::new("/home/user/project/src/lib.rs", 1, 1);
     /// assert_eq!(loc.filename(), "lib.rs");
@@ -2116,6 +2195,7 @@ impl YoshiLocation {
     /// assert!(loc_windows.filename().ends_with("main.rs"));
     /// ```
     #[inline]
+    #[must_use]
     pub fn filename(&self) -> &str {
         self.file.rsplit('/').next().unwrap_or(self.file)
     }
@@ -2173,6 +2253,101 @@ macro_rules! yoshi_location {
     };
 }
 
+/// Debug macro that "eats" an error and prints it to stderr with full trace visibility.
+///
+/// This macro provides enhanced debug output for `Yoshi` errors, displaying complete
+/// error information including context chains, metadata, and source traces. The name
+/// `yum!` reflects Yoshi's characteristic eating behavior while providing memorable,
+/// intuitive debugging functionality.
+///
+/// # Performance Characteristics
+///
+/// - **Debug Builds**: Full error information with formatted output
+/// - **Release Builds**: Optimized output with essential information only
+/// - **Memory Usage**: Temporary allocation for formatting only
+///
+/// # Arguments
+///
+/// * `$err` - A reference to a `Yoshi` error or any expression that evaluates to one
+///
+/// # Output Format
+///
+/// The macro produces structured output including:
+/// - Error instance ID for correlation
+/// - Primary error message and kind
+/// - Complete context chain with metadata
+/// - Source error information if available
+/// - Backtrace information (when enabled)
+///
+/// # Examples
+///
+/// ```rust
+/// use yoshi_std::{yum, Yoshi, YoshiKind};
+///
+/// let err = Yoshi::new(YoshiKind::Internal {
+///     message: "database connection failed".into(),
+///     source: None,
+///     component: None,
+/// })
+/// .context("While initializing application");
+///
+/// yum!(err);  // Prints comprehensive error information
+/// ```
+///
+/// # Development Workflow Integration
+///
+/// ```rust
+/// use yoshi_std::{yum, Hatch, LayContext};
+///
+/// fn complex_operation() -> Hatch<String> {
+///     // ... operation logic
+///     # Err(yoshi_std::Yoshi::new(yoshi_std::YoshiKind::Internal {
+///     #     message: "failed".into(), source: None, component: None
+///     # }))
+/// }
+///
+/// match complex_operation() {
+///     Ok(result) => println!("Success: {}", result),
+///     Err(error) => {
+///         yum!(error);  // Enhanced debug output
+///         eprintln!("Operation failed - see debug output above");
+///     }
+/// }
+/// ```
+#[macro_export]
+macro_rules! yum {
+    ($err:expr) => {{
+        let _y: &$crate::Yoshi = &$err;
+        eprintln!("🍽️  Yoshi consumed error [{}]: {}", _y.instance_id(), _y);
+
+        // Display enhanced error information
+        if let Some(laytext) = _y.laytext() {
+            eprintln!("   📝 Context: {}", laytext);
+        }
+
+        if let Some(suggestion) = _y.suggestion() {
+            eprintln!("   💡 Suggestion: {}", suggestion);
+        }
+
+        if let Some(nest) = _y.nest() {
+            eprintln!("   🥚 Nested: {}", nest);
+        }
+
+        // Analysis information
+        let analysis = _y.analyze_contexts();
+        if analysis.total_contexts > 0 {
+            eprintln!(
+                "   📊 Analysis: {} contexts, {} metadata entries, severity: {}",
+                analysis.total_contexts,
+                analysis.metadata_entries,
+                _y.severity()
+            );
+        }
+
+        _y
+    }};
+}
+
 //--------------------------------------------------------------------------------------------------
 // Enhanced YoshiBacktrace with performance optimization
 //--------------------------------------------------------------------------------------------------
@@ -2219,17 +2394,19 @@ impl YoshiBacktrace {
     /// let bt = YoshiBacktrace::new_captured();
     /// println!("Backtrace captured at {:?}", bt.capture_cost_nanos());
     /// # }    /// ```
+    #[must_use]
     pub fn new_captured() -> Self {
         let start = std::time::Instant::now();
         let current_thread = thread::current();
         let backtrace = std::backtrace::Backtrace::capture();
-        let capture_cost = start.elapsed().as_nanos() as u64;
+        // Use u64::try_from for safe casting from u128 to u64
+        let capture_cost = u64::try_from(start.elapsed().as_nanos()).unwrap_or(u64::MAX); // Handle potential overflow
 
         Self {
             inner: backtrace,
             capture_timestamp: SystemTime::now(),
             thread_id: current_thread.id(),
-            thread_name: current_thread.name().map(|s| s.into()),
+            thread_name: current_thread.name().map(std::convert::Into::into),
             capture_cost_nanos: Some(capture_cost),
         }
     }
@@ -2302,6 +2479,9 @@ impl Display for YoshiBacktrace {
     ///
     /// A `fmt::Result` indicating success or failure of the formatting.
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        // Define constants at the beginning
+        const MAX_BACKTRACE_SIZE: usize = 8192; // 8KB limit
+
         writeln!(f, "Backtrace captured at: {:?}", self.capture_timestamp)?;
         if let Some(ref thread_name) = self.thread_name {
             writeln!(f, "Thread: {thread_name} ({:?})", self.thread_id)?;
@@ -2309,7 +2489,7 @@ impl Display for YoshiBacktrace {
             writeln!(f, "Thread: {:?}", self.thread_id)?;
         }
         if let Some(cost) = self.capture_cost_nanos {
-            writeln!(f, "Capture cost: {}ns", cost)?;
+            writeln!(f, "Capture cost: {cost}ns")?;
         }
 
         // Sanitize backtrace for production environments
@@ -2318,7 +2498,6 @@ impl Display for YoshiBacktrace {
         } else {
             // Limit backtrace size to prevent memory exhaustion
             let bt_string = self.inner.to_string();
-            const MAX_BACKTRACE_SIZE: usize = 8192; // 8KB limit
             if bt_string.len() > MAX_BACKTRACE_SIZE {
                 write!(
                     f,
@@ -2327,7 +2506,7 @@ impl Display for YoshiBacktrace {
                     MAX_BACKTRACE_SIZE
                 )
             } else {
-                write!(f, "{}", bt_string)
+                write!(f, "{bt_string}")
             }
         }
     }
@@ -2344,7 +2523,7 @@ pub struct YoshiBacktrace {
     locations: Vec<YoshiLocation>,
     /// Timestamp when backtrace was captured
     capture_timestamp: SystemTime,
-    /// Thread ID where backtrace was captured  
+    /// Thread ID where backtrace was captured
     thread_id: ThreadId,
     /// Simple call depth indicator
     call_depth: u32,
@@ -2444,6 +2623,311 @@ pub enum BacktraceStatus {
 }
 
 //--------------------------------------------------------------------------------------------------
+// HatchExt trait definition (MOVED HERE to fix compilation error)
+//--------------------------------------------------------------------------------------------------
+
+/// Extension trait for `Result` to easily attach `Yoshi` context, suggestions, and metadata.
+///
+/// This trait provides convenience methods for `Result` types, allowing developers
+/// to seamlessly add `YoContext`, suggestions, and metadata to errors as they
+/// propagate through the application. This simplifies error handling chains and
+/// ensures rich diagnostic information is preserved.
+///
+/// # Type Parameters
+///
+/// * `T` - The `Ok` type of the `Result`.
+///
+/// # Examples
+///
+/// ```
+/// use yoshi_std::{Yoshi, YoshiKind, HatchExt};
+/// # use std::io;
+/// # use std::io::ErrorKind;
+///
+/// fn process_data(input: &str) -> Result<usize, Yoshi> {
+///     if input.is_empty() {
+///         return Err(Yoshi::new(YoshiKind::Validation {
+///             field: "input".into(),
+///             message: "Input cannot be empty".into(),
+///             expected: Some("non-empty string".into()),
+///             actual: Some("empty string".into()),
+///         }))
+///         .context("Failed to validate data")
+///         .with_suggestion("Provide non-empty input");
+///     }
+///
+///     // Simulate an I/O operation that might fail
+///     let result: std::result::Result<usize, io::Error> = Err(io::Error::new(ErrorKind::Other, "disk full"));
+///
+///     result
+///         .map_err(Yoshi::from) // Convert io::Error to Yoshi
+///         .context("Failed to write processed data to disk")
+///         .map_err(|e| e.with_metadata("file_size", "10MB").with_priority(200))
+/// }
+///
+/// # fn main() {
+/// let result = process_data("");
+/// assert!(result.is_err());
+/// let error = result.unwrap_err();
+/// println!("Error: {}", error);
+/// assert!(error.to_string().contains("Input cannot be empty"));
+///
+/// let result2 = process_data("some_data");
+/// if let Err(e) = result2 {
+///     println!("Error: {}", e);
+///     assert!(e.to_string().contains("Failed to write processed data to disk"));
+///     assert_eq!(e.primary_context().unwrap().metadata.get("file_size".into()).map(|s| s.as_ref()), Some("10MB"));
+///     assert_eq!(e.primary_context().unwrap().priority, 200);
+/// }
+/// # }
+/// ```
+pub trait HatchExt<T>
+where
+    Self: Sized,
+{
+    /// Adds a context message to the error.
+    ///
+    /// If `self` is `Ok`, it is returned unchanged. If `self` is `Err`, its error
+    /// is converted to a `Yoshi` error if it isn't already, and a new `YoContext`
+    /// with the provided message is added to it.
+    ///
+    /// This method preserves the current source code location (file, line, column).
+    ///
+    /// # Arguments
+    ///
+    /// * `msg` - The context message.
+    ///
+    /// # Returns
+    ///
+    /// A `Result<T, Yoshi>` with the added context on error.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use yoshi_std::{Yoshi, HatchExt};
+    /// # use std::io;
+    /// # use std::io::ErrorKind;
+    ///
+    /// fn read_file(path: &str) -> Result<String, Yoshi> {
+    ///     std::fs::read_to_string(path)
+    ///         .map_err(Yoshi::from)
+    ///         .context(format!("Failed to read file: {}", path))
+    /// }
+    ///
+    /// # fn main() {
+    /// let result = read_file("non_existent_file.txt");
+    /// if let Err(e) = result {
+    ///     println!("Error: {}", e);
+    ///     assert!(e.to_string().contains("Failed to read file: non_existent_file.txt"));
+    /// }
+    /// # }
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// Returns a `Yoshi` error with added context if the result is an error.
+    #[track_caller]
+    fn context(self, msg: impl Into<String>) -> Result<T>;
+
+    /// Adds a suggestion to the error's primary context.
+    ///
+    /// If `self` is `Ok`, it is returned unchanged. If `self` is `Err`, its error
+    /// is converted to a `Yoshi` error if it isn't already, and a new suggestion
+    /// is added to its primary `YoContext`.
+    ///
+    /// # Arguments
+    ///
+    /// * `s` - The suggestion message.
+    ///
+    /// # Returns
+    ///
+    /// A `Result<T, Yoshi>` with the added suggestion on error.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use yoshi_std::{Yoshi, HatchExt};
+    /// # use std::io;
+    /// # use std::io::ErrorKind;
+    ///
+    /// fn connect_db() -> Result<(), Yoshi> {
+    ///     // Simulate a connection error
+    ///     Err(io::Error::new(ErrorKind::ConnectionRefused, "db connection refused"))
+    ///         .map_err(Yoshi::from)
+    ///         .with_suggestion("Ensure the database server is running.")
+    /// }
+    /// # fn main() {
+    /// let result = connect_db();
+    /// if let Err(e) = result {
+    ///     println!("Error: {}", e);
+    ///     assert!(e.suggestion().as_deref() == Some("Ensure the database server is running."));
+    /// }
+    /// # }
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// Returns a `Yoshi` error with added suggestion if the result is an error.
+    #[track_caller]
+    fn with_suggestion(self, s: impl Into<String>) -> Result<T>;
+
+    /// Attaches a typed shell to the error's primary context.
+    ///
+    /// If `self` is `Ok`, it is returned unchanged. If `self` is `Err`, its error
+    /// is converted to a `Yoshi` error if it isn't already, and a new typed shell
+    /// is added to its primary `YoContext`.
+    ///
+    /// # Arguments
+    ///
+    /// * `p` - The shell to attach. Must be `Any + Send + Sync + 'static`.
+    ///
+    /// # Returns
+    ///
+    /// A `Result<T, Yoshi>` with the added shell on error.
+    ///    /// # Examples
+    ///
+    /// ```
+    /// use yoshi_std::{Yoshi, YoshiKind, HatchExt};
+    /// # use std::io;
+    /// # use std::io::ErrorKind;
+    ///
+    /// #[derive(Debug, PartialEq)]
+    /// struct RequestInfo {
+    ///     request_id: String,
+    ///     user_agent: String,
+    /// }
+    ///
+    /// fn process_request(id: &str, ua: &str) -> Result<(), Yoshi> {
+    ///     // Simulate an internal error
+    ///     Err(Yoshi::new(YoshiKind::Internal {
+    ///         message: "Processing failed".into(),
+    ///         source: None,
+    ///         component: None,
+    ///     }))
+    ///     .with_shell(RequestInfo { request_id: id.into(), user_agent: ua.into() })
+    /// }
+    ///
+    /// # fn main() {
+    /// let result = process_request("req123", "Mozilla/5.0");
+    /// if let Err(e) = result {
+    ///     println!("Error: {}", e);
+    ///     let info = e.shell::<RequestInfo>();
+    ///     assert!(info.is_some());
+    ///     assert_eq!(info.unwrap().request_id, "req123");
+    /// }
+    /// # }
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// Returns a `Yoshi` error with added shell if the result is an error.
+    #[track_caller]
+    fn with_shell(self, p: impl Any + Send + Sync + 'static) -> Result<T>;
+
+    /// Sets the priority for the error's primary context.
+    ///
+    /// If `self` is `Ok`, it is returned unchanged. If `self` is `Err`, its error
+    /// is converted to a `Yoshi` error if it isn't already, and the priority of its
+    /// primary `YoContext` is updated.
+    ///
+    /// # Arguments
+    ///
+    /// * `priority` - The priority level (0-255).
+    ///
+    /// # Returns
+    ///
+    /// A `Result<T, Yoshi>` with the updated priority on error.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use yoshi_std::{Yoshi, YoshiKind, HatchExt};
+    ///
+    /// fn perform_critical_op() -> Result<(), Yoshi> {
+    ///     // Simulate a critical error
+    ///     Err(Yoshi::new(YoshiKind::Internal {
+    ///         message: "Critical operation failed".into(),
+    ///         source: None,
+    ///         component: None,
+    ///     }))
+    ///     .with_priority(250) // Mark as very high priority
+    /// }
+    /// # fn main() {
+    /// let result = perform_critical_op();
+    /// if let Err(e) = result {
+    ///     println!("Error: {}", e);
+    ///     assert_eq!(e.primary_context().unwrap().priority, 250);
+    /// }
+    /// # }
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// Returns a `Yoshi` error with updated priority if the result is an error.
+    #[track_caller]
+    fn with_priority(self, priority: u8) -> Result<T>;
+    /// Short alias for `context`.
+    ///
+    /// # Errors
+    ///
+    /// Returns a `Yoshi` error with added context if the result is an error.
+    #[track_caller]
+    fn ctx(self, msg: impl Into<String>) -> Result<T>;
+
+    /// Short alias for `with_suggestion`.
+    ///
+    /// # Errors
+    ///
+    /// Returns a `Yoshi` error with added suggestion if the result is an error.
+    #[track_caller]
+    fn help(self, s: impl Into<String>) -> Result<T>;
+
+    /// Adds metadata to the error's primary context.
+    ///
+    /// This is a convenience method that delegates to `Yoshi::with_metadata`.
+    ///
+    /// # Arguments
+    ///
+    /// * `k` - The metadata key.
+    /// * `v` - The metadata value.
+    ///
+    /// # Returns
+    ///
+    /// A `Result<T, Yoshi>` with the added metadata on error.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use yoshi_std::{Yoshi, YoshiKind, HatchExt, Arc};
+    ///
+    /// fn fetch_user_data() -> Result<String, Yoshi> {
+    ///     // Simulate an error during user data fetch
+    ///     Err(Yoshi::new(YoshiKind::NotFound {
+    ///         resource_type: "User".into(),
+    ///         identifier: "unknown_user".into(),
+    ///         search_locations: None,
+    ///     }))
+    ///     .meta("user_id", "12345")
+    ///     .meta("trace_id", "abcde-12345")
+    /// }
+    ///
+    /// # fn main() {
+    /// let result = fetch_user_data();
+    /// if let Err(e) = result {
+    ///     println!("Error: {}", e);
+    ///     let metadata = e.primary_context().unwrap().metadata.clone();
+    ///     assert_eq!(metadata.get(&Arc::from("user_id")).map(|s| s.as_ref()), Some("12345"));
+    /// }
+    /// # }
+    /// ```
+    /// # Errors
+    ///
+    /// Returns a `Yoshi` error with added metadata if the result is an error.
+    #[track_caller]
+    fn meta(self, k: impl Into<String>, v: impl Into<String>) -> Result<T>;
+}
+
+//--------------------------------------------------------------------------------------------------
 // Enhanced Yoshi main error type with performance optimization
 //--------------------------------------------------------------------------------------------------
 
@@ -2457,7 +2941,7 @@ pub enum BacktraceStatus {
 ///
 /// - `kind`: The primary classification of the error, provided by [`YoshiKind`].
 /// - `backtrace`: An optional [`YoshiBacktrace`] providing stack trace information (only with `std` feature).
-/// - `contexts`: A vector of [`YoshiContext`] instances, providing additional
+/// - `contexts`: A vector of [`YoContext`] instances, providing additional
 ///   details and context about the error's propagation.
 /// - `instance_id`: A unique identifier for each `Yoshi` error instance.
 /// - `created_at`: The `SystemTime` when the error was created (only with `std` feature).
@@ -2479,7 +2963,7 @@ pub enum BacktraceStatus {
 ///
 /// Creating an error with context:
 /// ```
-/// use yoshi_std::{Yoshi, YoshiKind, YoshiContextExt};
+/// use yoshi_std::{Yoshi, YoshiKind, HatchExt};
 /// # use std::io::{self, ErrorKind};
 ///
 /// fn load_data() -> Result<(), Yoshi> {
@@ -2495,7 +2979,7 @@ pub enum BacktraceStatus {
 /// # fn main() {
 /// match load_data() {
 ///     Ok(_) => println!("Data loaded successfully"),
-///     Err(e) => eprintln!("Error: {}", e),
+///     Err(error) => eprintln!("Error: {}", error),
 /// }
 /// # }
 /// ```
@@ -2512,11 +2996,12 @@ pub struct Yoshi {
     #[cfg_attr(docsrs, doc(cfg(not(feature = "std"))))]
     backtrace: Option<()>,
     /// Contexts providing additional information about the error.
-    contexts: Vec<YoshiContext>,
+    contexts: Vec<YoContext>,
     /// A unique identifier for this error instance.
     instance_id: u64,
     /// Timestamp when the error was created (only available with `std` feature).
     #[cfg(feature = "std")]
+    #[allow(dead_code)]
     created_at: SystemTime,
 }
 
@@ -2579,7 +3064,7 @@ impl Yoshi {
     pub fn new(kind: YoshiKind) -> Self {
         let instance_id = ERROR_INSTANCE_COUNTER.fetch_add(1, Ordering::Relaxed);
 
-        let error = Self {
+        Self {
             kind,
             #[cfg(feature = "std")]
             backtrace: capture_bt(),
@@ -2589,9 +3074,7 @@ impl Yoshi {
             instance_id,
             #[cfg(feature = "std")]
             created_at: SystemTime::now(),
-        };
-
-        error
+        }
     }
 
     /// Creates a new `Yoshi` error by wrapping a foreign `Error` trait object.
@@ -2663,8 +3146,16 @@ impl Yoshi {
     ///
     /// ```
     /// # use yoshi_std::{Yoshi, YoshiKind};
-    /// let err1 = Yoshi::new(YoshiKind::Internal { message: "test".into(), source: None, component: None });
-    /// let err2 = Yoshi::new(YoshiKind::Internal { message: "test".into(), source: None, component: None });
+    /// let err1 = Yoshi::new(YoshiKind::Internal {
+    ///     message: "test".into(),
+    ///     source: None,
+    ///     component: None,
+    /// });
+    /// let err2 = Yoshi::new(YoshiKind::Internal {
+    ///     message: "test".into(),
+    ///     source: None,
+    ///     component: None,
+    /// });
     ///
     /// assert_ne!(err1.instance_id(), err2.instance_id());
     /// println!("Error 1 ID: {}", err1.instance_id());
@@ -2718,10 +3209,21 @@ impl Yoshi {
     /// # Examples
     ///
     /// ```
-    /// use yoshi_std::{Yoshi, YoshiKind};
+    /// # use yoshi_std::YoshiKind;
+    /// let internal_error = YoshiKind::Internal {
+    ///     message: "simulated error".into(),
+    ///     source: None,
+    ///     component: None,
+    /// };
+    /// assert_eq!(internal_error.severity(), 80);
     ///
-    /// let err = Yoshi::new(YoshiKind::Internal { message: "Critical bug".into(), source: None, component: None });
-    /// assert_eq!(err.severity(), 80);
+    /// let validation_error = YoshiKind::Validation {
+    ///     field: "email".into(),
+    ///     message: "Invalid format".into(),
+    ///     expected: None,
+    ///     actual: None,
+    /// };
+    /// assert_eq!(validation_error.severity(), 20);
     /// ```
     #[inline]
     pub const fn severity(&self) -> u8 {
@@ -2739,30 +3241,39 @@ impl Yoshi {
     /// # Examples
     ///
     /// ```
-    /// use yoshi_std::{Yoshi, YoshiKind};
+    /// # use yoshi_std::YoshiKind;
+    /// # use core::time::Duration;
+    /// let timeout_error = YoshiKind::Timeout {
+    ///     operation: "API call".into(),
+    ///     duration: Duration::from_secs(10),
+    ///     expected_max: None,
+    /// };
+    /// assert!(timeout_error.is_transient());
     ///
-    /// let err = Yoshi::new(YoshiKind::Network { message: "Temporary failure".into(), source: None, error_code: None });
-    /// assert!(err.is_transient());
+    /// let config_error = YoshiKind::Config {
+    ///     message: "Missing key".into(),
+    ///     source: None,
+    ///     config_path: None,
+    /// };
+    /// assert!(!config_error.is_transient());
     /// ```
     #[inline]
     pub const fn is_transient(&self) -> bool {
         self.kind.is_transient()
     }
 
-    /// Adds context with optimized string handling and location capture.
+    /// Adds a context message to the error.
     ///
-    /// This method prepends a new [`YoshiContext`] to the error's context chain.
-    /// It automatically captures the source code location where `context()` is called.
-    /// Contexts are typically added as an error propagates up the call stack,
-    /// providing a clear trail of what happened at each layer.
+    /// This method enhances the error with additional diagnostic information,
+    /// making it easier to trace the origin and propagation of failures.
     ///
     /// # Arguments
     ///
-    /// * `msg` - The message for the new context, convertible to `String`.
+    /// * `msg` - The context message. It can be any type that converts into a `String`.
     ///
     /// # Returns
     ///
-    /// The modified `Yoshi` error instance with the new context added.
+    /// The modified `Yoshi` error instance with the new context.
     ///
     /// # Examples
     ///
@@ -2770,107 +3281,84 @@ impl Yoshi {
     /// use yoshi_std::{Yoshi, YoshiKind};
     ///
     /// let err = Yoshi::new(YoshiKind::Internal {
-    ///     message: "Something went wrong".into(),
-    ///     source: None,
-    ///     component: None,
-    /// });
-    ///
-    /// let err = err.context("While processing request");
-    ///
-    /// assert!(format!("{}", err).contains("While processing request"));
-    /// ```
-    #[track_caller]
-    #[inline]
-    pub fn context(mut self, msg: impl Into<String>) -> Self {
-        let mut ctx = YoshiContext::new(msg);
-        ctx.location = Some(yoshi_location!());
-        // Append context to the end, then iterate in reverse for Display
-        self.contexts.push(ctx);
-        self
-    }
-
-    /// Adds metadata with optimized allocation.
-    ///
-    /// This is a convenience method that calls `with_metadata` on the
-    /// *most recently added context*. If no contexts exist, it creates
-    /// a default one and adds the metadata to it.
-    ///
-    /// # Arguments
-    ///
-    /// * `k` - The key for the metadata, convertible to `String`.
-    /// * `v` - The value for the metadata, convertible to `String`.
-    ///
-    /// # Returns
-    ///
-    /// The modified `Yoshi` error instance.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use yoshi_std::{Yoshi, YoshiKind};
-    ///
-    /// let err = Yoshi::new(YoshiKind::Internal {
-    ///     message: "test error".into(),
+    ///     message: "database query failed".into(),
     ///     source: None,
     ///     component: None,
     /// })
-    /// .with_metadata("user_id", "123")
-    /// .with_metadata("action", "login");
+    /// .context("Attempting to fetch user data");
     ///
-    /// let ctx = err.primary_context().unwrap();
-    /// assert_eq!(ctx.metadata.get("user_id".into()).map(|s| s.as_ref()), Some("123"));
-    /// assert_eq!(ctx.metadata.get("action".into()).map(|s| s.as_ref()), Some("login"));
+    /// println!("Error: {}", err);
     /// ```
-    #[must_use]
+    ///
+    /// # Panics
+    ///
+    /// This method may panic if context storage fails, though this is extremely unlikely.
+    #[track_caller]
     #[inline]
-    pub fn with_metadata(self, k: impl Into<String>, v: impl Into<String>) -> Self {
-        self.extend(|c| c.with_metadata(k, v))
+    #[must_use]
+    pub fn context(mut self, msg: impl Into<String>) -> Self {
+        self.contexts
+            .push(YoContext::new(msg).with_location(yoshi_location!()));
+        self
     }
 
-    /// Adds suggestion with shared storage.
+    /// Adds a suggestion to the error's primary context.
     ///
-    /// This is a convenience method that calls `with_suggestion` on the
-    /// *most recently added context*. If no contexts exist, it creates
-    /// a default one and adds the suggestion to it.
+    /// This method adds a human-readable suggestion to the current `Yoshi` error.
+    /// The suggestion is stored in the primary (most recent) context associated
+    /// with this error.
     ///
     /// # Arguments
     ///
-    /// * `s` - The suggestion message, convertible to `String`.
+    /// * `s` - The suggestion message. It can be any type that converts into a `String`.
     ///
     /// # Returns
     ///
-    /// The modified `Yoshi` error instance.
+    /// The modified `Yoshi` error instance with the new suggestion.
     ///
     /// # Examples
     ///
     /// ```
     /// use yoshi_std::{Yoshi, YoshiKind};
     ///
-    /// let err = Yoshi::new(YoshiKind::Network { message: "connection failed".into(), source: None, error_code: None })
-    ///     .with_suggestion("Check network connectivity");
+    /// let err = Yoshi::new(YoshiKind::Io(std::io::Error::new(std::io::ErrorKind::PermissionDenied, "file access denied")))
+    ///     .with_suggestion("Check file permissions or path.");
     ///
-    /// let ctx = err.primary_context().unwrap();
-    /// assert_eq!(ctx.suggestion.as_deref(), Some("Check network connectivity"));
+    /// assert!(err.suggestion().as_deref() == Some("Check file permissions or path."));
     /// ```
-    #[must_use]
+    ///
+    /// # Panics
+    ///
+    /// This method may panic if the context storage fails, though this is extremely unlikely.
     #[inline]
-    pub fn with_suggestion(self, s: impl Into<String>) -> Self {
-        self.extend(|c| c.with_suggestion(s))
+    #[track_caller]
+    #[must_use]
+    pub fn with_suggestion(mut self, s: impl Into<String>) -> Self {
+        // Ensure there's at least one context to attach the suggestion to
+        if self.contexts.is_empty() {
+            self.contexts
+                .push(YoContext::new("Error occurred").with_location(yoshi_location!()));
+        }
+        self.contexts
+            .last_mut()
+            .expect("contexts should not be empty")
+            .suggestion = Some(intern_string(s.into()));
+        self
     }
 
-    /// Attaches typed payload with optimized boxing.
+    /// Attaches a typed shell to the error's primary context.
     ///
-    /// This is a convenience method that calls `with_payload` on the
-    /// *most recently added context*. If no contexts exist, it creates
-    /// a default one and adds the payload to it.
+    /// This method allows embedding arbitrary Rust types within the error's context.
+    /// This is useful for passing structured, type-safe debugging information
+    /// that can be retrieved later using `shell::<T>()`.
     ///
     /// # Arguments
     ///
-    /// * `payload` - The data to attach. It must implement `Any`, `Send`, `Sync`, and have a `'static` lifetime.
+    /// * `shell` - The data to attach. It must implement `Any`, `Send`, `Sync`, and have a `'static` lifetime.
     ///
     /// # Returns
     ///
-    /// The modified `Yoshi` error instance.
+    /// The modified `Yoshi` error instance with the new shell.
     ///
     /// # Examples
     ///
@@ -2878,31 +3366,46 @@ impl Yoshi {
     /// use yoshi_std::{Yoshi, YoshiKind};
     ///
     /// #[derive(Debug, PartialEq)]
-    /// struct TransactionId(String);
+    /// struct RequestContext {
+    ///     user_id: u64,
+    ///     request_path: String,
+    /// }
     ///
     /// let err = Yoshi::new(YoshiKind::Internal {
-    ///     message: "Transaction failed".into(),
+    ///     message: "handler failed".into(),
     ///     source: None,
     ///     component: None,
     /// })
-    /// .with_payload(TransactionId("tx123".into()))
-    /// .with_payload(42u32);
+    /// .with_shell(RequestContext { user_id: 123, request_path: "/api/data".to_string() });
     ///
-    /// let ctx = err.primary_context().unwrap();
-    /// let transaction_id = ctx.payload::<TransactionId>().unwrap();
-    /// assert_eq!(transaction_id.0, "tx123");
+    /// let ctx_payload = err.shell::<RequestContext>().unwrap();
+    /// assert_eq!(ctx_payload.user_id, 123);
     /// ```
-    #[must_use]
+    ///
+    /// # Panics
+    ///
+    /// This method may panic if the shell storage fails, though this is extremely unlikely.
     #[inline]
-    pub fn with_payload(self, payload: impl Any + Send + Sync + 'static) -> Self {
-        self.extend(|c| c.with_payload(payload))
+    #[track_caller]
+    #[must_use]
+    pub fn with_shell(mut self, shell: impl Any + Send + Sync + 'static) -> Self {
+        // Ensure there's at least one context to attach the shell to
+        if self.contexts.is_empty() {
+            self.contexts
+                .push(YoContext::new("Error occurred").with_location(yoshi_location!()));
+        }
+        self.contexts
+            .last_mut()
+            .expect("contexts should not be empty")
+            .add_shell_in_place(shell);
+        self
     }
 
-    /// Sets the priority on the current context.
+    /// Sets the priority for the error's primary context.
     ///
-    /// This is a convenience method that calls `with_priority` on the
-    /// *most recently added context*. If no contexts exist, it creates
-    /// a default one and sets the priority on it.
+    /// Priority can be used to indicate the relative importance of a context
+    /// message, influencing how errors are logged or processed by error handling
+    /// systems. Higher values indicate higher priority.
     ///
     /// # Arguments
     ///
@@ -2910,33 +3413,99 @@ impl Yoshi {
     ///
     /// # Returns
     ///
-    /// The modified `Yoshi` error instance.
+    /// The modified `Yoshi` error instance with the updated priority.
     ///
     /// # Examples
-    ///    /// ```
+    /// ```
     /// use yoshi_std::{Yoshi, YoshiKind};
     ///
     /// let err = Yoshi::new(YoshiKind::Internal {
-    ///     message: "Important error".into(),
+    ///     message: "critical failure".into(),
     ///     source: None,
     ///     component: None,
     /// })
-    /// .with_priority(200);
+    /// .with_priority(250); // Highest priority
     ///
-    /// assert_eq!(err.primary_context().unwrap().priority, 200);
+    /// assert_eq!(err.primary_context().unwrap().priority, 250);
     /// ```
-    #[must_use]
+    ///
+    /// # Panics
+    ///
+    /// This method ensures that there is at least one context before updating priority.
+    /// If no contexts exist, it creates one automatically, so this method should not panic.
     #[inline]
-    pub fn with_priority(self, priority: u8) -> Self {
-        // Removed `const`
-        self.extend(|c| c.with_priority(priority))
+    #[must_use]
+    #[track_caller]
+    pub fn with_priority(mut self, priority: u8) -> Self {
+        // Ensure there's at least one context to update
+        if self.contexts.is_empty() {
+            self.contexts
+                .push(YoContext::new("Error occurred").with_location(yoshi_location!()));
+        }
+        self.contexts
+            .last_mut()
+            .expect("contexts should not be empty")
+            .priority = priority;
+        self
     }
 
-    /// Sets location information on the current context.
+    /// Adds metadata to the error's primary context.
     ///
-    /// This is a convenience method that calls `with_location` on the
-    /// *most recently added context*. If no contexts exist, it creates
-    /// a default one and sets the location on it.
+    /// Metadata are key-value pairs that provide additional, unstructured
+    /// diagnostic information. These can be used for logging, filtering,
+    /// or passing arbitrary data alongside the error.
+    ///
+    /// # Arguments
+    ///
+    /// * `k` - The metadata key. It can be any type that converts into a `String`.
+    /// * `v` - The metadata value. It can be any type that converts into a `String`.
+    ///
+    /// # Returns
+    ///
+    /// The modified `Yoshi` error instance with the new metadata.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use yoshi_std::{Yoshi, YoshiKind, Arc};
+    ///
+    /// let err = Yoshi::new(YoshiKind::Internal {
+    ///     message: "cache read failed".into(),
+    ///     source: None,
+    ///     component: None,
+    /// })
+    /// .with_metadata("cache_key", "user_profile_123")
+    /// .with_metadata("region", "us-east-1");
+    ///
+    /// let metadata = &err.primary_context().unwrap().metadata;
+    /// assert_eq!(metadata.get(&Arc::from("cache_key")).map(|s| s.as_ref()), Some("user_profile_123"));
+    /// assert_eq!(metadata.get(&Arc::from("region")).map(|s| s.as_ref()), Some("us-east-1"));
+    /// ```
+    ///
+    /// # Panics
+    ///
+    /// This method may panic if metadata storage fails, though this is extremely unlikely.
+    #[inline]
+    #[track_caller]
+    #[must_use]
+    pub fn with_metadata(mut self, k: impl Into<String>, v: impl Into<String>) -> Self {
+        // Ensure there's at least one context to attach metadata to
+        if self.contexts.is_empty() {
+            self.contexts
+                .push(YoContext::new("Error occurred").with_location(yoshi_location!()));
+        }
+        self.contexts
+            .last_mut()
+            .expect("contexts should not be empty")
+            .metadata
+            .insert(intern_string(k.into()), intern_string(v.into()));
+        self
+    }
+
+    /// Sets location information on the error's primary context.
+    ///
+    /// This method attaches source code location information to the error's primary context,
+    /// helping with debugging and error tracing. It consumes `self` and returns a modified `Self`.
     ///
     /// # Arguments
     ///
@@ -2944,7 +3513,7 @@ impl Yoshi {
     ///
     /// # Returns
     ///
-    /// The modified `Yoshi` error instance.
+    /// The modified `Yoshi` error instance with the location set.
     ///
     /// # Examples
     ///
@@ -2953,25 +3522,214 @@ impl Yoshi {
     ///
     /// let location = YoshiLocation::new("src/main.rs", 10, 5);
     /// let err = Yoshi::new(YoshiKind::Internal {
-    ///     message: "Error with location".into(),
+    ///     message: "operation failed".into(),
     ///     source: None,
     ///     component: None,
     /// })
     /// .with_location(location);
     ///
-    /// assert_eq!(err.location().unwrap().line, 10);
+    /// assert_eq!(err.primary_context().unwrap().location.unwrap().file, "src/main.rs");
+    /// assert_eq!(err.primary_context().unwrap().location.unwrap().line, 10);
     /// ```
-    #[must_use]
+    ///
+    /// # Panics
+    ///
+    /// This method may panic if location storage fails, though this is extremely unlikely.
     #[inline]
-    pub fn with_location(self, location: YoshiLocation) -> Self {
-        self.extend(|c| c.with_location(location))
+    #[track_caller]
+    #[must_use]
+    pub fn with_location(mut self, location: YoshiLocation) -> Self {
+        // Ensure there's at least one context to attach location to
+        if self.contexts.is_empty() {
+            self.contexts
+                .push(YoContext::new("Error occurred").with_location(yoshi_location!()));
+        }
+        self.contexts
+            .last_mut()
+            .expect("contexts should not be empty")
+            .location = Some(location);
+        self
     }
 
-    /// Gets the suggestion from the primary context.
+    /// Returns a reference to the optional backtrace.
     ///
-    /// This method retrieves the suggestion message from the context with
-    /// the highest priority. If no contexts exist or no context has a
-    /// suggestion, it returns `None`.
+    /// The backtrace is only available when the `std` feature is enabled and
+    /// `RUST_BACKTRACE` or `RUST_LIB_BACKTRACE` environment variables are set.
+    ///
+    /// # Returns
+    ///
+    /// An `Option` containing a reference to the [`YoshiBacktrace`] if available,
+    /// otherwise `None`.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # #[cfg(feature = "std")] {
+    /// # use yoshi_std::{Yoshi, YoshiKind};
+    /// # std::env::set_var("RUST_BACKTRACE", "1");
+    /// let err = Yoshi::new(YoshiKind::Internal {
+    ///     message: "test error".into(),
+    ///     source: None,
+    ///     component: None,
+    /// });
+    /// if let Some(bt) = err.backtrace() {
+    ///     println!("Backtrace: {}", bt);
+    /// }
+    /// # }
+    /// ```
+    #[cfg(feature = "std")]
+    #[inline]
+    pub const fn backtrace(&self) -> Option<&YoshiBacktrace> {
+        self.backtrace.as_ref()
+    }
+
+    /// Returns a reference to the underlying foreign error (if `YoshiKind::Foreign`).
+    ///
+    /// This method allows downcasting the boxed `dyn Error` contained within a
+    /// `YoshiKind::Foreign` variant to a concrete type.
+    ///
+    /// # Type Parameters
+    ///
+    /// * `T` - The concrete type to downcast to, which must implement `Error`.
+    ///
+    /// # Returns
+    ///
+    /// An `Option` containing a reference to the downcasted error of type `T`,
+    /// or `None` if the error is not `YoshiKind::Foreign` or cannot be downcasted
+    /// to the specified type.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::io;
+    /// use yoshi_std::{Yoshi, YoshiKind};
+    ///
+    /// let io_err = io::Error::new(io::ErrorKind::NotFound, "file.txt not found");
+    /// let yoshi_err = Yoshi::foreign(io_err);
+    ///
+    /// // Attempt to downcast to io::Error
+    /// if let Some(err) = yoshi_err.downcast_ref::<io::Error>() {
+    ///     assert_eq!(err.kind(), io::ErrorKind::NotFound);
+    /// } else {
+    ///     panic!("Expected io::Error");
+    /// }
+    /// ```    #[inline]
+    pub fn downcast_ref<T: Error + 'static>(&self) -> Option<&T> {
+        if let YoshiKind::Foreign { error, .. } = &self.kind {
+            // First try to downcast the ForeignErrorWrapper itself to T
+            if let Some(result) = error.downcast_ref::<T>() {
+                return Some(result);
+            }
+
+            // If that fails, try to downcast the wrapper to ForeignErrorWrapper
+            // and then downcast its inner error to T
+            if let Some(wrapper) = error.downcast_ref::<ForeignErrorWrapper>() {
+                wrapper.inner.downcast_ref::<T>()
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }
+
+    /// Returns a mutable reference to the underlying foreign error (if `YoshiKind::Foreign`).
+    ///
+    /// This method allows mutable downcasting the boxed `dyn Error` contained within a
+    /// `YoshiKind::Foreign` variant to a concrete type.
+    ///
+    /// # Type Parameters
+    ///
+    /// * `T` - The concrete type to downcast to, which must implement `Error`.
+    ///
+    /// # Returns
+    ///
+    /// An `Option` containing a mutable reference to the downcasted error of type `T`,
+    /// or `None` if the error is not `YoshiKind::Foreign` or cannot be downcasted
+    /// to the specified type.    #[inline]
+    pub fn downcast_mut<T: Error + 'static>(&mut self) -> Option<&mut T> {
+        if let YoshiKind::Foreign { error, .. } = &mut self.kind {
+            // Use a single downcast operation and then check both possibilities
+            if error.is::<ForeignErrorWrapper>() {
+                // If it's a ForeignErrorWrapper, get the inner error
+                if let Some(wrapper) = error.downcast_mut::<ForeignErrorWrapper>() {
+                    wrapper.inner.downcast_mut::<T>()
+                } else {
+                    None
+                }
+            } else {
+                // If it's not a wrapper, try to downcast directly
+                error.downcast_mut::<T>()
+            }
+        } else {
+            None
+        }
+    }
+
+    /// Returns the primary context associated with this error.
+    ///
+    /// The primary context is typically the most recent or most relevant
+    /// context added to the error, often containing the most specific
+    /// information about the direct cause of the failure.
+    ///
+    /// # Returns
+    ///
+    /// An `Option` containing a reference to the primary `YoContext`,
+    /// or `None` if no contexts have been added.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use yoshi_std::{Yoshi, YoshiKind};
+    ///
+    /// let err = Yoshi::new(YoshiKind::Internal {
+    ///     message: "failed step".into(),
+    ///     source: None,
+    ///     component: None,
+    /// })
+    /// .context("Step 1 failed")
+    /// .context("Step 2 failed"); // This is the primary context
+    ///
+    /// assert_eq!(err.primary_context().unwrap().message.as_deref(), Some("Step 2 failed"));
+    /// ```
+    #[inline]
+    pub fn primary_context(&self) -> Option<&YoContext> {
+        self.contexts.last()
+    }
+
+    /// Returns an iterator over all contexts associated with this error.
+    ///
+    /// Contexts are ordered from oldest (first added) to newest (most recent, primary).
+    ///
+    /// # Returns
+    ///
+    /// An iterator yielding references to `YoContext` instances.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use yoshi_std::{Yoshi, YoshiKind};
+    ///
+    /// let err = Yoshi::new(YoshiKind::Internal {
+    ///     message: "original error".into(),
+    ///     source: None,
+    ///     component: None,
+    /// })
+    /// .context("context 1")
+    /// .context("context 2");
+    ///
+    /// let messages: Vec<_> = err.contexts().filter_map(|c| c.message.as_deref()).collect();
+    /// assert_eq!(messages, vec!["context 1", "context 2"]);
+    /// ```
+    #[inline]
+    pub fn contexts(&self) -> impl Iterator<Item = &YoContext> {
+        self.contexts.iter()
+    }
+
+    /// Returns the suggestion from the primary context, if any.
+    ///
+    /// This is a convenience method to quickly access the most relevant
+    /// suggestion for resolving the error.
     ///
     /// # Returns
     ///
@@ -2982,11 +3740,10 @@ impl Yoshi {
     /// ```
     /// use yoshi_std::{Yoshi, YoshiKind};
     ///
-    /// let err = Yoshi::new(YoshiKind::Network { message: "connection failed".into(), source: None, error_code: None })
-    ///     .with_suggestion("Check network connectivity");
+    /// let err = Yoshi::new(YoshiKind::Io(std::io::Error::new(std::io::ErrorKind::PermissionDenied, "file access denied")))
+    ///     .with_suggestion("Check file permissions.");
     ///
-    /// let primary_ctx = err.primary_context().unwrap();
-    /// assert_eq!(primary_ctx.suggestion.as_deref(), Some("Check network connectivity"));
+    /// assert_eq!(err.suggestion().as_deref(), Some("Check file permissions."));
     /// ```
     #[inline]
     pub fn suggestion(&self) -> Option<&str> {
@@ -2994,578 +3751,202 @@ impl Yoshi {
             .and_then(|ctx| ctx.suggestion.as_deref())
     }
 
-    /// Gets a typed payload from the primary context.
+    /// Returns a typed shell from the primary context, if any.
     ///
-    /// This method attempts to retrieve a payload of the specified type from
-    /// the context with the highest priority. It searches through all payloads
-    /// in the primary context and returns the first one that matches the type.
+    /// This is a convenience method to quickly access a structured shell
+    /// from the most relevant context.
     ///
     /// # Type Parameters
     ///
-    /// * `T` - The type of payload to retrieve.
+    /// * `T` - The type of shell to retrieve.
     ///
     /// # Returns
     ///
-    /// An `Option` containing a reference to the payload of type `T`, or `None`
-    /// if no such payload exists.
+    /// An `Option` containing a reference to the shell of type `T`, or `None`.
     ///
     /// # Examples
     ///
     /// ```
     /// use yoshi_std::{Yoshi, YoshiKind};
-    ///
     /// #[derive(Debug, PartialEq)]
-    /// struct RequestId(String);
-    ///
+    /// struct CustomPayload(u32);
     /// let err = Yoshi::new(YoshiKind::Internal {
-    ///     message: "Operation failed".into(),
+    ///     message: "test".into(),
     ///     source: None,
     ///     component: None,
     /// })
-    /// .with_payload(RequestId("req123".to_string()));
+    /// .with_shell(CustomPayload(123));
     ///
-    /// let payload = err.payload::<RequestId>().unwrap();
-    /// assert_eq!(payload.0, "req123".to_string());
-    /// ```
-    /// Gets a typed payload from this context.
-    ///
-    /// This method attempts to retrieve a payload of the specified type from
-    /// this context. It searches through all payloads and returns the first
-    /// one that matches the type.
-    ///
-    /// # Type Parameters
-    ///
-    /// * `T` - The type of payload to retrieve.
-    ///
-    /// # Returns
-    ///
-    /// An `Option` containing a reference to the payload of type `T`, or `None`
-    /// if no such payload exists.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use yoshi_std::YoshiContext;
-    /// #[derive(Debug, PartialEq)]
-    /// struct CustomData(u32);
-    /// let ctx = YoshiContext::new("test").with_payload(CustomData(123));
-    /// assert_eq!(ctx.payload::<CustomData>().unwrap().0, 123);
-    /// ```
-    /// Gets a typed payload from this context.
-    ///
-    /// This method attempts to retrieve a payload of the specified type from
-    /// this context. It searches through all payloads and returns the first
-    /// one that matches the type.
-    ///
-    /// # Type Parameters
-    ///
-    /// * `T` - The type of payload to retrieve.
-    ///
-    /// # Returns
-    ///
-    /// An `Option` containing a reference to the payload of type `T`, or `None`
-    /// if no such payload exists.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use yoshi_std::YoshiContext;
-    /// #[derive(Debug, PartialEq)]
-    /// struct CustomData(u32);
-    /// let ctx = YoshiContext::new("test").with_payload(CustomData(123));    /// assert_eq!(ctx.payload::<CustomData>().unwrap().0, 123);    /// ```
-    #[inline]
-    pub fn payload<T: 'static>(&self) -> Option<&T> {
-        // First check the primary context if available
-        if let Some(primary) = self.primary_context() {
-            if let Some(payload) = primary
-                .payloads
-                .iter()
-                .find_map(|p_arc| p_arc.as_ref().downcast_ref::<T>())
-            {
-                return Some(payload);
-            }
-        }
-
-        // Then search ALL contexts for the payload
-        // This ensures payloads can be found regardless of context priority
+    /// assert_eq!(err.shell::<CustomPayload>().unwrap().0, 123);
+    /// ```    #[inline]
+    pub fn shell<T: 'static>(&self) -> Option<&T> {
+        // Search ALL contexts for the shell, not just the primary context
+        // This ensures payloads can be found regardless of context priority ordering
         for context in &self.contexts {
-            if let Some(payload) = context
-                .payloads
-                .iter()
-                .find_map(|p_arc| p_arc.as_ref().downcast_ref::<T>())
-            {
-                return Some(payload);
+            if let Some(shell) = context.shell::<T>() {
+                return Some(shell);
             }
         }
         None
     }
 
-    /// Gets the location from the primary context.
+    /// The nested error, equivalent to `source()`, but more thematically expressive.
     ///
-    /// This method retrieves the source location information from the context
-    /// with the highest priority. If no contexts exist or no context has
-    /// location information, it returns `None`.
+    /// This method provides thematic access to the underlying error source while
+    /// maintaining full backwards compatibility with the standard `Error` trait.
     ///
     /// # Returns
     ///
-    /// An `Option` containing a reference to the `YoshiLocation`, or `None`.
+    /// An `Option` containing a reference to the nested error, or `None` if
+    /// there is no underlying source.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use yoshi_std::{Yoshi, YoshiKind};
+    /// # use std::io;
+    /// let inner = Yoshi::new(YoshiKind::Internal {
+    ///     message: "inner failure".into(),
+    ///     source: None,
+    ///     component: None,
+    /// });
+    /// let outer = Yoshi::new(YoshiKind::Internal {
+    ///     message: "outer failure".into(),
+    ///     source: Some(Box::new(inner)),
+    ///     component: None,
+    /// });
+    /// assert!(outer.nest().is_some());
+    /// ```
+    #[inline]
+    pub fn nest(&self) -> Option<&(dyn Error + 'static)> {
+        self.kind.source()
+    }
+
+    /// The explanation or context attached to the error.
+    ///
+    /// This method provides direct access to the primary context message,
+    /// offering a thematic alternative to accessing context information.
+    ///
+    /// # Returns
+    ///
+    /// An `Option` containing a reference to the laytext string, or `None`
+    /// if no context message is available.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use yoshi_std::{Yoshi, YoshiKind};
+    /// let err = Yoshi::new(YoshiKind::Internal {
+    ///     message: "base error".into(),
+    ///     source: None,
+    ///     component: None,
+    /// })
+    /// .context("operation failed");
+    /// assert_eq!(err.laytext().unwrap(), "operation failed");
+    /// ```
+    #[inline]
+    pub fn laytext(&self) -> Option<&str> {
+        self.primary_context()
+            .and_then(|ctx| ctx.message.as_deref())
+    }
+
+    /// Adds contextual information using the thematic `.lay()` method.
+    ///
+    /// This method is equivalent to `.context()` but provides thematic naming
+    /// consistent with the Hatch ecosystem's metaphorical framework.
+    ///
+    /// # Arguments
+    ///
+    /// * `msg` - The context message to attach.
+    ///
+    /// # Returns
+    ///
+    /// The modified `Yoshi` error instance with the new context.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use yoshi_std::{Yoshi, YoshiKind};
+    /// let err = Yoshi::new(YoshiKind::Internal {
+    ///     message: "base error".into(),
+    ///     source: None,
+    ///     component: None,
+    /// })
+    /// .lay("while processing request");
+    /// assert!(err.to_string().contains("while processing request"));
+    /// ```
+    #[track_caller]
+    #[inline]
+    #[must_use]
+    pub fn lay(self, msg: impl Into<String>) -> Self {
+        self.context(msg)
+    }
+
+    /// Gathers analysis results about the contexts in this error.
+    ///
+    /// This method performs a quick scan of all attached contexts to provide
+    /// aggregated statistics, useful for logging, analytics, or deciding
+    /// on error handling strategies.
+    ///
+    /// # Returns
+    ///
+    /// A `ContextAnalysis` struct containing various metrics about the contexts.
     ///
     /// # Examples
     ///
     /// ```
     /// use yoshi_std::{Yoshi, YoshiKind, YoshiLocation};
     ///
-    /// let err = Yoshi::new(YoshiKind::Internal { message: "test".into(), source: None, component: None })
-    ///     .context("operation failed");
+    /// let err = Yoshi::new(YoshiKind::Internal {
+    ///     message: "base error".into(),
+    ///     source: None,
+    ///     component: None,
+    /// })
+    /// .context("Intermediate step")
+    /// .with_metadata("key", "value")
+    /// .with_suggestion("Try again")
+    /// .context("Final step failed")
+    /// .with_location(YoshiLocation::new("src/main.rs", 10, 5));
     ///
-    /// if let Some(location) = err.location() {
-    ///     println!("Error occurred at: {}", location);
-    /// }
+    /// let analysis = err.analyze_contexts();
+    /// assert_eq!(analysis.total_contexts, 2);
+    /// assert_eq!(analysis.context_depth, 2);
+    /// assert!(analysis.has_suggestions);
+    /// assert!(analysis.has_location_info);
+    /// assert_eq!(analysis.metadata_entries, 1);
     /// ```
-    #[inline]
-    pub fn location(&self) -> Option<&YoshiLocation> {
-        self.primary_context().and_then(|ctx| ctx.location.as_ref())
-    }
-
-    /// Gets the creation timestamp for debugging.
-    ///
-    /// This method returns the `SystemTime` at which this `Yoshi` error
-    /// instance was originally created. This is useful for understanding
-    /// the lifecycle of errors and for diagnostic purposes.
-    /// Available only when the `std` feature is enabled.
-    ///
-    /// # Returns
-    ///
-    /// The `SystemTime` when the error was created.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # #[cfg(feature = "std")] {
-    /// # use yoshi_std::{Yoshi, YoshiKind};
-    /// # use std::time::SystemTime;
-    /// let err = Yoshi::new(YoshiKind::Internal { message: "test".into(), source: None, component: None });
-    /// let creation_time = err.created_at();
-    /// let now = SystemTime::now();
-    ///
-    /// // The creation time should be very close to 'now'
-    /// // For robust tests, you might need to compare durations.
-    /// // assert!(now.duration_since(creation_time).unwrap() < std::time::Duration::from_millis(100));
-    /// println!("Error created at: {:?}", creation_time);
-    /// # }
-    /// ```
-    #[cfg(feature = "std")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
-    #[inline]
-    pub fn created_at(&self) -> SystemTime {
-        self.created_at
-    }
-
-    /// Advanced error recovery with sophisticated retry logic
-    ///
-    /// Attaches an `ErrorRecoveryStrategy` as a typed payload to the most
-    /// recently added context. If no contexts exist, a new default one is
-    /// created. This allows the error handling system to suggest or
-    /// automatically attempt recovery actions.
-    ///
-    /// # Arguments
-    ///
-    /// * `strategy` - The `ErrorRecoveryStrategy` to associate with the error.
-    ///
-    /// # Returns    ///
-    /// The modified `Yoshi` error instance.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use yoshi_std::{Yoshi, YoshiKind, ErrorRecoveryStrategy};
-    /// # use core::time::Duration;
-    /// let err = Yoshi::new(YoshiKind::Network { message: "connection lost".into(), source: None, error_code: None })
-    ///     .with_payload(ErrorRecoveryStrategy::ExponentialBackoff {
-    ///         initial_delay: Duration::from_secs(1),
-    ///         max_retries: 5,
-    ///         backoff_multiplier: 2.0,
-    ///     });
-    ///
-    /// let strategy = err.payload::<ErrorRecoveryStrategy>().unwrap();
-    /// assert!(matches!(strategy, ErrorRecoveryStrategy::ExponentialBackoff { .. }));
-    /// ```
-    pub fn with_recovery_strategy(self, strategy: ErrorRecoveryStrategy) -> Self {
-        self.with_payload(strategy)
-    }
-
-    /// Attempts automatic error recovery based on error type and context
-    pub fn attempt_recovery<T, F>(&self, recovery_fn: F) -> Option<T>
-    where
-        F: FnOnce(&Self) -> Option<T>,
-    {
-        // Analyze error characteristics for recovery potential
-        let recovery_score = self.calculate_recovery_score();
-
-        if recovery_score > 0.7 {
-            recovery_fn(self)
-        } else {
-            None
-        }
-    }
-
-    /// Calculates the likelihood of successful recovery (0.0 to 1.0)
-    /// Uses constant-time computation to prevent timing side-channel attacks
-    fn calculate_recovery_score(&self) -> f64 {
-        // Pre-computed lookup table for constant-time access
-        const RECOVERY_SCORES: [f64; 11] = [
-            0.5, // Io
-            0.8, // Network
-            0.2, // Config
-            0.1, // Validation
-            0.3, // Internal
-            0.4, // NotFound
-            0.9, // Timeout
-            0.6, // ResourceExhausted
-            0.5, // Foreign
-            0.3, // Multiple
-            0.5, // Default
-        ];
-
-        let base_score = RECOVERY_SCORES[match &self.kind {
-            #[cfg(feature = "std")]
-            YoshiKind::Io(_) => 0,
-            #[cfg(not(feature = "std"))]
-            YoshiKind::Io(_) => 0,
-            YoshiKind::Network { .. } => 1,
-            YoshiKind::Config { .. } => 2,
-            YoshiKind::Validation { .. } => 3,
-            YoshiKind::Internal { .. } => 4,
-            YoshiKind::NotFound { .. } => 5,
-            YoshiKind::Timeout { .. } => 6,
-            YoshiKind::ResourceExhausted { .. } => 7,
-            YoshiKind::Foreign { .. } => 8,
-            YoshiKind::Multiple { .. } => 9,
-        }];
-
-        // Constant-time adjustments
-        let transient_bonus = if self.is_transient() { 0.2 } else { 0.0 };
-        let retry_penalty = if self
-            .contexts
-            .iter()
-            .any(|ctx| ctx.metadata.contains_key(&intern_string("retry_count")))
-        {
-            0.3
-        } else {
-            0.0
+    pub fn analyze_contexts(&self) -> ContextAnalysis {
+        let mut analysis = ContextAnalysis {
+            total_contexts: self.contexts.len(),
+            context_depth: self.contexts.len(), // Simple depth = count for now
+            ..ContextAnalysis::default()
         };
 
-        (base_score + transient_bonus - retry_penalty).clamp(0.0, 1.0)
-    }
-
-    /// Enhanced context analysis for better debugging
-    pub fn analyze_context(&self) -> ContextAnalysis {
-        let mut analysis = ContextAnalysis::default();
-
         for ctx in &self.contexts {
-            analysis.total_contexts += 1;
-
             if ctx.suggestion.is_some() {
                 analysis.has_suggestions = true;
             }
-
-            if !ctx.metadata.is_empty() {
-                analysis.metadata_entries += ctx.metadata.len();
-            }
-
-            if !ctx.payloads.is_empty() {
-                analysis.typed_payloads += ctx.payloads.len();
-            }
-
             if ctx.location.is_some() {
                 analysis.has_location_info = true;
             }
+            analysis.metadata_entries += ctx.metadata.len();
+            analysis.typed_payloads += ctx.payloads.len();
+
+            // The primary context is the last one in the vector
+            if let Some(primary_ctx) = self.contexts.last() {
+                analysis.primary_context_priority = primary_ctx.priority;
+            }
         }
-
-        analysis.context_depth = self.contexts.len();
-        analysis.primary_context_priority =
-            self.primary_context().map(|ctx| ctx.priority).unwrap_or(0);
-
         analysis
-    }
-
-    /// Internal helper for context extension with memory optimization.
-    ///
-    /// This method is used internally by `with_*` methods to modify
-    /// the most recently added context, or create a new default one
-    /// if the context list is empty. It uses `mem::take` for efficient
-    /// modification of the context without reallocations.
-    ///
-    /// # Arguments
-    ///
-    /// * `op` - A closure that takes a `YoshiContext` and returns a modified one.
-    ///
-    /// # Returns
-    ///
-    /// The modified `Yoshi` error instance.
-    fn extend<F>(mut self, op: F) -> Self
-    where
-        F: FnOnce(YoshiContext) -> YoshiContext,
-    {
-        if let Some(c0) = self.contexts.last_mut() {
-            *c0 = op(mem::take(c0));
-        } else {
-            self.contexts.push(op(YoshiContext::default()));
-        }
-        self
-    }
-
-    /// Returns backtrace reference with performance metadata.
-    ///
-    /// This method provides access to the captured backtrace (if enabled)
-    /// and its associated metadata, such as capture time and cost.
-    /// Available only when the `std` feature is enabled.
-    ///
-    /// # Returns
-    ///
-    /// An `Option` containing a reference to the [`YoshiBacktrace`] if one
-    /// was captured, or `None` otherwise.
-    ///
-    /// # Examples
-    ///
-    /// ```no_run
-    /// # #[cfg(feature = "std")] {
-    /// # use yoshi_std::{Yoshi, YoshiKind};
-    /// # use std::time::SystemTime;
-    ///
-    /// let err = Yoshi::new(YoshiKind::Internal { message: "Test error".into(), source: None, component: None });
-    /// if let Some(bt) = err.backtrace() {
-    ///     println!("Backtrace status: {:?}", bt.status());
-    ///     println!("Backtrace capture cost: {:?}", bt.capture_cost_nanos());
-    /// } else {
-    ///     println!("Backtrace not captured (is RUST_BACKTRACE enabled?)");
-    /// }
-    /// # }
-    /// ```
-    #[inline]
-    #[cfg(feature = "std")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
-    pub fn backtrace(&self) -> Option<&YoshiBacktrace> {
-        self.backtrace.as_ref()
-    }
-
-    /// Returns an iterator over the contexts associated with this error.
-    ///
-    /// Contexts are stored in a `Vec`, typically with the most recently
-    /// added context at index 0. Iterating over them allows inspecting
-    /// the full chain of contextual information.
-    ///
-    /// # Returns
-    ///
-    /// An iterator yielding references to `YoshiContext` objects.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use yoshi_std::{Yoshi, YoshiKind};
-    /// let err = Yoshi::new(YoshiKind::Internal { message: "base error".into(), source: None, component: None })
-    ///     .context("step 1 failed")
-    ///     .context("step 2 failed");
-    ///
-    /// // Iterating in reverse to see the most recent contexts first, matching display order
-    /// for (i, ctx) in err.contexts().rev().enumerate() {
-    ///     println!("Context {}: {:?}", i, ctx.message);
-    /// }
-    /// // Expected output:
-    /// // Context 0: Some("step 2 failed")
-    /// // Context 1: Some("step 1 failed")
-    /// ```
-    #[inline]
-    pub fn contexts(&self) -> impl DoubleEndedIterator<Item = &YoshiContext> {
-        self.contexts.iter()
-    }
-
-    /// Gets the highest priority context.
-    ///
-    /// This method finds the `YoshiContext` within the error's context chain
-    /// that has the highest `priority` value. This can be useful for quickly
-    /// identifying the most critical or relevant piece of contextual information.
-    ///
-    /// # Returns
-    ///
-    /// An `Option` containing a reference to the `YoshiContext` with the highest
-    /// priority, or `None` if no contexts are present.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use yoshi_std::{Yoshi, YoshiKind, YoshiContextExt};
-    /// let err = Yoshi::new(YoshiKind::Internal { message: "base error".into(), source: None, component: None })
-    ///     .context("Low priority info").with_priority(50)
-    ///     .context("Critical detail").with_priority(250)
-    ///     .context("Medium priority info").with_priority(100);
-    ///
-    /// let primary_ctx = err.primary_context().unwrap();
-    /// assert_eq!(primary_ctx.message.as_deref(), Some("Critical detail"));
-    /// assert_eq!(primary_ctx.priority, 250);
-    /// ```
-    #[inline]
-    pub fn primary_context(&self) -> Option<&YoshiContext> {
-        self.contexts.iter().max_by_key(|c| c.priority)
-    }
-
-    /// Emits a tracing event with structured fields.
-    ///
-    /// If the "tracing" feature is enabled, this method will emit a structured
-    /// tracing event with details about the `Yoshi` error, including its
-    /// instance ID, severity, and transience. This integrates `Yoshi` errors
-    /// seamlessly into tracing-based observability systems.
-    ///
-    /// # Arguments
-    ///
-    /// * `level` - The `tracing::Level` at which to emit the event (e.g., `tracing::Level::ERROR`).
-    ///
-    /// # Examples
-    ///
-    /// ```no_run
-    /// # #[cfg(feature = "tracing")] {
-    /// # use yoshi_std::{Yoshi, YoshiKind};
-    /// # use tracing::Level;
-    /// // Initialize a tracing subscriber (e.g., tracing_subscriber::fmt().init();)
-    ///
-    /// let err = Yoshi::new(YoshiKind::Internal { message: "Service unavailable".into(), source: None, component: None });
-    /// err.make_event(Level::ERROR);
-    ///    /// // The error details will be logged via the tracing subscriber.
-    /// # }
-    /// ```
-    #[cfg(feature = "tracing")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "tracing")))]
-    #[cfg(feature = "tracing")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "tracing")))]
-    #[inline]
-    pub fn make_event(&self, level: tracing::Level) {
-        use tracing::Level;
-        match level {
-            Level::ERROR => tracing::error!(
-                target: "yoshi",
-                error = %self,
-                ?self,
-                instance_id = self.instance_id,
-                severity = self.severity(),
-                is_transient = self.is_transient(),
-            ),
-            Level::WARN => tracing::warn!(
-                target: "yoshi",
-                error = %self,
-                ?self,
-                instance_id = self.instance_id,
-                severity = self.severity(),
-                is_transient = self.is_transient(),
-            ),
-            Level::INFO => tracing::info!(
-                target: "yoshi",
-                error = %self,
-                ?self,
-                instance_id = self.instance_id,
-                severity = self.severity(),
-                is_transient = self.is_transient(),
-            ),
-            Level::DEBUG => tracing::debug!(
-                target: "yoshi",
-                error = %self,
-                ?self,
-                instance_id = self.instance_id,
-                severity = self.severity(),
-                is_transient = self.is_transient(),
-            ),
-            Level::TRACE => tracing::trace!(
-                target: "yoshi",
-                error = %self,
-                ?self,
-                instance_id = self.instance_id,
-                severity = self.severity(),
-                is_transient = self.is_transient(),
-            ),
-        }
-    }
-    /// Formats the error source chain with cycle detection to prevent infinite recursion.
-    ///
-    /// This internal helper method recursively formats the chain of underlying
-    /// causes for a `Yoshi` error. It includes logic to detect and truncate
-    /// circular references in the error chain, preventing stack overflows.
-    ///
-    /// # Arguments
-    ///
-    /// * `buffer` - A mutable `String` buffer to append the formatted source chain to.
-    /// * `depth` - The current recursion depth, used for cycle detection and truncation.
-    ///
-    /// # Returns
-    ///
-    /// A `fmt::Result` indicating success or failure of the formatting.
-    ///
-    /// # Panics
-    ///
-    /// This function does not panic under normal circumstances.
-    ///
-    /// # Safety
-    ///
-    /// This function is safe as it handles recursion depth and prevents cycles.
-    fn format_source_chain_optimized(
-        &self,
-        buffer: &mut OptimizedFormatBuffer,
-        depth: usize,
-    ) -> Result<(), fmt::Error> {
-        const MAX_DEPTH: usize = 32; // Reduced to prevent excessive nesting
-
-        if depth >= MAX_DEPTH {
-            buffer.append_optimized(&format!(
-                "\n  ... (error chain truncated at depth {} for security)",
-                MAX_DEPTH
-            ));
-            return Ok(());
-        }
-
-        if let Some(source_err) = self.kind.source() {
-            let is_source_displayed =
-                matches!(self.kind, YoshiKind::Io(_) | YoshiKind::Foreign { .. });
-
-            if !is_source_displayed {
-                buffer.append_optimized("\nCaused by: ");
-                buffer.append_optimized(&source_err.to_string());
-
-                if let Some(yoshi_source) = source_err.downcast_ref::<Yoshi>() {
-                    yoshi_source.format_source_chain_optimized(buffer, depth + 1)?;
-                }
-            }
-        }
-        Ok(())
-    }
-
-    /// Fallback formatting for compatibility
-    fn format_source_chain_fallback(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.kind)?;
-
-        for ctx in &self.contexts {
-            if let Some(msg) = &ctx.message {
-                write!(f, "\nCaused by: {}", msg)?;
-            }
-        }
-
-        Ok(())
     }
 }
 
-//--------------------------------------------------------------------------------------------------
-// Optimized Display implementation with SIMD-friendly formatting
-//--------------------------------------------------------------------------------------------------
-
 impl Display for Yoshi {
-    /// Formats the `Yoshi` error for human-readable display with safe optimizations.
+    /// Formats the `Yoshi` error for display, including its kind, contexts, and backtrace.
     ///
-    /// This implementation constructs a comprehensive error message by:
-    /// 1. Displaying the primary [`YoshiKind`].
-    /// 2. Iterating through and formatting all associated [`YoshiContext`]s
-    ///    in priority order (highest priority first).
-    /// 3. Recursively formatting the underlying error source chain, with
-    ///    built-in cycle detection.
-    /// 4. Appending the captured backtrace (if `std` feature is enabled).
-    ///
-    /// The formatting uses memory-optimized buffers for enhanced performance.
+    /// This implementation provides a comprehensive, human-readable representation
+    /// of the error, designed for debugging and logging. It iterates through
+    /// contexts, displaying their messages, metadata, and suggestions.
     ///
     /// # Arguments
     ///
@@ -3574,251 +3955,131 @@ impl Display for Yoshi {
     /// # Returns
     ///
     /// A `fmt::Result` indicating success or failure of the formatting.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use yoshi_std::{Yoshi, YoshiKind, YoshiContextExt};
-    /// # use std::io::{self, ErrorKind};
-    ///
-    /// let base_err = io::Error::new(ErrorKind::NotFound, "file not found");
-    /// let err = Yoshi::from(base_err)
-    ///     .context("Failed to load user data")
-    ///     .with_metadata("user_id", "test_user")
-    ///     .with_suggestion("Ensure data.json is in the correct directory.");
-    ///
-    /// let formatted_error = format!("{}", err);
-    /// assert!(formatted_error.contains("I/O error: file not found"));
-    /// assert!(formatted_error.contains("Caused by: Failed to load user data"));
-    /// assert!(formatted_error.contains("user_id: test_user"));
-    /// assert!(formatted_error.contains("Suggestion: Ensure data.json is in the correct directory"));
-    /// ```
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        let mut buffer = OptimizedFormatBuffer::with_capacity(1024);
+        writeln!(f, "{}: {}", self.instance_id, self.kind)?;
 
-        // Format main error with optimization
-        let kind_str = format!("{}", self.kind);
-        buffer.append_optimized(&kind_str);
+        // Print contexts from oldest to newest (excluding the first if it's auto-generated)
+        // This iterates contexts in the order they were added.
+        for (i, ctx) in self.contexts.iter().enumerate() {
+            if i == 0
+                && ctx.message.as_deref() == Some("Error occurred")
+                && ctx.metadata.is_empty()
+                && ctx.suggestion.is_none()
+                && ctx.payloads.is_empty()
+            {
+                // Skip auto-generated default context if it provides no actual info
+                continue;
+            }
 
-        // Sort contexts by priority for optimal display order
-        let mut sorted_contexts: Vec<_> = self.contexts.iter().enumerate().collect();
-        sorted_contexts.sort_by_key(|(i, c)| (core::cmp::Reverse(c.priority), *i));
+            if let Some(msg) = ctx.message.as_deref() {
+                writeln!(f, "Caused by: {msg}")?;
+            }
 
-        // Collect context fragments for efficient batch processing
-        let mut context_fragments = Vec::new();
-        for (_, ctx) in sorted_contexts {
-            if let Some(ref message) = ctx.message {
-                context_fragments.push("\nCaused by: ");
-                context_fragments.push(message.as_ref());
+            if !ctx.metadata.is_empty() {
+                writeln!(f, "Metadata:")?;
+                for (k, v) in &ctx.metadata {
+                    writeln!(f, "  {k}: {v}")?;
+                }
             }
-            if let Some(loc) = &ctx.location {
-                context_fragments.push(" at ");
-                let loc_str = format!("{}", loc);
-                buffer.append_optimized(&loc_str); // Handle location separately due to formatting
+
+            if let Some(suggestion) = ctx.suggestion.as_deref() {
+                writeln!(f, "Suggestion: {suggestion}")?;
             }
-            for (k, v) in &ctx.metadata {
-                context_fragments.push("\n  ");
-                context_fragments.push(k.as_ref());
-                context_fragments.push(": ");
-                context_fragments.push(v.as_ref());
-            }
-            if let Some(s) = &ctx.suggestion {
-                context_fragments.push("\n  Suggestion: ");
-                context_fragments.push(s.as_ref());
+
+            if ctx.location.is_some() {
+                writeln!(f, "Location: {}", ctx.location.unwrap())?;
             }
         }
 
-        // Batch append context fragments for better performance
-        buffer.append_multiple(&context_fragments);
-
-        // Enhanced source chain formatting with cycle detection
-        if let Err(_) = self.format_source_chain_optimized(&mut buffer, 0) {
-            // Fallback to simple formatting if optimization fails
-            return self.format_source_chain_fallback(f);
+        // Display source chain from YoshiKind.source()
+        if let Some(source_error) = self.kind.source() {
+            // Check if the source is a Yoshi error (for proper recursive formatting)
+            if let Some(yoshi_source) = source_error.downcast_ref::<Yoshi>() {
+                writeln!(f, "Caused by: {}", yoshi_source.kind)?;
+                // Recursively display nested contexts and sources
+                for ctx in &yoshi_source.contexts {
+                    if let Some(msg) = ctx.message.as_deref() {
+                        writeln!(f, "Caused by: {msg}")?;
+                    }
+                }
+                // Recursively display deeper source chain
+                if let Some(deeper_source) = yoshi_source.kind.source() {
+                    writeln!(f, "Caused by: {deeper_source}")?;
+                }
+            } else {
+                // For non-Yoshi sources, just display them directly
+                writeln!(f, "Caused by: {source_error}")?;
+            }
         }
 
-        // Add backtrace if available
         #[cfg(feature = "std")]
         if let Some(bt) = &self.backtrace {
-            buffer.append_optimized(&format!("\n{}", bt));
+            writeln!(f, "\nBacktrace:\n{bt}")?;
         }
 
-        // Write optimized buffer to formatter
-        f.write_str(buffer.as_str())
+        Ok(())
     }
 }
-
-//--------------------------------------------------------------------------------------------------
-// Enhanced Error implementation (removed provide as it's unstable)
-//--------------------------------------------------------------------------------------------------
-
-impl Error for Yoshi {
-    /// Returns the underlying source of this `Yoshi` error.
-    ///
-    /// This method implements the `source` requirement of the `std::error::Error`
-    /// trait, allowing `Yoshi` errors to participate in the standard Rust
-    /// error chain mechanism. It delegates to the `source` method of [`YoshiKind`].
-    ///
-    /// # Returns
-    ///
-    /// An `Option` containing a reference to the underlying error that
-    /// caused this `Yoshi`, or `None` if there is no direct source.
-    ///
-    /// # Examples
-    ///    /// ```
-    /// # use yoshi_std::{Yoshi, YoshiKind};
-    /// # use std::io;
-    /// # use std::io::ErrorKind;
-    /// # use std::error::Error;
-    /// let io_err = io::Error::new(ErrorKind::PermissionDenied, "access denied");
-    /// let yoshi_err = Yoshi::from(io_err);
-    ///
-    /// let source_error = yoshi_err.source().unwrap();
-    /// assert_eq!(source_error.to_string(), "access denied");
-    /// ```
-    #[inline]
-    fn source(&self) -> Option<&(dyn Error + 'static)> {
-        self.kind.source()
-    }
-    // `provide` method removed as it relies on unstable `error_generic_member_access` feature.
-    // Use explicit accessor methods on `Yoshi` and `YoshiContext` instead for data retrieval.
-}
-
-//--------------------------------------------------------------------------------------------------
-// Optimized conversions with performance monitoring
-//--------------------------------------------------------------------------------------------------
 
 #[cfg(feature = "std")]
-#[cfg_attr(docsrs, doc(cfg(feature = "std")))]
-impl From<std::io::Error> for Yoshi {
-    /// Converts a `std::io::Error` into a `Yoshi` error.
+impl Error for Yoshi {
+    /// Returns the underlying source of this error.
     ///
-    /// This blanket `From` implementation automatically wraps any `std::io::Error`
-    /// into a `Yoshi` error of kind `YoshiKind::Io`.
-    /// The source code location of the conversion is captured.
-    ///
-    /// # Arguments
-    ///
-    /// * `e` - The `std::io::Error` to convert.
+    /// This method provides access to the root cause of the error chain,
+    /// enabling compatibility with Rust's standard error handling mechanisms.
     ///
     /// # Returns
     ///
-    /// A new `Yoshi` error instance.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use yoshi_std::{Yoshi, YoshiKind};
-    /// use std::io::{self, ErrorKind};
-    ///
-    /// let io_err = io::Error::new(ErrorKind::BrokenPipe, "pipe closed");
-    /// let yoshi_err = Yoshi::from(io_err);
-    ///
-    /// assert!(matches!(yoshi_err.kind(), YoshiKind::Io(_)));
-    /// ```
-    #[track_caller]
-    #[inline]
-    fn from(e: std::io::Error) -> Self {
-        Self::new(YoshiKind::Io(e))
+    /// An `Option` containing a reference to the `dyn Error` source,
+    /// or `None` if there is no underlying cause.
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        self.kind.source()
     }
 }
 
 #[cfg(not(feature = "std"))]
-#[cfg_attr(docsrs, doc(cfg(not(feature = "std"))))]
-impl From<NoStdIo> for Yoshi {
-    /// Converts a [`NoStdIo`] error into a `Yoshi` error.
+impl Error for Yoshi {
+    /// Returns the underlying source of this error.
     ///
-    /// This blanket `From` implementation automatically wraps any `NoStdIo`
-    /// error into a `Yoshi` error of kind `YoshiKind::Io`.
-    /// The source code location of the conversion is captured.
-    ///
-    /// # Arguments
-    ///
-    /// * `e` - The [`NoStdIo`] error to convert.
+    /// This method provides access to the root cause of the error chain,
+    /// enabling compatibility with Rust's standard error handling mechanisms.
     ///
     /// # Returns
     ///
-    /// A new `Yoshi` error instance.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use yoshi_std::{Yoshi, YoshiKind, NoStdIo};
-    /// let no_std_io_err = NoStdIo::new("no_std file not found");
-    /// let yoshi_err = Yoshi::from(no_std_io_err);
-    ///
-    /// assert!(matches!(yoshi_err.kind(), YoshiKind::Io(_)));
-    /// ```
-    #[track_caller]
-    #[inline]
-    fn from(e: NoStdIo) -> Self {
-        Self::new(YoshiKind::Io(e))
+    /// An `Option` containing a reference to the `dyn Error` source,
+    /// or `None` if there is no underlying cause.
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        self.kind.source()
     }
 }
 
 impl From<String> for Yoshi {
     /// Converts a `String` into a `Yoshi` error.
     ///
-    /// This implementation converts a generic `String` message into a `Yoshi` error.
-    /// When the `std` feature is enabled, it defaults to `YoshiKind::Internal`.
-    /// In `no_std` environments, it maps to `YoshiKind::Io(NoStdIo::Other)`.
-    /// The source code location of the conversion is captured.
+    /// The string message is wrapped in an `Internal` `YoshiKind`.
     ///
     /// # Arguments
     ///
-    /// * `s` - The `String` to convert.
+    /// * `s` - The string message to convert.
     ///
     /// # Returns
     ///
     /// A new `Yoshi` error instance.
-    ///    /// # Examples
-    ///
-    /// ```
-    /// use yoshi_std::{Yoshi, YoshiKind};
-    ///
-    /// let msg = "Generic processing failure".to_string();
-    /// let err = Yoshi::from(msg.clone());
-    /// #[cfg(feature = "std")]
-    /// assert!(matches!(
-    ///     err.kind(),
-    ///     YoshiKind::Internal {
-    ///         ref message, ..
-    ///     } if message.as_ref() == msg
-    /// ));
-    /// #[cfg(not(feature = "std"))]
-    /// assert!(matches!(
-    ///     err.kind(),
-    ///     YoshiKind::Io(NoStdIo::Other(ref message)) if message.as_ref() == msg
-    /// ));
-    /// assert!(format!("{}", err).contains("Generic processing failure"));
-    /// ```
     #[track_caller]
-    #[inline]
     fn from(s: String) -> Self {
-        #[cfg(feature = "std")]
-        {
-            Self::new(YoshiKind::Internal {
-                message: s.into(),
-                source: None,
-                component: None,
-            })
-        }
-        #[cfg(not(feature = "std"))]
-        {
-            // In no_std, converting a string might be better as an Io error if it's the primary way
-            // to get error messages, or an Internal error.
-            // For consistency with std::io::Error behavior, mapping to Io is reasonable.
-            Self::new(YoshiKind::Io(NoStdIo::Other(s.into())))
-        }
+        Yoshi::new(YoshiKind::Internal {
+            message: s.into(),
+            source: None,
+            component: None,
+        })
     }
 }
 
-impl<'a> From<&'a str> for Yoshi {
+impl From<&str> for Yoshi {
     /// Converts a string slice (`&str`) into a `Yoshi` error.
     ///
-    /// This implementation converts a string slice directly into a `String`,
-    /// and then uses the `From<String>` implementation to create the `Yoshi` error.
-    /// The source code location of the conversion is captured.
+    /// The string slice is converted to a `String` and then wrapped in an
+    /// `Internal` `YoshiKind`.
     ///
     /// # Arguments
     ///
@@ -3827,233 +4088,55 @@ impl<'a> From<&'a str> for Yoshi {
     /// # Returns
     ///
     /// A new `Yoshi` error instance.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use yoshi_std::{Yoshi, YoshiKind};    ///
-    /// let msg = "Network connection lost";
-    /// let err = Yoshi::from(msg);
-    /// #[cfg(feature = "std")]
-    /// assert!(matches!(
-    ///     err.kind(),
-    ///     YoshiKind::Internal {
-    ///         ref message, ..
-    ///     } if message.as_ref() == msg
-    /// ));
-    /// #[cfg(not(feature = "std"))]
-    /// assert!(matches!(
-    ///     err.kind(),
-    ///     YoshiKind::Io(yoshi_std::NoStdIo::Other(ref message)) if message.as_ref() == msg
-    /// ));
-    /// assert!(format!("{}", err).contains("Network connection lost"));
-    /// ```
     #[track_caller]
-    #[inline]
-    fn from(s: &'a str) -> Self {
-        Self::from(s.to_string())
+    fn from(s: &str) -> Self {
+        Yoshi::new(YoshiKind::Internal {
+            message: s.to_string().into(),
+            source: None,
+            component: None,
+        })
     }
 }
 
-// Removed the blanket `impl<E> From<E> for Yoshi` to avoid conflicts and reliance on unstable features.
-// Use `Yoshi::foreign(error)` for explicit conversion of other `Error` types.
-
-//--------------------------------------------------------------------------------------------------
-// Enhanced Result extension with performance optimization
-//--------------------------------------------------------------------------------------------------
-
-/// High-performance extension trait for `Result` with optimized error handling.
-///
-/// This trait provides convenient methods for adding contextual information,
-/// suggestions, metadata, and typed payloads to `Result` errors, transforming
-/// them into `Yoshi` errors if they are not already.
-/// This simplifies error propagation and enrichment.
-pub trait YoshiContextExt<T> {
-    /// Adds a new context message to the error.
+#[cfg(feature = "std")]
+impl From<std::io::Error> for Yoshi {
+    /// Converts a `std::io::Error` into a `Yoshi` error.
     ///
-    /// If the `Result` is an `Err` variant, the error is converted into a
-    /// `Yoshi` error (if it isn't already) and a new [`YoshiContext`] is
-    /// prepended to its context chain with the provided message.
-    /// The source code location of the call is captured.
+    /// The I/O error is wrapped in a `YoshiKind::Io` variant.
     ///
     /// # Arguments
     ///
-    /// * `msg` - The context message, convertible to `String`.
+    /// * `e` - The `std::io::Error` to convert.
     ///
     /// # Returns
     ///
-    /// A `Result<T>` with the error (if any) extended with the new context.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use yoshi_std::{Result, YoshiContextExt};
-    /// # use std::io::{self, ErrorKind};
-    ///
-    /// fn try_read_file() -> std::io::Result<String> {
-    ///     Err(io::Error::new(ErrorKind::NotFound, "file not found"))
-    /// }
-    ///
-    /// let result: Result<String> = try_read_file()
-    ///     .context("Failed to read user data".to_string());
-    ///
-    /// assert!(result.is_err());
-    /// let err = result.unwrap_err();
-    /// assert!(format!("{}", err).contains("Failed to read user data"));
-    /// ```
+    /// A new `Yoshi` error instance.
     #[track_caller]
-    fn context(self, msg: impl Into<String>) -> Result<T>;
-    /// Adds a suggestion to the error.
-    ///
-    /// If the `Result` is an `Err` variant, the error is converted into a
-    /// `Yoshi` error (if it isn't already) and a suggestion is added to
-    /// its primary context.
-    /// The source code location of the call is captured.
-    ///
-    /// # Arguments
-    ///
-    /// * `s` - The suggestion message, convertible to `String`.
-    ///
-    /// # Returns
-    ///
-    /// A `Result<T>` with the error (if any) extended with the suggestion.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use yoshi_std::{Result, YoshiContextExt};
-    /// # use std::io::{self, ErrorKind};
-    ///
-    /// fn validate_input(input: &str) -> std::io::Result<()> {
-    ///     if input.is_empty() {
-    ///         Err(io::Error::new(ErrorKind::InvalidInput, "input cannot be empty"))
-    ///     } else {
-    ///         Ok(())
-    ///     }
-    /// }
-    ///
-    /// let result: Result<()> = validate_input("")
-    ///     .with_suggestion("Provide a non-empty string for input.");
-    ///
-    /// assert!(result.is_err());
-    /// let err = result.unwrap_err();
-    /// assert!(format!("{}", err).contains("Provide a non-empty string for input."));
-    /// ```
-    #[track_caller]
-    fn with_suggestion(self, s: impl Into<String>) -> Result<T>;
-    /// Attaches a typed payload to the error.
-    ///
-    /// If the `Result` is an `Err` variant, the error is converted into a
-    /// `Yoshi` error (if it isn't already) and a typed payload is added to
-    /// its primary context.
-    /// The source code location of the call is captured.
-    ///
-    /// # Arguments
-    ///
-    /// * `p` - The payload to attach. It must implement `Any`, `Send`, `Sync`, and have a `'static` lifetime.
-    ///
-    /// # Returns
-    ///
-    /// A `Result<T>` with the error (if any) extended with the payload.
-    ///
-    /// # Examples
-    ///    /// ```
-    /// use yoshi_std::{Result, YoshiContextExt};
-    /// # use std::io::{self, ErrorKind};
-    /// #[derive(Debug, PartialEq, Clone)]
-    /// struct OperationId(u64);
-    ///
-    /// fn perform_operation() -> std::io::Result<()> {
-    ///     Err(io::Error::new(ErrorKind::TimedOut, "operation timed out"))
-    /// }
-    ///
-    /// let op_id = OperationId(12345);
-    /// let result: Result<()> = perform_operation()
-    ///     .with_payload(op_id.clone());
-    ///
-    /// assert!(result.is_err());
-    /// let err = result.unwrap_err();
-    /// let primary_ctx = err.primary_context().unwrap();
-    /// let retrieved_op_id = primary_ctx.payloads.iter().find_map(|p| p.downcast_ref::<OperationId>());
-    /// assert_eq!(retrieved_op_id, Some(&op_id));
-    /// ```
-    #[track_caller]
-    fn with_payload(self, p: impl Any + Send + Sync + 'static) -> Result<T>;
-    /// Sets the priority for the error's primary context.
-    ///
-    /// If the `Result` is an `Err` variant, the error is converted into a
-    /// `Yoshi` error (if it isn't already) and the priority of its
-    /// primary context is set.
-    /// The source code location of the call is captured.
-    ///
-    /// # Arguments
-    ///
-    /// * `priority` - The priority level (0-255).
-    ///
-    /// # Returns
-    ///
-    /// A `Result<T>` with the error (if any) with its primary context's priority set.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use yoshi_std::{Result, YoshiContextExt};
-    /// # use yoshi_std::YoshiKind;
-    /// #
-    /// let res: Result<()> = Err(yoshi_std::Yoshi::new(YoshiKind::Internal { message: "low importance".into(), source: None, component: None }))
-    ///     .with_priority(200); // Mark this as high priority
-    ///
-    /// assert!(res.is_err());
-    /// let err = res.unwrap_err();
-    /// assert_eq!(err.primary_context().unwrap().priority, 200);
-    /// ```
-    #[track_caller]
-    fn with_priority(self, priority: u8) -> Result<T>;
-
-    // NEW: Ultra-short aliases for speed typing
-    /// Alias for `context`.
-    ///
-    /// See [`YoshiContextExt::context`] for detailed documentation.
-    #[track_caller]
-    fn ctx(self, msg: impl Into<String>) -> Result<T>;
-    /// Alias for `with_suggestion`.
-    ///
-    /// See [`YoshiContextExt::with_suggestion`] for detailed documentation.
-    #[track_caller]
-    fn help(self, s: impl Into<String>) -> Result<T>;
-    /// Adds metadata to the error.
-    ///
-    /// If the `Result` is an `Err` variant, the error is converted into a
-    /// `Yoshi` error (if it isn't already) and metadata is added to
-    /// its primary context.
-    /// The source code location of the call is captured.
-    ///
-    /// # Arguments
-    ///
-    /// * `k` - The key for the metadata, convertible to `String`.
-    /// * `v` - The value for the metadata, convertible to `String`.
-    ///
-    /// # Returns
-    ///
-    /// A `Result<T>` with the error (if any) extended with the new metadata.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use yoshi_std::{Result, YoshiContextExt, YoshiKind};
-    ///
-    /// let res: Result<()> = Err(yoshi_std::Yoshi::new(YoshiKind::Internal { message: "problem".into(), source: None, component: None }))
-    ///     .meta("user_id", "john.doe");
-    ///
-    /// assert!(res.is_err());
-    /// let err = res.unwrap_err();
-    /// assert!(format!("{}", err).contains("user_id: john.doe"));
-    /// ```
-    #[track_caller]
-    fn meta(self, k: impl Into<String>, v: impl Into<String>) -> Result<T>;
+    fn from(e: std::io::Error) -> Self {
+        Yoshi::new(YoshiKind::Io(e))
+    }
 }
 
-impl<T, E> YoshiContextExt<T> for core::result::Result<T, E>
+#[cfg(not(feature = "std"))]
+impl From<NoStdIo> for Yoshi {
+    /// Converts a `NoStdIo` error into a `Yoshi` error.
+    ///
+    /// The `NoStdIo` error is wrapped in a `YoshiKind::Io` variant.
+    ///
+    /// # Arguments
+    ///
+    /// * `e` - The `NoStdIo` error to convert.
+    ///
+    /// # Returns
+    ///
+    /// A new `Yoshi` error instance.
+    #[track_caller]
+    fn from(e: NoStdIo) -> Self {
+        Yoshi::new(YoshiKind::Io(e))
+    }
+}
+
+impl<T, E> HatchExt<T> for core::result::Result<T, E>
 where
     E: Into<Yoshi> + Send + Sync + 'static, // Updated trait bounds
 {
@@ -4070,16 +4153,16 @@ where
     }
     #[track_caller]
     #[inline]
-    fn with_payload(self, p: impl Any + Send + Sync + 'static) -> Result<T> {
+    fn with_shell(self, p: impl Any + Send + Sync + 'static) -> Result<T> {
         self.map_err(|e| {
             let mut yoshi_err = e.into();
-            // Ensure we have a context to attach the payload to with standard priority
+            // Ensure we have a context to attach the shell to with standard priority
             if yoshi_err.contexts.is_empty() {
                 yoshi_err
                     .contexts
-                    .push(YoshiContext::default().with_priority(128));
+                    .push(YoContext::default().with_priority(128));
             }
-            yoshi_err.with_payload(p)
+            yoshi_err.with_shell(p)
         })
     }
 
@@ -4112,10 +4195,185 @@ where
             if yoshi_err.contexts.is_empty() {
                 yoshi_err
                     .contexts
-                    .push(YoshiContext::default().with_priority(128));
+                    .push(YoContext::default().with_priority(128));
             }
             yoshi_err.with_metadata(k, v)
         })
+    }
+}
+
+/// Trait that adds `.lay(...)` to `Result<T, Yoshi>`, enriching errors with context.
+///
+/// This trait provides ergonomic context attachment using thematic naming that
+/// aligns with the Yoshi metaphorical framework. The `.lay()` method is equivalent
+/// to adding context but uses intuitive, game-inspired terminology.
+///
+/// # Performance Characteristics
+///
+/// - **Context Addition**: O(1) operation with minimal memory allocation
+/// - **String Interning**: Automatic optimization for repeated context messages
+/// - **Memory Efficiency**: Shared storage for common context patterns
+///
+/// # Examples
+///
+/// ```rust
+/// use yoshi_std::{Hatch, LayContext, Yoshi, YoshiKind};
+///
+/// fn database_operation() -> Hatch<String> {
+///     Err(Yoshi::new(YoshiKind::Internal {
+///         message: "connection failed".into(),
+///         source: None,
+///         component: None,
+///     }))
+///     .lay("While establishing database connection")
+/// }
+/// ```
+pub trait LayContext<T> {
+    /// Adds a contextual message to the error chain, like laying an egg with metadata.
+    ///
+    /// This method enriches error information by attaching descriptive context
+    /// that helps with debugging and error tracing. It uses thematic naming
+    /// inspired by Yoshi's egg-laying ability to create memorable, intuitive APIs.
+    ///
+    /// # Arguments
+    ///
+    /// * `message` - The context message to attach. Accepts any type that converts to `String`.
+    ///
+    /// # Returns
+    ///
+    /// A `Hatch<T>` with the enriched context information attached.
+    ///
+    /// # Performance
+    ///
+    /// - **Time Complexity**: O(1) for context attachment
+    /// - **Memory Optimization**: Automatic string interning for efficiency
+    /// - **Allocation Pattern**: Minimal heap allocation with shared storage
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use yoshi_std::{Hatch, LayContext, Yoshi, YoshiKind};
+    ///
+    /// let result: Hatch<()> = Err(Yoshi::new(YoshiKind::Internal {
+    ///     message: "operation failed".into(),
+    ///     source: None,
+    ///     component: None,
+    /// }))
+    /// .lay("During user authentication");
+    ///
+    /// assert!(result.is_err());
+    /// let error = result.unwrap_err();
+    /// assert!(error.to_string().contains("During user authentication"));
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// Returns the enriched `Hatch<T>` error if `self` is `Err`, or the original
+    /// success value if `self` is `Ok`. This method never introduces new errors.
+    fn lay(self, message: impl Into<String>) -> Hatch<T>;
+}
+
+impl<T> LayContext<T> for Hatch<T> {
+    #[track_caller]
+    fn lay(self, message: impl Into<String>) -> Hatch<T> {
+        self.map_err(|e| e.lay(message))
+    }
+}
+
+/// Extension trait for mapping other `Result<T, E>` types into `Hatch<T>` easily.
+///
+/// This trait enables seamless integration between the Yoshi error ecosystem and
+/// external error types. It provides the `.hatch()` method that converts any
+/// `Result` with an error type that can be converted to `Yoshi` into a `Hatch<T>`.
+///
+/// # Type Requirements
+///
+/// The error type `E` must implement `Into<Yoshi>` to enable conversion. This is
+/// automatically satisfied for:
+/// - `std::io::Error` (when std feature is enabled)
+/// - `NoStdIo` (when std feature is disabled)
+/// - `String` and `&str` types
+/// - Any type that implements `std::error::Error + Send + Sync + 'static`
+///
+/// # Performance Characteristics
+///
+/// - **Conversion Cost**: O(1) for types with direct `Into<Yoshi>` implementations
+/// - **Memory Overhead**: Minimal - reuses existing error allocation where possible
+/// - **Type Safety**: Compile-time guarantees with no runtime type checking
+///
+/// # Examples
+///
+/// ```rust
+/// use yoshi_std::{Hatch, Hatchable, LayContext};
+/// # use std::io;
+///
+/// fn file_operation() -> Hatch<String> {
+///     std::fs::read_to_string("config.toml")
+///         .hatch()  // Convert io::Error to Yoshi
+///         .lay("While reading configuration file")
+/// }
+///
+/// fn parse_operation() -> Hatch<i32> {
+///     "not_a_number".parse::<i32>()
+///         .map_err(|e| e.to_string())  // Convert to String first
+///         .hatch()  // Then convert to Yoshi
+///         .lay("While parsing user input")
+/// }
+/// ```
+pub trait Hatchable<T, E> {
+    /// Converts an error into a `Hatch<T>` by mapping it into `Yoshi`.
+    ///
+    /// This method provides a convenient way to bring external error types into
+    /// the Yoshi ecosystem while maintaining type safety and performance efficiency.
+    /// The conversion leverages existing `Into<Yoshi>` implementations to minimize
+    /// overhead and maintain semantic meaning.
+    ///
+    /// # Type Conversion Chain
+    ///
+    /// The method works by applying the following transformation:
+    /// `Result<T, E>` → `Result<T, Yoshi>` (via `E: Into<Yoshi>`)
+    ///
+    /// # Returns
+    ///
+    /// A `Hatch<T>` containing either the original success value or the converted error.
+    ///
+    /// # Performance Considerations
+    ///
+    /// - **Zero-cost for compatible types**: When `E` already has efficient `Into<Yoshi>`
+    /// - **Minimal allocation**: Reuses existing error data structures where possible
+    /// - **Compile-time optimization**: Fully optimizable conversion chains
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use yoshi_std::{Hatch, Hatchable};
+    /// # use std::io;
+    ///
+    /// // I/O error conversion
+    /// let io_result: Result<String, io::Error> = Err(io::Error::new(
+    ///     io::ErrorKind::NotFound, "file not found"
+    /// ));
+    /// let hatched: Hatch<String> = io_result.hatch();
+    /// assert!(hatched.is_err());
+    ///
+    /// // String error conversion
+    /// let string_result: Result<i32, String> = Err("parsing failed".to_string());
+    /// let hatched: Hatch<i32> = string_result.hatch();
+    /// assert!(hatched.is_err());
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// Returns a `Hatch<T>` containing the converted error if `self` is `Err`,
+    /// or the original success value if `self` is `Ok`. Conversion errors are
+    /// not possible as the `Into<Yoshi>` bound guarantees valid transformation.
+    fn hatch(self) -> Hatch<T>;
+}
+
+impl<T, E: Into<Yoshi>> Hatchable<T, E> for Result<T, E> {
+    #[track_caller]
+    fn hatch(self) -> Hatch<T> {
+        self.map_err(Into::into)
     }
 }
 
@@ -4160,7 +4418,7 @@ fn capture_bt() -> Option<YoshiBacktrace> {
 
 /// Enhanced memory management utilities
 pub mod memory {
-    use super::*;
+    use super::{error_instance_count, intern_string, Arc, String, STRING_INTERN_POOL};
     /// Memory usage statistics for error handling
     #[derive(Debug, Default)]
     pub struct MemoryStats {
@@ -4180,8 +4438,7 @@ pub mod memory {
     pub fn get_memory_stats() -> MemoryStats {
         let (hits, misses) = STRING_INTERN_POOL
             .get()
-            .map(|pool| pool.stats())
-            .unwrap_or((0, 0));
+            .map_or((0, 0), super::StringInternPool::stats);
 
         MemoryStats {
             total_errors_created: error_instance_count(),
@@ -4214,11 +4471,15 @@ pub mod memory {
 pub mod async_error_handling {
     //! Advanced async error processing utilities with precise capturing and performance optimization.
 
-    use super::*;
+    use super::{Result, String, Vec, Yoshi, YoshiKind};
     use std::future::Future;
     use std::time::Duration;
 
     /// Async error propagation with enhanced context preservation
+    ///
+    /// # Errors
+    ///
+    /// Returns a `Yoshi` error if the future resolves to an error, with additional context added.
     pub async fn propagate_async<T, E>(
         future: impl Future<Output = Result<T, E>>,
         context: impl Into<String>,
@@ -4233,6 +4494,10 @@ pub mod async_error_handling {
     }
 
     /// Async error recovery with exponential backoff
+    ///
+    /// # Errors
+    ///
+    /// Returns a `Yoshi` error if all retry attempts fail or if the error is not transient.
     pub async fn retry_with_backoff<T, F, Fut>(
         mut operation: F,
         max_retries: usize,
@@ -4261,6 +4526,10 @@ pub mod async_error_handling {
     }
 
     /// Async error aggregation for parallel operations
+    ///
+    /// # Errors
+    ///
+    /// Returns a `Yoshi` error with multiple errors aggregated if any operations fail.
     pub async fn aggregate_errors<I, F, Fut, T>(operations: I) -> Result<Vec<T>, Yoshi>
     where
         I: IntoIterator<Item = F>,
@@ -4303,7 +4572,7 @@ pub mod async_error_handling {
 pub mod process_communication {
     //! Cross-process error reporting and coordination with enterprise-grade reliability.
 
-    use super::*;
+    use super::{Arc, HashMap, OnceLock, Result, String, SystemTime, ToString, Yoshi};
     use std::sync::mpsc;
     use std::thread;
 
@@ -4331,8 +4600,15 @@ pub mod process_communication {
         pub metadata: HashMap<Arc<str>, Arc<str>>,
     }
 
+    impl Default for ProcessErrorReporter {
+        fn default() -> Self {
+            Self::new()
+        }
+    }
+
     impl ProcessErrorReporter {
         /// Creates a new process error reporter with background processing
+        #[must_use]
         pub fn new() -> Self {
             let (sender, receiver) = mpsc::channel::<ProcessError>();
 
@@ -4348,11 +4624,11 @@ pub mod process_communication {
                     );
 
                     // Write to structured log file (simple format without serde_json)
-                    println!("STRUCTURED_LOG: {{\"process_id\":{},\"thread_id\":\"{}\",\"message\":\"{}\",\"severity\":{},\"timestamp\":{:?}}}", 
-                            error.process_id, 
-                            error.thread_id, 
-                            error.error_message.replace("\"", "\\\""), 
-                            error.severity, 
+                    println!("STRUCTURED_LOG: {{\"process_id\":{},\"thread_id\":\"{}\",\"message\":\"{}\",\"severity\":{},\"timestamp\":{:?}}}",
+                            error.process_id,
+                            error.thread_id,
+                            error.error_message.replace("", "\\\""),
+                            error.severity,
                             error.timestamp);
                 }
             });
@@ -4362,8 +4638,12 @@ pub mod process_communication {
                 _handle: handle,
             }
         }
-
         /// Reports an error to the cross-process system
+        ///
+        /// # Errors
+        ///
+        /// Returns `mpsc::SendError<ProcessError>` if the cross-process communication
+        /// channel is disconnected or the receiver has been dropped.
         pub fn report_error(&self, error: &Yoshi) -> Result<(), mpsc::SendError<ProcessError>> {
             let process_error = ProcessError {
                 process_id: std::process::id(),
@@ -4393,7 +4673,7 @@ pub mod process_communication {
     /// Reports an error to the global cross-process system
     pub fn report_global_error(error: &Yoshi) {
         if let Err(e) = global_reporter().report_error(error) {
-            eprintln!("Failed to report error to cross-process system: {}", e);
+            eprintln!("Failed to report error to cross-process system: {e}");
         }
     }
 }
@@ -4406,7 +4686,7 @@ pub mod process_communication {
 pub mod simd_optimization {
     //! SIMD-accelerated string processing for optimal error formatting performance.
 
-    use super::*;
+    use super::{String, ToString, Vec, Yoshi};
 
     /// SIMD-optimized string formatting buffer
     pub struct SimdFormatBuffer {
@@ -4416,11 +4696,13 @@ pub mod simd_optimization {
 
     impl SimdFormatBuffer {
         /// Creates a new SIMD-optimized format buffer
+        #[must_use]
         pub fn new() -> Self {
             Self::with_capacity(4096)
         }
 
         /// Creates a buffer with specified capacity aligned for SIMD operations
+        #[must_use]
         pub fn with_capacity(capacity: usize) -> Self {
             // Align capacity to 32-byte boundaries for AVX2 operations
             let aligned_capacity = (capacity + 31) & !31;
@@ -4452,14 +4734,13 @@ pub mod simd_optimization {
         unsafe fn append_simd_internal(&mut self, bytes: &[u8]) {
             #[cfg(target_arch = "x86_64")]
             {
-                use std::arch::x86_64::*;
+                use std::arch::x86_64::{_mm256_loadu_si256, _mm256_storeu_si256};
 
                 let chunks = bytes.chunks_exact(32);
                 let remainder = chunks.remainder();
-
                 for chunk in chunks {
-                    let simd_data = _mm256_loadu_si256(chunk.as_ptr() as *const __m256i);
-                    let dst_ptr = self.data.as_mut_ptr().add(self.data.len()) as *mut __m256i;
+                    let simd_data = _mm256_loadu_si256(chunk.as_ptr().cast());
+                    let dst_ptr = self.data.as_mut_ptr().add(self.data.len()).cast();
                     _mm256_storeu_si256(dst_ptr, simd_data);
                     self.data.set_len(self.data.len() + 32);
                 }
@@ -4477,8 +4758,8 @@ pub mod simd_optimization {
             self.data.reserve(new_capacity - self.data.capacity());
             self.capacity = new_capacity;
         }
-
         /// Returns the formatted string
+        #[must_use]
         pub fn as_str(&self) -> &str {
             // SAFETY: We only append valid UTF-8 strings
             unsafe { std::str::from_utf8_unchecked(&self.data) }
@@ -4487,6 +4768,12 @@ pub mod simd_optimization {
         /// Clears the buffer while preserving capacity
         pub fn clear(&mut self) {
             self.data.clear();
+        }
+    }
+
+    impl Default for SimdFormatBuffer {
+        fn default() -> Self {
+            Self::new()
         }
     }
 
@@ -4517,7 +4804,7 @@ pub mod simd_optimization {
 pub mod cross_process_metrics {
     //! Global error metrics and telemetry system with cross-process coordination.
 
-    use super::*;
+    use super::{OnceLock, SystemTime, Yoshi};
     use std::collections::HashMap;
     use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 
@@ -4525,15 +4812,16 @@ pub mod cross_process_metrics {
     #[derive(Debug)]
     pub struct ErrorMetrics {
         total_errors: AtomicU64,
+        #[allow(dead_code)]
         errors_by_kind: HashMap<&'static str, AtomicU64>,
         errors_by_severity: [AtomicU64; 256],
         memory_usage: AtomicUsize,
+        #[allow(dead_code)]
         processing_time: AtomicU64,
     }
-
-    impl ErrorMetrics {
+    impl Default for ErrorMetrics {
         /// Creates a new metrics collector
-        pub fn new() -> Self {
+        fn default() -> Self {
             Self {
                 total_errors: AtomicU64::new(0),
                 errors_by_kind: HashMap::new(),
@@ -4541,6 +4829,14 @@ pub mod cross_process_metrics {
                 memory_usage: AtomicUsize::new(0),
                 processing_time: AtomicU64::new(0),
             }
+        }
+    }
+
+    impl ErrorMetrics {
+        /// Creates a new metrics collector
+        #[must_use]
+        pub fn new() -> Self {
+            Self::default()
         }
 
         /// Records an error occurrence
@@ -4556,7 +4852,7 @@ pub mod cross_process_metrics {
                 + error
                     .contexts()
                     .map(|ctx| {
-                        ctx.message.as_ref().map(|m| m.len()).unwrap_or(0) + ctx.metadata.len() * 64
+                        ctx.message.as_ref().map_or(0, |m| m.len()) + ctx.metadata.len() * 64
                         // Rough estimate
                     })
                     .sum::<usize>();
@@ -4566,21 +4862,25 @@ pub mod cross_process_metrics {
         }
 
         /// Gets total error count
+        #[must_use]
         pub fn total_errors(&self) -> u64 {
             self.total_errors.load(Ordering::Relaxed)
         }
 
         /// Gets errors by severity level
+        #[must_use]
         pub fn errors_by_severity(&self, severity: u8) -> u64 {
             self.errors_by_severity[severity as usize].load(Ordering::Relaxed)
         }
 
         /// Gets estimated memory usage
+        #[must_use]
         pub fn memory_usage(&self) -> usize {
             self.memory_usage.load(Ordering::Relaxed)
         }
 
         /// Generates a metrics report
+        #[must_use]
         pub fn generate_report(&self) -> MetricsReport {
             MetricsReport {
                 total_errors: self.total_errors(),
@@ -4621,8 +4921,8 @@ pub mod cross_process_metrics {
     pub fn record_global_error(error: &Yoshi) {
         global_metrics().record_error(error);
     }
-
     /// Gets a global metrics report
+    #[must_use]
     pub fn global_report() -> MetricsReport {
         global_metrics().generate_report()
     }
@@ -4646,8 +4946,6 @@ mod tests {
     // TypeId is not needed for checking foreign error names after switching to type_name!
     // use core::any::TypeId; // For TypeId usage in tests
 
-    #[cfg(feature = "serde")]
-    use serde_json::json;
     #[cfg(feature = "std")]
     use std::io::ErrorKind;
     #[cfg(feature = "std")]
@@ -4667,7 +4965,7 @@ mod tests {
         let after_first_count = error_instance_count();
         // Allow for some variance due to potential concurrent test execution
         assert!(
-            after_first_count >= initial_count + 1,
+            after_first_count > initial_count,
             "Creating first error should increment counter by at least 1"
         );
 
@@ -4679,7 +4977,7 @@ mod tests {
         let after_second_count = error_instance_count();
         // Creating the second error should also increment by at least 1
         assert!(
-            after_second_count >= after_first_count + 1,
+            after_second_count > after_first_count,
             "Creating second error should increment counter by at least 1"
         );
     }
@@ -4734,14 +5032,14 @@ mod tests {
         {
             let io_err = io::Error::new(ErrorKind::NotFound, "file not found");
             let yoshi_err = Yoshi::from(io_err);
-            assert!(format!("{}", yoshi_err).contains("I/O error: file not found"));
+            assert!(format!("{yoshi_err}").contains("I/O error: file not found"));
             assert!(matches!(yoshi_err.kind, YoshiKind::Io(_)));
         }
         #[cfg(not(feature = "std"))]
         {
             let no_std_io_err = NoStdIo::new("no_std file not found");
             let yoshi_err = Yoshi::from(no_std_io_err);
-            assert!(format!("{}", yoshi_err).contains("I/O error (no_std): no_std file not found"));
+            assert!(format!("{yoshi_err}").contains("I/O error (no_std): no_std file not found"));
             assert!(matches!(yoshi_err.kind, YoshiKind::Io(_)));
         }
     }
@@ -4750,23 +5048,13 @@ mod tests {
     fn test_from_string() {
         let msg = "simple string error".to_string();
         let yoshi_err = Yoshi::from(msg.clone());
-        #[cfg(feature = "std")]
-        {
-            assert!(matches!(
-                yoshi_err.kind,
-                YoshiKind::Internal {
-                    ref message, ..
-                } if message.as_ref() == msg
-            ));
-        }
-        #[cfg(not(feature = "std"))]
-        {
-            assert!(matches!(
-                yoshi_err.kind,
-                YoshiKind::Io(NoStdIo::Other(ref message)) if message.as_ref() == msg
-            ));
-        }
-        assert!(format!("{}", yoshi_err).contains(&msg));
+        assert!(matches!(
+            yoshi_err.kind,
+            YoshiKind::Internal {
+                ref message, ..
+            } if message.as_ref() == msg
+        ));
+        assert!(format!("{yoshi_err}").contains(&msg));
     }
 
     #[test]
@@ -4782,7 +5070,7 @@ mod tests {
 
         let boxed_err = Box::new(MyCustomError);
         let yoshi_err = Yoshi::foreign(boxed_err); // Changed to Yoshi::foreign
-        assert!(format!("{}", yoshi_err).contains("a custom error occurred"));
+        assert!(format!("{yoshi_err}").contains("a custom error occurred"));
         assert!(matches!(yoshi_err.kind, YoshiKind::Foreign { .. }));
         if let YoshiKind::Foreign {
             error_type_name, ..
@@ -4807,14 +5095,13 @@ mod tests {
             .with_suggestion("Try running with elevated privileges".to_string())
             .with_priority(200);
 
-        let err_string = format!("{}", yoshi_err);
+        let err_string = format!("{yoshi_err}");
         assert!(err_string.contains("access denied"));
         assert!(err_string.contains("Caused by: Attempted to write to a protected directory"));
         assert!(err_string.contains("user_id: guest"));
         assert!(err_string.contains("Suggestion: Try running with elevated privileges"));
         assert_eq!(yoshi_err.primary_context().unwrap().priority, 200);
     }
-
     #[test]
     fn test_chained_yoshi_kind() {
         let inner_yoshi = Yoshi::new(YoshiKind::Network {
@@ -4828,8 +5115,8 @@ mod tests {
             source: Some(Box::new(inner_yoshi)),
             component: None,
         });
+        let err_string = format!("{outer_yoshi}");
 
-        let err_string = format!("{}", outer_yoshi);
         assert!(err_string.contains("Internal error: Service communication failed"));
         assert!(err_string.contains("Caused by: Network error: Connection refused")); // Check for nested display
         assert!(!err_string.contains("Original Cause: Network error: Connection refused"));
@@ -4848,8 +5135,8 @@ mod tests {
             component: None,
         });
         assert!(err.backtrace().is_some());
-        assert!(format!("{}", err).contains("std::backtrace")); // Check for actual backtrace content
-        assert!(format!("{}", err).contains("Backtrace captured at:"));
+        assert!(format!("{err}").contains("std::backtrace")); // Check for actual backtrace content
+        assert!(format!("{err}").contains("Backtrace captured at:"));
 
         if let Some(val) = original_rust_backtrace {
             env::set_var("RUST_BACKTRACE", val);
@@ -4876,7 +5163,7 @@ mod tests {
         #[cfg(not(feature = "std"))]
         assert!(err.backtrace.is_none());
 
-        assert!(!format!("{}", err).contains("stack backtrace"));
+        assert!(!format!("{err}").contains("stack backtrace"));
 
         #[cfg(feature = "std")]
         {
@@ -4896,7 +5183,7 @@ mod tests {
         .with_metadata("id", "123")
         .with_metadata("status", "failed");
 
-        // Access metadata directly from the YoshiContext
+        // Access metadata directly from the YoContext
         let ctx = err
             .primary_context()
             .expect("Should have a primary context");
@@ -4912,7 +5199,7 @@ mod tests {
         assert!(loc.line > 0);
         assert!(loc.column > 0);
         assert_eq!(
-            format!("{}", loc),
+            format!("{loc}"),
             format!("{}:{}:{}", loc.filename(), loc.line, loc.column)
         );
     }
@@ -4931,37 +5218,37 @@ mod tests {
         }
 
         let err = Yoshi::new(YoshiKind::Internal {
-            message: "Operation failed with custom payload".into(),
+            message: "Operation failed with custom shell".into(),
             source: None,
             component: None,
         })
-        .with_payload(CustomErrorPayload {
+        .with_shell(CustomErrorPayload {
             code: 500,
             message: "Internal server error details".into(),
         })
-        .with_payload("a string payload".to_string())
-        .with_payload(42u32);
+        .with_shell("a string shell".to_string())
+        .with_shell(42u32);
 
-        // Access payloads using the more robust `YoshiContext::payload` method
+        // Access payloads using the more robust `Yoshi::shell` method
         let ctx = err
             .primary_context()
             .expect("Should have a primary context");
 
-        let custom_payload = ctx.payload::<CustomErrorPayload>();
+        let custom_payload = ctx.shell::<CustomErrorPayload>();
         assert!(custom_payload.is_some());
         assert_eq!(custom_payload.unwrap().code, 500);
 
-        let string_payload = ctx.payload::<String>();
+        let string_payload = ctx.shell::<String>();
         assert!(string_payload.is_some());
-        assert_eq!(string_payload.unwrap(), &"a string payload".to_string());
+        assert_eq!(string_payload.unwrap(), &"a string shell".to_string());
 
-        let u32_payload = ctx.payload::<u32>();
+        let u32_payload = ctx.shell::<u32>();
         assert!(u32_payload.is_some());
         assert_eq!(*u32_payload.unwrap(), 42);
     }
 
     #[test]
-    fn test_yoshi_context_ext_with_payload_on_result() -> Result<()> {
+    fn test_yoshi_context_ext_with_payload_on_result() {
         #[derive(Debug, PartialEq)]
         struct TransactionId(String);
 
@@ -4974,23 +5261,18 @@ mod tests {
         let result: core::result::Result<u32, NoStdIo> = Err(NoStdIo::new("db write failed"));
 
         let yoshi_result = result
-            .with_payload(TransactionId("tx123".into()))
+            .with_shell(TransactionId("tx123".into()))
             .context("Failed to commit transaction".to_string());
 
         assert!(yoshi_result.is_err());
         let err = yoshi_result.unwrap_err();
 
-        assert!(format!("{}", err).contains("db write failed"));
-        assert!(format!("{}", err).contains("Caused by: Failed to commit transaction")); // Access payload using the corrected `Yoshi::payload` method that searches all contexts
-        let transaction_id = err.payload::<TransactionId>();
+        assert!(format!("{err}").contains("db write failed"));
+        assert!(format!("{err}").contains("Caused by: Failed to commit transaction")); // Access shell using the corrected `Yoshi::shell` method that searches all contexts
+        let transaction_id = err.shell::<TransactionId>();
 
-        assert!(
-            transaction_id.is_some(),
-            "Should find TransactionId payload"
-        );
+        assert!(transaction_id.is_some(), "Should find TransactionId shell");
         assert_eq!(transaction_id.unwrap().0, "tx123".to_string());
-
-        Ok(())
     }
 
     #[test]
@@ -5009,9 +5291,149 @@ mod tests {
             .meta("file_name".to_string(), "file.txt".to_string())
             .unwrap_err();
 
-        let s = format!("{}", err);
+        let s = format!("{err}");
         assert!(s.contains("Failed to open file"));
         assert!(s.contains("Check file path and permissions"));
         assert!(s.contains("file_name: file.txt"));
+    }
+
+    #[test]
+    fn test_hatch_type_alias() {
+        let success: Hatch<u32> = Ok(42);
+        if let Ok(value) = success {
+            assert_eq!(value, 42);
+        } else {
+            panic!("Expected Ok value");
+        }
+
+        let failure: Hatch<u32> = Err(Yoshi::new(YoshiKind::Internal {
+            message: "test error".into(),
+            source: None,
+            component: None,
+        }));
+        assert!(failure.is_err());
+    }
+
+    #[test]
+    fn test_lay_context_trait() {
+        let error = Yoshi::new(YoshiKind::Internal {
+            message: "base error".into(),
+            source: None,
+            component: None,
+        });
+
+        let result: Hatch<()> = Err(error).lay("additional context");
+        assert!(result.is_err());
+
+        let err = result.unwrap_err();
+        assert!(err.to_string().contains("additional context"));
+    }
+
+    #[test]
+    fn test_hatchable_trait() {
+        #[cfg(feature = "std")]
+        {
+            use std::io;
+            let io_result: Result<String, io::Error> =
+                Err(io::Error::new(io::ErrorKind::NotFound, "file not found"));
+            let hatched = io_result.hatch();
+            assert!(hatched.is_err());
+        }
+
+        let string_result: Result<i32, String> = Err("conversion failed".to_string());
+        let hatched = string_result.hatch();
+        assert!(hatched.is_err());
+    }
+
+    #[test]
+    fn test_yoshi_enhanced_methods() {
+        let error = Yoshi::new(YoshiKind::Internal {
+            message: "base error".into(),
+            source: None,
+            component: None,
+        })
+        .lay("operation context");
+
+        // Test laytext method
+        assert_eq!(error.laytext().unwrap(), "operation context");
+
+        // Test nest method (should be None for this error)
+        assert!(error.nest().is_none());
+    }
+
+    #[test]
+    fn test_yum_macro() {
+        let error = Yoshi::new(YoshiKind::Internal {
+            message: "test error for yum".into(),
+            source: None,
+            component: None,
+        })
+        .context("test context")
+        .with_suggestion("try again");
+
+        // yum! macro should not panic and should return the error
+        let returned_error = yum!(error);
+        assert_eq!(returned_error.laytext().unwrap(), "test context");
+        assert_eq!(returned_error.suggestion().unwrap(), "try again");
+    }
+
+    #[test]
+    fn test_hatch_backwards_compatibility() {
+        use core::error::Error;
+
+        let error = Yoshi::new(YoshiKind::Internal {
+            message: "compatibility test".into(),
+            source: None,
+            component: None,
+        });
+
+        // Test that standard Error trait methods still work
+        let error_ref: &dyn Error = &error;
+        assert!(error_ref.source().is_none());
+
+        // Test that new methods work alongside old ones
+        assert!(error.nest().is_none()); // New method
+        assert!(error.laytext().is_none()); // New method (no context added)
+    }
+
+    #[test]
+    fn test_hatch_ecosystem_integration() {
+        // Test complete workflow with all Hatch ecosystem components
+        fn complex_operation() -> Hatch<u32> {
+            #[cfg(feature = "std")]
+            let io_result: Result<String, std::io::Error> = Err(std::io::Error::new(
+                std::io::ErrorKind::PermissionDenied,
+                "access denied",
+            ));
+            #[cfg(not(feature = "std"))]
+            let io_result: Result<String, NoStdIo> = Err(NoStdIo::PermissionDenied);
+
+            io_result
+                .hatch()
+                .lay("while accessing configuration")
+                .context("during system initialization")
+                .map_err(|e| {
+                    e.with_metadata("component", "config_loader")
+                        .with_suggestion("check file permissions")
+                })?;
+
+            Ok(42)
+        }
+
+        let result = complex_operation();
+        assert!(result.is_err());
+
+        let error = result.unwrap_err();
+
+        // Verify thematic methods work
+        assert!(error.laytext().is_some());
+        assert_eq!(error.suggestion().unwrap(), "check file permissions");
+
+        // Verify nest access works
+        assert!(error.nest().is_some());
+
+        // Test yum! macro
+        let debug_error = yum!(error);
+        assert_eq!(debug_error.instance_id(), error.instance_id());
     }
 }
