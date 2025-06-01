@@ -5,7 +5,7 @@
 [![Crates.io](https://img.shields.io/crates/v/yoshi-std.svg)](https://crates.io/crates/yoshi-std)
 [![Documentation](https://docs.rs/yoshi-std/badge.svg)](https://docs.rs/yoshi-std)
 [![License: BSL-1.1](https://img.shields.io/badge/License-BSL--1.1-blue.svg)](LICENSE)
-[![Rust Version](https://img.shields.io/badge/rustc-1.70+-red.svg)](https://blog.rust-lang.org/2023/06/01/Rust-1.70.0.html)
+[![Rust Version](https://img.shields.io/badge/rust-1.87%2B-orange.svg)](https://forge.rust-lang.org/releases.html)
 
 **Core error handling framework with enterprise-grade performance and developer experience optimization.**
 

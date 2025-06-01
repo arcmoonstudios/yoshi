@@ -159,8 +159,12 @@ jobs:
 
       - name: 📖 Check documentation
         run: |
-          echo "Building documentation..."
-          cargo doc --all-features --no-deps
+          echo "Building documentation with diagnostic output..."
+          cargo doc --all-features --no-deps --verbose || {
+            echo "Documentation build failed, checking for errors..."
+            cargo doc --all-features --no-deps --message-format=json | jq 'select(.level=="error")'
+            exit 1
+          }
 
       - name: 📚 Publish documentation
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'

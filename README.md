@@ -3,7 +3,7 @@
 ![Yoshi Logo](assets/YoshiLogo.png)
 
 [![License: BSL-1.1](https://img.shields.io/badge/License-BSL_1.1-blue.svg)](LICENSE)
-[![Rust](https://img.shields.io/badge/rust-1.87+-orange.svg)](https://www.rust-lang.org/)
+[![Rust Version](https://img.shields.io/badge/rust-1.87%2B-orange.svg)](https://forge.rust-lang.org/releases.html)
 [![Build Status](https://img.shields.io/badge/build-passing-green.svg)](https://github.com/arcmoonstudios/yoshi)
 
 > **Enterprise-grade structured error handling for Rust applications with mathematical precision and performance optimization.**
