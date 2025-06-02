@@ -7,12 +7,78 @@
 
 [CmdletBinding()]
 param(
+    [Parameter(Position = 0)]
+    [ValidateSet('init', 'validate')]
+    [string]$Command = 'init',
+
     [switch]$Force     # overwrite existing placeholder files
 )
+
+function ValidateForPublish {
+    Write-Host "► Running crates.io publication validation checks..." -ForegroundColor Cyan
+
+    # Format check
+    Write-Host "`n⚡ Running cargo fmt check..." -ForegroundColor Yellow
+    cargo fmt --all -- --check
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "✖ Format check failed" -ForegroundColor Red
+        return $false
+    }
+
+    # Clippy
+    Write-Host "`n⚡ Running clippy..." -ForegroundColor Yellow
+    cargo clippy --all-targets --all-features -- -D warnings
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "✖ Clippy check failed" -ForegroundColor Red
+        return $false
+    }
+
+    # Tests
+    Write-Host "`n⚡ Running tests..." -ForegroundColor Yellow
+    cargo test --all-features
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "✖ Tests failed" -ForegroundColor Red
+        return $false
+    }
+
+    # Doc tests
+    Write-Host "`n⚡ Running doc tests..." -ForegroundColor Yellow
+    cargo test --doc --all-features
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "✖ Doc tests failed" -ForegroundColor Red
+        return $false
+    }
+
+    # Package verification
+    Write-Host "`n⚡ Validating packages..." -ForegroundColor Yellow
+    foreach ($pkg in @('yoshi-std', 'yoshi-derive', 'yoshi')) {
+        Write-Host "  ► Checking $pkg..." -ForegroundColor Cyan
+        cargo package --no-verify --allow-dirty -p $pkg
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "✖ Package validation failed for $pkg" -ForegroundColor Red
+            return $false
+        }
+    }
+
+    Write-Host "`n✔ All validation checks passed!" -ForegroundColor Green
+    return $true
+}
 
 # ── Locate workspace root ─────────────────────────────────────────────────────
 $RootPath = (Resolve-Path "$PSScriptRoot\..").ProviderPath
 Write-Host "Workspace root  ➜  $RootPath`n"
+
+# ── Main command handling ─────────────────────────────────────────────────────
+switch ($Command) {
+    'init' {
+        # Original init logic continues below...
+    }
+    'validate' {
+        ValidateForPublish
+        if ($LASTEXITCODE -ne 0) { exit 1 }
+        exit 0
+    }
+}
 
 function Touch {
     param(
@@ -22,7 +88,8 @@ function Touch {
     $Abs = Join-Path $RootPath $RelPath
     if (Test-Path $Abs) {
         if ($Force) { Set-Content -Path $Abs -Value $Seed -NoNewline }
-    } else {
+    }
+    else {
         $null = New-Item -ItemType File -Path $Abs -Force
         if ($Seed) { Set-Content -Path $Abs -Value $Seed -NoNewline }
     }
@@ -53,9 +120,9 @@ $Workflows = @(
 
 # ── Crate placeholder files ──────────────────────────────────────────────────
 $Crates = @{
-    'yoshi-std'    = @('Cargo.toml','README.md','src/lib.rs')
-    'yoshi-derive' = @('Cargo.toml','README.md','src/lib.rs')
-    'yoshi'        = @('Cargo.toml','README.md','src/lib.rs')
+    'yoshi-std'    = @('Cargo.toml', 'README.md', 'src/lib.rs')
+    'yoshi-derive' = @('Cargo.toml', 'README.md', 'src/lib.rs')
+    'yoshi'        = @('Cargo.toml', 'README.md', 'src/lib.rs')
 }
 
 # ── Create folders ───────────────────────────────────────────────────────────
@@ -68,7 +135,8 @@ foreach ($d in $Dirs) {
             $null = New-Item -ItemType Directory -Path $Abs
             Write-Host "  ± $d (reset)"
         }
-    } else {
+    }
+    else {
         $null = New-Item -ItemType Directory -Path $Abs -Force
         Write-Host "  + $d"
     }
