@@ -10,9 +10,7 @@ description = "Core, std-only error type for the Yoshi framework."
 keywords = ["error", "error-handling", "yoshi", "std-only", "no-std"]
 categories = [
     "development-tools",
-    "debugging",
     "rust-patterns",
-    "error-handling",
 ]
 
 [dependencies]
