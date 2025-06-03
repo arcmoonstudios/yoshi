@@ -1,5 +1,5 @@
-# Fast Release Workflow - Validates release builds
-name: Fast Release
+# Official Release Workflow - Follows PUBLISHING.md Guidelines
+name: Official Release
 
 on:
   push:
@@ -7,34 +7,73 @@ on:
   workflow_dispatch:
 
 jobs:
-  validate-release:
-    name: 🚀 Validate Release Build
+  validate-and-publish:
+    name: 🚀 Validate & Publish to crates.io
     runs-on: ubuntu-latest
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
 
-      - name: 🦀 Install Rust (cached)
+      - name: 🦀 Install Rust (stable)
         uses: dtolnay/rust-toolchain@stable
 
       - name: 📦 Cache dependencies
         uses: swatinem/rust-cache@v2
         with:
-          shared-key: "release-validation"
+          shared-key: "release-publish"
           cache-on-failure: true
 
-      - name: 🔨 Build Release
-        run: cargo build --release --all-targets
-        env:
-          CARGO_TERM_COLOR: always
-
-      - name: 🧪 Test Release
-        run: cargo test --release --all-targets
-        env:
-          CARGO_TERM_COLOR: always
-
-      - name: ✅ Release Validation Complete
+      - name: 🔍 Prerequisites Check
         run: |
-          echo "✅ Release build validation completed successfully!"
-          echo "📦 All crates built and tested in release mode"
-          echo "🚀 Release ${{ github.ref_name }} is ready!"
+          echo "🧪 Running all tests..."
+          cargo test --workspace
+          echo "🔨 Building in release mode..."
+          cargo build --release
+          echo "📎 Running clippy checks..."
+          cargo clippy --all-targets --all-features -- -D warnings
+          echo "📚 Building documentation..."
+          cargo doc --all-features --no-deps
+        env:
+          CARGO_TERM_COLOR: always
+
+      - name: 📦 Publish yoshi-std
+        run: |
+          echo "📦 Publishing yoshi-std..."
+          cd yoshi-std
+          cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        env:
+          CARGO_TERM_COLOR: always
+
+      - name: ⏳ Wait for yoshi-std availability
+        run: |
+          echo "⏳ Waiting for yoshi-std to be available on crates.io..."
+          sleep 30
+
+      - name: 📦 Publish yoshi-derive
+        run: |
+          echo "📦 Publishing yoshi-derive..."
+          cd yoshi-derive
+          cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        env:
+          CARGO_TERM_COLOR: always
+
+      - name: ⏳ Wait for yoshi-derive availability
+        run: |
+          echo "⏳ Waiting for yoshi-derive to be available on crates.io..."
+          sleep 30
+
+      - name: 📦 Publish yoshi
+        run: |
+          echo "📦 Publishing yoshi..."
+          cd yoshi
+          cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        env:
+          CARGO_TERM_COLOR: always
+
+      - name: ✅ Publication Complete
+        run: |
+          echo "✅ All Yoshi crates published successfully!"
+          echo "📦 yoshi-std ${{ github.ref_name }}"
+          echo "📦 yoshi-derive ${{ github.ref_name }}"
+          echo "📦 yoshi ${{ github.ref_name }}"
+          echo "🚀 Release ${{ github.ref_name }} is live on crates.io!"
