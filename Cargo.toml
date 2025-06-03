@@ -24,13 +24,43 @@ panic = "unwind"
 [profile.dev.package."yoshi-std"] # micro-optimise hot crate
 opt-level = 2
 
-[profile.release] # production artefacts
-opt-level = "z"   # size-optimised but keeps perf high
-lto = "thin"
-codegen-units = 1 # maximise cross-crate inlining
-panic = "abort"
+# Enterprise-grade release profile for maximum performance
+[profile.release]
+opt-level = 3           # Maximum optimization level for performance-critical error handling
+lto = "fat"             # Full LTO for maximum cross-crate optimization
+codegen-units = 1       # Maximize cross-crate inlining and optimization
+panic = "abort"         # Smaller binaries, faster unwinding
+debug = false           # No debug info in release
+strip = "symbols"       # Strip symbols for smaller binaries
+rpath = false           # Disable rpath for security
+
+# Performance-optimized release with debug info (for profiling)
+[profile.release-with-debug]
+inherits = "release"
+debug = 1               # Line tables only for profiling
+strip = "none"          # Keep symbols for profiling tools
+
+# Size-optimized release profile
+[profile.release-small]
+inherits = "release"
+opt-level = "z"         # Optimize for size
+lto = "thin"            # Balanced LTO for size/compile time
+
+# Benchmark-specific optimizations
+[profile.bench]
+opt-level = 3           # Maximum performance for benchmarks
+lto = "fat"             # Full LTO for accurate benchmarking
+codegen-units = 1       # Single codegen unit for consistency
 debug = false
-strip = "symbols"
+panic = "abort"
+overflow-checks = false # Disable for pure performance measurement
+
+# Test profile with some optimizations for faster test execution
+[profile.test]
+opt-level = 1           # Some optimization for faster test execution
+debug = true            # Keep debug info for test failures
+overflow-checks = true  # Keep safety checks in tests
+incremental = true      # Faster test compilation
 
 # Workspace dependencies for benchmarking
 [workspace.dependencies]

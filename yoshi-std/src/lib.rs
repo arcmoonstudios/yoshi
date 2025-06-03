@@ -1,5 +1,4 @@
 /* yoshi/yoshi-std/src/lib.rs */
-#![cfg_attr(docsrs, feature(doc_cfg))]
 #![allow(dead_code)]
 #![warn(clippy::all)]
 #![warn(missing_docs)]
@@ -699,7 +698,6 @@ pub struct ContextAnalysis {
 /// let error_result = divide(10.0, 0.0);
 /// assert!(error_result.is_err());
 /// ```
-#[cfg_attr(docsrs, doc(cfg(feature = "std")))]
 #[cfg(feature = "std")]
 pub type Result<T, E = Yoshi> = std::result::Result<T, E>;
 #[cfg(not(feature = "std"))]
@@ -1156,7 +1154,6 @@ impl core::fmt::Display for NoStdIoKind {
 /// when messages are repeated or shared.
 #[cfg(not(feature = "std"))]
 #[derive(Debug, Clone)]
-#[cfg_attr(docsrs, doc(cfg(not(feature = "std"))))]
 pub enum NoStdIo {
     /// Generic I/O error with optimized string storage.
     GenericIo(Arc<str>),

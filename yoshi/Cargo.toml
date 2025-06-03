@@ -1,8 +1,8 @@
 [package]
 name = "yoshi"
-version = "0.1.3"
+version = "0.1.4"
 edition = "2021"
-# rust-version = "1.87.0"  # MSRV - Disabled for docs.rs compatibility
+rust-version = "1.87.0"                                               # MSRV - Disabled for docs.rs compatibility
 authors = ["Lord Xyn <LordXyn@proton.me>"]
 repository = "https://github.com/arcmoonstudios/yoshi"
 license = "MIT OR Apache-2.0"
@@ -48,3 +48,9 @@ smart-diagnostics = ["unstable-smart-diagnostics", "rust-1-87"]
 cross-process = ["pipe", "serde"]
 performance-monitoring = ["rust-1-87"]
 cli = ["std"]
+
+# Performance optimizations for facade crate
+[profile.release.package.yoshi]
+opt-level = 3           # Maximum optimization for facade
+codegen-units = 1       # Single unit for maximum inlining
+overflow-checks = false # Disable for performance
