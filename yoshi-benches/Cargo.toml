@@ -65,17 +65,16 @@ opt-level = 3           # Maximum optimization for accurate benchmarking
 codegen-units = 1       # Single unit for consistency
 overflow-checks = false # Disable for pure performance measurement
 debug = false           # No debug overhead in benchmarks
-lto = true              # Enable LTO for benchmark dependencies
 
 # Additional benchmark profiles for different scenarios
 [profile.bench-fast-compile]
 inherits = "bench"
-opt-level = 2           # Slightly lower optimization for faster compilation
-lto = "thin"            # Thinner LTO for faster builds
+opt-level = 2      # Slightly lower optimization for faster compilation
+lto = "thin"       # Thinner LTO for faster builds
 
 [profile.bench-size]
 inherits = "bench"
-opt-level = "z"         # Size optimization for memory benchmark accuracy
+opt-level = "z"    # Size optimization for memory benchmark accuracy
 
 [dev-dependencies]
 criterion = { version = "0.6.0", features = [
