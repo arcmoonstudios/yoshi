@@ -54,7 +54,6 @@ eyre = { version = "0.6.12", optional = true }
 snafu = { version = "0.8.6", optional = true }
 thiserror = { version = "2.0.12", optional = true }
 
-
 [features]
 default = ["comparison"]
 comparison = ["dep:thiserror", "dep:anyhow", "dep:eyre", "dep:snafu"]

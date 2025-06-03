@@ -36,6 +36,19 @@ unstable-smart-diagnostics = []
 name = "yoshi_std"
 path = "src/lib.rs"
 
-# docs.rs specific configuration for nightly compatibility
+# docs.rs specific configuration for robust builds
 [package.metadata.docs.rs]
-all-features = true
+rustc-args = ["--cap-lints=warn"]
+features = [
+    "default",
+    "std",
+    "serde",
+    "tracing",
+    "async",
+    "unstable-metrics",
+    "unstable-auto-fix",
+    "unstable-smart-diagnostics",
+]
+no-default-features = false
+rustdoc-args = ["--cfg", "docsrs"]
+targets = ["x86_64-unknown-linux-gnu"]

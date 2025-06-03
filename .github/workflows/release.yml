@@ -47,7 +47,7 @@ jobs:
       - name: ⏳ Wait for yoshi-std availability
         run: |
           echo "⏳ Waiting for yoshi-std to be available on crates.io..."
-          sleep 30
+          sleep 10
 
       - name: 📦 Publish yoshi-derive
         run: |
@@ -60,7 +60,7 @@ jobs:
       - name: ⏳ Wait for yoshi-derive availability
         run: |
           echo "⏳ Waiting for yoshi-derive to be available on crates.io..."
-          sleep 30
+          sleep 10
 
       - name: 📦 Publish yoshi
         run: |

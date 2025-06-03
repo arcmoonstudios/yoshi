@@ -9,14 +9,6 @@
 [![CI](https://github.com/arcmoonstudios/yoshi/workflows/CI/badge.svg)](https://github.com/arcmoonstudios/yoshi/actions)
 [![Coverage](https://codecov.io/gh/arcmoonstudios/yoshi/branch/main/graph/badge.svg)](https://codecov.io/gh/arcmoonstudios/yoshi)
 
-**A unified facade crate for the Yoshi enterprise error handling framework, offering zero-cost abstractions and compile-time optimizations for robust and scalable error management.**
-
-## ArcMoon Studios Enterprise
-
-> 🌙 ArcMoon Studios - Where precision meets innovation in **software reliability** and **error management** 🌙
->
-> *Enterprise-grade Rust solutions for mission-critical applications*
-
 ---
 
 ## Overview

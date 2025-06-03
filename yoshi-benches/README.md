@@ -9,6 +9,8 @@
 [![CI](https://github.com/arcmoonstudios/yoshi/workflows/CI/badge.svg)](https://github.com/arcmoonstudios/yoshi/actions)
 [![Coverage](https://codecov.io/gh/arcmoonstudios/yoshi/branch/main/graph/badge.svg)](https://codecov.io/gh/arcmoonstudios/yoshi)
 
+---
+
 **A comprehensive performance benchmarking suite for the Yoshi enterprise error handling framework, offering mathematical precision and empirical validation against industry-standard alternatives.**
 
 ## ArcMoon Studios Enterprise
