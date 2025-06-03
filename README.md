@@ -181,7 +181,7 @@ Mathematical comparison of Rust error handling frameworks
 | eyre | 51 ns/op | **8 bytes** | 55 ns/op | - | 773 ns/op |
 | snafu | 74 ns/op | **8 bytes** | - | **49 ns/op** | - |
 
-_Note: Each framework has different trade-offs between features and performance_
+> **Note:** Each framework has different trade-offs between features and performance
 
 ```bash
 # View complete analysis reports
@@ -191,7 +191,7 @@ open analysis_reports/comprehensive_analysis.html  # Interactive dashboard
 
 #### **Interactive Analysis Dashboard**
 
-*HTML-based comprehensive framework comparison**
+_*HTML-based comprehensive framework comparison**
 
 ```html
 <!-- Generated analysis dashboard with real-time metrics -->
