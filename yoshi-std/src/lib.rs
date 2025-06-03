@@ -3461,13 +3461,13 @@ impl Yoshi {
     ///
     /// let err = Yoshi::new(YoshiKind::Io(std::io::Error::new(std::io::ErrorKind::PermissionDenied, "file access denied")))
     ///     .with_suggestion("Check file permissions or path.");
-    ///
-    /// assert!(err.suggestion().as_deref() == Some("Check file permissions or path."));
+    ///    /// assert!(err.suggestion().as_deref() == Some("Check file permissions or path."));
     /// ```
     ///
     /// # Panics
     ///
-    /// This method may panic if the context storage fails, though this is extremely unlikely.    #[inline]
+    /// This method may panic if the context storage fails, though this is extremely unlikely.
+    #[inline]
     #[track_caller]
     #[must_use]
     pub fn with_suggestion(mut self, s: impl Into<String>) -> Self {
