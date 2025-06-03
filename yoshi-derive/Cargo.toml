@@ -1,11 +1,11 @@
 [package]
 name = "yoshi-derive"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 rust-version = "1.87.0"
 authors = ["Lord Xyn <LordXyn@proton.me>"]
 repository = "https://github.com/arcmoonstudios/yoshi"
-license-file = "../LICENSE"
+license = "MIT OR Apache-2.0"
 description = "Procedural-macro helpers for deriving Yoshi errors."
 keywords = ["proc-macro", "error", "derive", "error-handling", "yoshi"]
 categories = ["development-tools", "rust-patterns"]
@@ -20,4 +20,4 @@ proc-macro2 = "1.0.95"
 quote = "1.0.40"
 regex = "1.11.1"
 syn = { version = "2.0.101", features = ["full", "extra-traits", "derive"] }
-yoshi-std = { version = "0.1.1", path = "../yoshi-std" }
+yoshi-std = { path = "../yoshi-std" }

@@ -17,7 +17,7 @@
 #!  - Rollback capability for failed upgrade operations
 #!  - Performance monitoring and execution time tracking
 # ~=####====A===r===c===M===o===o===n====S===t===u===d===i===o===s====X|0|$>
-#! 
+#!
 #! ## Mathematical Properties
 #!
 #! **Algorithmic Complexity:**
@@ -31,16 +31,16 @@
 #! - Optimization Opportunities: Parallel dependency resolution
 #!
 # **GitHub:** [ArcMoon Studios](https://github.com/arcmoonstudios)
-# **Copyright:** (c) 2025 ArcMoon Studios  
+# **Copyright:** (c) 2025 ArcMoon Studios
 # **Author:** Lord Xyn
-# **License:** Business Source License 1.1 (BSL-1.1)
+# **License:** MIT OR Apache-2.0
 # **License File:** /LICENSE
-# **License Terms:** Non-production use only; commercial/production use requires paid license.
-# **Effective Date:** 2025-05-25 | **Change License:** GPL v3
+# **License Terms:** Full open source freedom; dual licensing allows choice between MIT and Apache 2.0
+# **Effective Date:** 2025-05-30 | **Open Source Release**
 # **Contact:** LordXyn@proton.me
 # **Quality Certification:** Elite Level (≥99.99% composite score)
 # **Agent Mode:** Enhanced with mathematical optimization
-# **Last Validation:** 2025-05-29
+# **Last Validation:** 2025-06-02
 
 set -euo pipefail  # Enhanced error handling
 
@@ -69,7 +69,7 @@ log_message() {
     local color="$3"
     local timestamp
     timestamp=$(date '+%H:%M:%S.%3N')
-    
+
     local prefix
     case "$level" in
         "success") prefix="✅" ;;
@@ -78,7 +78,7 @@ log_message() {
         "info")    prefix="ℹ️ " ;;
         *)         prefix="📝" ;;
     esac
-    
+
     echo -e "${color}[$timestamp] $prefix $message${COLOR_RESET}"
 }
 
@@ -143,22 +143,22 @@ EOF
 # Git safety check function
 check_git_safety() {
     log_message "info" "Checking for uncommitted changes in Cargo.toml..." "$COLOR_INFO"
-    
+
     if ! command -v git >/dev/null 2>&1; then
         log_message "warning" "Git not found. Skipping git safety check." "$COLOR_WARNING"
         return 0
     fi
-    
+
     local changes
     changes=$(git status --porcelain Cargo.toml 2>/dev/null | wc -l) || {
         log_message "warning" "Not a git repository or git error. Skipping git safety check." "$COLOR_WARNING"
         return 0
     }
-    
+
     if [[ $changes -gt 0 ]]; then
         log_message "warning" "Uncommitted changes detected in Cargo.toml:" "$COLOR_WARNING"
         git status --porcelain Cargo.toml
-        
+
         if [[ "$FORCE_MODE" != "true" && "$SKIP_GIT_CHECK" != "true" ]]; then
             log_message "error" "Upgrade cancelled for safety. Use --force to override or commit changes first." "$COLOR_ERROR"
             log_message "info" "💡 Recommended: git add Cargo.toml && git commit -m 'Pre-upgrade snapshot'" "$COLOR_INFO"
@@ -167,7 +167,7 @@ check_git_safety() {
             log_message "warning" "Proceeding with upgrade despite uncommitted changes (Force mode)." "$COLOR_WARNING"
         fi
     fi
-    
+
     log_message "success" "Git safety check passed." "$COLOR_SUCCESS"
     return 0
 }
@@ -175,18 +175,18 @@ check_git_safety() {
 # Cargo-edit installation verification
 check_cargo_edit_installation() {
     log_message "info" "Verifying cargo-edit installation..." "$COLOR_INFO"
-    
+
     if command -v cargo-upgrade >/dev/null 2>&1; then
         log_message "success" "cargo-upgrade is available." "$COLOR_SUCCESS"
         return 0
     else
         log_message "warning" "cargo-upgrade not found. Installing cargo-edit..." "$COLOR_WARNING"
-        
+
         if [[ "$DRY_RUN" == "true" ]]; then
             log_message "info" "[DRY RUN] Would install cargo-edit" "$COLOR_INFO"
             return 0
         fi
-        
+
         if cargo install cargo-edit --quiet; then
             log_message "success" "cargo-edit installed successfully." "$COLOR_SUCCESS"
             return 0
@@ -201,7 +201,7 @@ check_cargo_edit_installation() {
 get_dependency_snapshot() {
     local description="$1"
     log_message "info" "$description" "$COLOR_INFO"
-    
+
     if cargo tree --depth 1 2>/dev/null; then
         return 0
     else
@@ -215,22 +215,22 @@ execute_dependency_upgrade() {
     log_message "info" "🚀 Starting ArcMoon Studios Enterprise Dependency Upgrade" "$COLOR_INFO"
     log_message "info" "Project: $PROJECT_NAME" "$COLOR_INFO"
     log_message "info" "Timestamp: $LOG_TIMESTAMP" "$COLOR_INFO"
-    
+
     # Phase 1: Safety checks
     if ! check_git_safety; then
         return 1
     fi
-    
+
     if ! check_cargo_edit_installation; then
         return 1
     fi
-    
+
     # Phase 2: Pre-upgrade snapshot
     get_dependency_snapshot "📊 Current dependency snapshot:"
-    
+
     # Phase 3: Execute upgrade
     log_message "info" "🔄 Executing dependency upgrade..." "$COLOR_INFO"
-    
+
     if [[ "$DRY_RUN" == "true" ]]; then
         log_message "info" "[DRY RUN] Would execute: cargo upgrade" "$COLOR_INFO"
     else
@@ -241,15 +241,15 @@ execute_dependency_upgrade() {
             return 1
         fi
     fi
-    
+
     # Phase 4: Post-upgrade snapshot
     if [[ "$DRY_RUN" != "true" ]]; then
         get_dependency_snapshot "📊 Updated dependency snapshot:"
     fi
-    
+
     # Phase 5: Validation
     log_message "info" "🔍 Validating upgraded dependencies..." "$COLOR_INFO"
-    
+
     if [[ "$DRY_RUN" == "true" ]]; then
         log_message "info" "[DRY RUN] Would execute: cargo check" "$COLOR_INFO"
     else
@@ -260,7 +260,7 @@ execute_dependency_upgrade() {
             log_message "info" "💡 Consider running 'cargo update' or checking for breaking changes." "$COLOR_INFO"
         fi
     fi
-    
+
     return 0
 }
 
@@ -270,7 +270,7 @@ show_execution_summary() {
     local duration
     end_time=$(date +%s)
     duration=$((end_time - START_TIME))
-    
+
     log_message "info" "⚡ Execution Summary:" "$COLOR_INFO"
     log_message "info" "Duration: ${duration} seconds" "$COLOR_INFO"
     log_message "info" "Completed: $(date '+%Y-%m-%d %H:%M:%S')" "$COLOR_INFO"
@@ -280,17 +280,17 @@ show_execution_summary() {
 cleanup() {
     local exit_code=$?
     show_execution_summary
-    
+
     if [[ $exit_code -eq 0 ]]; then
         log_message "success" "🎉 ArcMoon Studios Enterprise Upgrade completed successfully!" "$COLOR_SUCCESS"
     else
         log_message "error" "💥 ArcMoon Studios Enterprise Upgrade failed!" "$COLOR_ERROR"
     fi
-    
+
     echo ""
     echo -e "${COLOR_INFO}🌙 ArcMoon Studios Enterprise - Mathematical Precision in Every Operation${COLOR_RESET}"
     echo ""
-    
+
     exit $exit_code
 }
 
@@ -302,13 +302,13 @@ trap 'log_message "error" "Script interrupted by user" "$COLOR_ERROR"; exit 130'
 main() {
     # Parse arguments
     parse_arguments "$@"
-    
+
     # Header
     echo ""
     echo -e "${COLOR_INFO}🌙 ArcMoon Studios Enterprise Dependency Upgrade System${COLOR_RESET}"
     echo -e "${COLOR_INFO}================================================${COLOR_RESET}"
     echo ""
-    
+
     # Environment validation
     if [[ "${CARGO_ARCMOON_UPGRADE:-}" != "true" && "$FORCE_MODE" != "true" ]]; then
         log_message "warning" "CARGO_ARCMOON_UPGRADE environment variable not set." "$COLOR_WARNING"
@@ -316,7 +316,7 @@ main() {
         log_message "info" "Example: CARGO_ARCMOON_UPGRADE=true $0" "$COLOR_INFO"
         exit 1
     fi
-    
+
     # Execute upgrade
     execute_dependency_upgrade
 }

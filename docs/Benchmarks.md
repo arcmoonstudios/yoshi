@@ -33,9 +33,9 @@
 **GitHub:** [ArcMoon Studios](https://github.com/arcmoonstudios)
 **Copyright:** (c) 2025 ArcMoon Studios
 **Author:** Lord Xyn
-**License:** Business Source License 1.1 (BSL-1.1)
-**License Terms:** Non-production use only; commercial/production use requires paid license.
-**Effective Date:** 2025-05-25 | **Change License:** GPL v3
+**License:** MIT OR Apache-2.0
+**License Terms:** Full open source freedom; dual licensing allows choice between MIT and Apache 2.0.
+**Effective Date:** 2025-05-30 | **Open Source Release**
 **License File:** /LICENSE
 **Contact:** <LordXyn@proton.me>
 **Last Validation:** 2025-01-27

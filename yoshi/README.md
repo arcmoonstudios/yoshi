@@ -5,7 +5,7 @@
 [![Crates.io](https://img.shields.io/crates/v/yoshi.svg)](https://crates.io/crates/yoshi)
 [![Docs.rs](https://docs.rs/yoshi/badge.svg)](https://docs.rs/yoshi)
 [![Rust Version](https://img.shields.io/badge/rust-1.87%2B-blue.svg)](https://www.rust-lang.org)
-[![License](https://img.shields.io/badge/license-BSL--1.1-blue)](../LICENSE)
+[![License: MIT OR Apache-2.0](https://img.shields.io/badge/License-MIT%20OR%20Apache--2.0-blue.svg)](../LICENSE)
 [![CI](https://github.com/arcmoonstudios/yoshi/workflows/CI/badge.svg)](https://github.com/arcmoonstudios/yoshi/actions)
 [![Coverage](https://codecov.io/gh/arcmoonstudios/yoshi/branch/main/graph/badge.svg)](https://codecov.io/gh/arcmoonstudios/yoshi)
 
@@ -434,21 +434,16 @@ Security is paramount for enterprise applications. See our [Security Policy][sec
 
 ## License
 
-This project is licensed under the **Business Source License 1.1 (BSL-1.1)**.
+Licensed under either of
 
-### License Summary
++ Apache License, Version 2.0 ([LICENSE-APACHE](../LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)
++ MIT License ([LICENSE-MIT](../LICENSE-MIT) or http://opensource.org/licenses/MIT)
 
-+ **✅ Development and Testing**: Free for non-production use, research, and evaluation.
-+ **⚠️ Production Use**: Requires a commercial license for production deployments.
-+ **📅 License Change**: Automatically converts to GPL v3 on **2025-05-25**.
-+ **💼 Commercial Licensing**: Contact [LordXyn@proton.me](mailto:LordXyn@proton.me) for enterprise licensing.
+at your option.
 
-### Key Permissions
+### Contribution
 
-+ ✅ Private use and modification
-+ ✅ Distribution with license preservation
-+ ✅ Patent use (with limitations)
-+ ❌ Commercial production use without license
+Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in the work by you, as defined in the Apache-2.0 license, shall be dual licensed as above, without any additional terms or conditions.
 
 See the [LICENSE][license] file for complete terms and conditions.
 

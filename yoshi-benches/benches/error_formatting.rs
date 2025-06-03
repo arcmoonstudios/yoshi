@@ -30,13 +30,13 @@
 // ~=####====A===r===c===M===o===o===n====S===t===u===d===i===o===s====X|0|$>
 // **GitHub:** [ArcMoon Studios](https://github.com/arcmoonstudios)
 // **Copyright:** (c) 2025 ArcMoon Studios
-// **License:** Business Source License 1.1 (BSL-1.1)
-// **License Terms:** Non-production use only; commercial/production use requires paid license.
-// **Effective Date:** 2025-05-25 | **Change License:** GPL v3
+// **License:** MIT OR Apache-2.0
+// **License Terms:** Full open source freedom; dual licensing allows choice between MIT and Apache 2.0.
+// **Effective Date:** 2025-06-02 | **Open Source Release|2025-06-02 | **Open Source Release
 // **License File:** /LICENSE
 // **Contact:** LordXyn@proton.me
 // **Author:** Lord Xyn
-// **Last Validation:** 2025-05-30
+// **Last Validation:** 2025-06-02
 
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use std::hint::black_box;
@@ -106,7 +106,7 @@ fn bench_formatting_with_contexts(c: &mut Criterion) {
             error = error
                 .context(format!("Context layer {i}").to_string()) // Direct format argument
                 .with_metadata("layer", i.to_string())
-                .with_metadata("timestamp", "2025-05-30T12:00:00Z")
+                .with_metadata("timestamp", "2025-06-02T12:00:00Z")
                 .with_metadata("request_id", format!("req_{i}").to_string()) // Direct format argument
                 .with_suggestion(format!("Try approach {i} for resolution").to_string());
             // Direct format argument

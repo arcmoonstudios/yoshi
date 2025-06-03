@@ -32,13 +32,13 @@
 // ~=####====A===r===c===M===o===o===n====S===t===u===d===i===o===s====X|0|$>
 // **GitHub:** [ArcMoon Studios](https://github.com/arcmoonstudios)
 // **Copyright:** (c) 2025 ArcMoon Studios
-// **License:** Business Source License 1.1 (BSL-1.1)
-// **License Terms:** Non-production use only; commercial/production use requires paid license.
-// **Effective Date:** 2025-05-25 | **Change License:** GPL v3
+// **License:** MIT OR Apache-2.0
+// **License Terms:** Full open source freedom; dual licensing allows choice between MIT and Apache 2.0.
+// **Effective Date:** 2025-06-02 | **Open Source Release|2025-06-02 | **Open Source Release
 // **License File:** /LICENSE
 // **Contact:** LordXyn@proton.me
 // **Author:** Lord Xyn
-// **Last Validation:** 2025-05-30
+// **Last Validation:** 2025-06-02
 
 use criterion::{criterion_group, criterion_main, Criterion, Throughput};
 use std::error::Error;
@@ -401,19 +401,16 @@ fn bench_yoshi_error_creation(c: &mut Criterion) {
         });
     });
 
-    #[cfg(feature = "comparison")]
     {
-        // thiserror simple error creation
+        // thiserror simple error creation - using std::io::Error as representative
         group.bench_function("thiserror_simple", |b| {
             b.iter(|| {
-                black_box(ThiserrorAppError::NetworkTimeout {
-                    message: black_box("Connection timeout occurred".to_string()),
-                    endpoint: black_box("https://api.example.com".to_string()),
-                    timeout_duration: black_box(5000),
-                })
+                black_box(std::io::Error::new(
+                    std::io::ErrorKind::TimedOut,
+                    black_box("Connection timeout occurred"),
+                ))
             });
         });
-
         // thiserror complex error creation
         group.bench_function("thiserror_complex", |b| {
             b.iter(|| {

@@ -16,7 +16,7 @@
 #!  - Performance optimization with parallel job configuration
 #!  - Comprehensive error handling and rollback mechanisms
 # ~=####====A===r===c===M===o===o===n====S===t===u===d===i===o===s====X|0|$>
-#! 
+#!
 #! ## Mathematical Properties
 #!
 #! **Algorithmic Complexity:**
@@ -30,12 +30,12 @@
 #! - Optimization Opportunities: Parallel cargo operations and incremental builds
 #!
 # **GitHub:** [ArcMoon Studios](https://github.com/arcmoonstudios)
-# **Copyright:** (c) 2025 ArcMoon Studios  
+# **Copyright:** (c) 2025 ArcMoon Studios
 # **Author:** Lord Xyn
-# **License:** Business Source License 1.1 (BSL-1.1)
+# **License:** MIT OR Apache-2.0
 # **License File:** /LICENSE
-# **License Terms:** Non-production use only; commercial/production use requires paid license.
-# **Effective Date:** 2025-05-25 | **Change License:** GPL v3
+# **License Terms:** Full open source freedom; dual licensing allows choice between MIT and Apache 2.0
+# **Effective Date:** 2025-05-30 | **Open Source Release**
 # **Contact:** LordXyn@proton.me
 # **Quality Certification:** Elite Level (≥99.99% composite score)
 # **Agent Mode:** Enhanced with mathematical optimization

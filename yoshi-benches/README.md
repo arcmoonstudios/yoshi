@@ -5,7 +5,7 @@
 [![Crates.io](https://img.shields.io/crates/v/yoshi.svg)](https://crates.io/crates/yoshi)
 [![Docs.rs](https://docs.rs/yoshi/badge.svg)](https://docs.rs/yoshi)
 [![Rust Version](https://img.shields.io/badge/rust-1.87%2B-blue.svg)](https://www.rust-lang.org)
-[![License](https://img.shields.io/badge/license-BSL--1.1-blue)](../LICENSE)
+[![License: MIT OR Apache-2.0](https://img.shields.io/badge/License-MIT%20OR%20Apache--2.0-blue.svg)](../LICENSE)
 [![CI](https://github.com/arcmoonstudios/yoshi/workflows/CI/badge.svg)](https://github.com/arcmoonstudios/yoshi/actions)
 [![Coverage](https://codecov.io/gh/arcmoonstudios/yoshi/branch/main/graph/badge.svg)](https://codecov.io/gh/arcmoonstudios/yoshi)
 
@@ -345,17 +345,22 @@ We welcome contributions to `yoshi-benches`! Please read our [Contributing Guide
 
 ## License
 
-This project is licensed under the [Business Source License 1.1](../LICENSE).
+This project is licensed under either of
+
++ Apache License, Version 2.0 ([LICENSE-APACHE](../LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)
++ MIT License ([LICENSE-MIT](../LICENSE-MIT) or http://opensource.org/licenses/MIT)
+
+at your option.
 
 ### License Summary for `yoshi-benches`
 
-+ ✅ **Non-commercial Use**: Free for non-production use, research, development, testing, and *performance analysis*.
-+ ✅ **Performance Analysis**: Unrestricted use for validating performance, benchmarking, and identifying regressions, even when used in conjunction with a commercial `yoshi` deployment.
-+ ⚠️ **Production Use**: The code within this crate is not intended for direct production deployment. Its purpose is solely for benchmarking the `yoshi` framework.
-+ 📅 **License Change**: Automatically converts to GPL v3 on **2029-05-30** (48 months from Last Validation).
-+ 💼 **Commercial Licensing**: Contact [LordXyn@proton.me](mailto:LordXyn@proton.me) for enterprise licensing related to the core `yoshi` framework.
++ ✅ **Full Commercial Freedom**: Complete freedom for commercial use, production deployment, and enterprise integration
++ ✅ **Performance Analysis**: Unrestricted use for validating performance, benchmarking, and identifying regressions
++ ✅ **Production Use**: Full production deployment rights under dual MIT/Apache 2.0 licensing
++ 🌟 **Open Source**: Complete open source freedom with standard Rust ecosystem licensing
++ 💼 **Enterprise Ready**: No licensing restrictions for enterprise deployment and integration
 
-See the [LICENSE][license] file for complete terms and conditions.
+See the [LICENSE](../LICENSE) file for complete terms and conditions.
 
 ---
 
@@ -365,7 +370,6 @@ See the [LICENSE][license] file for complete terms and conditions.
 [benchmark-analysis]: ../docs/benchmark-analysis.md
 [examples]: ../examples/
 [contributing]: ../CONTRIBUTING.md
-[license]: ../LICENSE
 
 <!-- Footer -->
 🌙 ArcMoon Studios - Where precision meets innovation in error handling technology 🌙

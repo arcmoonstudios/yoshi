@@ -3,7 +3,7 @@
 [![Crates.io](https://img.shields.io/crates/v/{crate-name}.svg)](https://crates.io/crates/{crate-name})
 [![Docs.rs](https://docs.rs/{crate-name}/badge.svg)](https://docs.rs/{crate-name})
 [![Rust Version](https://img.shields.io/badge/rust-1.70%2B-blue.svg)](https://www.rust-lang.org)
-[![License](https://img.shields.io/badge/license-BSL--1.1-blue)](../LICENSE)
+[![License: MIT OR Apache-2.0](https://img.shields.io/badge/License-MIT%20OR%20Apache--2.0-blue.svg)](../LICENSE)
 [![CI](https://github.com/arcmoonstudios/yoshi/workflows/CI/badge.svg)](https://github.com/arcmoonstudios/yoshi/actions)
 [![Coverage](https://codecov.io/gh/arcmoonstudios/yoshi/branch/main/graph/badge.svg)](https://codecov.io/gh/arcmoonstudios/yoshi)
 
@@ -81,15 +81,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let instance = PrimaryType::new()
         .with_optimization_level(OptimizationLevel::Balanced)
         .build()?;
-    
+
     // Core functionality demonstration
     let result = instance.process_data(&input_data)?;
-    
+
     // Performance monitoring (optional)
     if cfg!(feature = "telemetry") {
         println!("Processing completed in: {:?}", result.execution_time());
     }
-    
+
     Ok(())
 }
 ```
@@ -110,21 +110,21 @@ fn enterprise_setup() -> Result<ProcessingEngine, ConfigurationError> {
         .memory_pool_size(1024 * 1024) // 1MB pool
         .worker_threads(num_cpus::get())
         .build()?;
-    
+
     ProcessingEngine::from_config(config)
 }
 
 #[tokio::main]
 async fn async_processing() -> Result<(), ProcessingError> {
     let engine = enterprise_setup()?;
-    
+
     // Parallel processing with automatic load balancing
     let results = engine
         .process_batch(&data_stream)
         .with_timeout(Duration::from_secs(30))
         .with_retry_policy(RetryPolicy::ExponentialBackoff)
         .await?;
-    
+
     // Stream results with backpressure handling
     while let Some(result) = results.next().await {
         match result {
@@ -132,7 +132,7 @@ async fn async_processing() -> Result<(), ProcessingError> {
             Err(err) => handle_error(err).await?,
         }
     }
-    
+
     Ok(())
 }
 ```
@@ -200,7 +200,7 @@ Error Recovery         |     1.85     |        540,540       |     2.1
 ### Complexity Analysis
 
 + **Time Complexity**: O(1) for core operations, O(n log n) for batch processing
-+ **Space Complexity**: O(1) constant memory overhead, O(n) for buffered operations  
++ **Space Complexity**: O(1) constant memory overhead, O(n) for buffered operations
 + **Concurrency**: Lock-free with CAS operations, scales linearly with CPU cores
 + **Memory Access**: Cache-friendly data structures with 95%+ cache hit rates
 
@@ -230,7 +230,7 @@ let config = PerformanceConfig::builder()
 ### Additional Resources
 
 + **[Migration Guide][migration]** - Upgrading from previous versions
-+ **[Troubleshooting][troubleshooting]** - Common issues and solutions  
++ **[Troubleshooting][troubleshooting]** - Common issues and solutions
 + **[Contributing Guide][contributing]** - Development and contribution workflow
 + **[Security Policy][security]** - Vulnerability reporting and security practices
 
@@ -247,7 +247,7 @@ let service = WebServiceAdapter::new()
     .with_request_timeout(Duration::from_secs(5))
     .build()?;
 
-// Embedded system with resource constraints  
+// Embedded system with resource constraints
 use {crate-name}::EmbeddedConfig;
 
 let config = EmbeddedConfig::minimal()
@@ -315,7 +315,7 @@ We welcome contributions to {crate-name}! Please read our [Contributing Guide][c
 
 + Development environment setup
 + Code style and formatting requirements
-+ Testing and benchmarking standards  
++ Testing and benchmarking standards
 + Pull request process
 + Issue reporting guidelines
 
@@ -359,21 +359,16 @@ Security is paramount for enterprise applications. See our [Security Policy][sec
 
 ## License
 
-This project is licensed under the **Business Source License 1.1 (BSL-1.1)**.
+Licensed under either of
 
-### License Summary
++ Apache License, Version 2.0 ([LICENSE-APACHE](../LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)
++ MIT License ([LICENSE-MIT](../LICENSE-MIT) or http://opensource.org/licenses/MIT)
 
-+ **✅ Development and Testing**: Free for non-production use, research, and evaluation
-+ **⚠️ Production Use**: Requires a commercial license for production deployments
-+ **📅 License Change**: Automatically converts to GPL v3 on **2025-05-25**
-+ **💼 Commercial Licensing**: Contact [LordXyn@proton.me](mailto:LordXyn@proton.me) for enterprise licensing
+at your option.
 
-### Key Permissions
+### Contribution
 
-+ ✅ Private use and modification
-+ ✅ Distribution with license preservation  
-+ ✅ Patent use (with limitations)
-+ ❌ Commercial production use without license
+Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in the work by you, as defined in the Apache-2.0 license, shall be dual licensed as above, without any additional terms or conditions.
 
 See the [LICENSE][license] file for complete terms and conditions.
 

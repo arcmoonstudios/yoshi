@@ -1,28 +1,31 @@
-# Licensing FAQ
+# Open Source Licensing FAQ
 
 ## Frequently Asked Questions
 
-### Why Business Source License?
+### What license does Yoshi use?
 
-It blocks production/commercial deployment while letting the community play,
-learn and contribute.  After 48 months everybody gets GPL freedoms.
+Yoshi is dual-licensed under MIT OR Apache-2.0, giving you the choice of either license for maximum flexibility.
 
-### Can I use Yoshi in an open-source project?
+### Can I use Yoshi in commercial projects?
 
-Yes, provided the project itself is non-commercial / non-production or you
-obtain a commercial license.
+Yes! Both MIT and Apache-2.0 licenses allow unrestricted commercial use, including in proprietary products.
 
-### Is "internal" use commercial?
+### Can I modify and redistribute Yoshi?
 
-Yes.  If the software powers revenue-generating business processes it is
-commercial/production use.
+Absolutely! You can modify, redistribute, and even sell products that include Yoshi under either license.
 
-### How do I buy a license?
+### Do I need to include license notices?
 
-Email <LordXyn@proton.me> or sign the Commercial License Agreement in
-`contracts/COMMERCIAL-LICENSE-AGREEMENT.md`.
+Yes, you must include the appropriate license notice (MIT or Apache-2.0) when redistributing Yoshi or products containing it.
 
-### Will you ever switch to MIT?
+### How do I contribute to Yoshi?
 
-No.  The Change License is GPL v3.  Commercial users can always purchase
-a proprietary license instead.
+Contributions are dual-licensed under MIT OR Apache-2.0. Simply submit a pull request - no CLA required!
+
+### Why dual licensing?
+
+MIT and Apache-2.0 are the most popular choices in the Rust ecosystem, giving users maximum compatibility and flexibility.
+
+### Can I use a different license for my modifications?
+
+For derivatives, you must maintain the MIT OR Apache-2.0 licensing. For separate works that use Yoshi as a dependency, you can choose any license.

@@ -2,7 +2,7 @@
 
 ![Yoshi Logo](assets/YoshiLogo.png)
 
-[![License: BSL-1.1](https://img.shields.io/badge/License-BSL_1.1-blue.svg)](LICENSE)
+[![License: MIT OR Apache-2.0](https://img.shields.io/badge/License-MIT%20OR%20Apache--2.0-blue.svg)](LICENSE)
 [![Rust Version](https://img.shields.io/badge/rust-1.87%2B-orange.svg)](https://forge.rust-lang.org/releases.html)
 [![Build Status](https://img.shields.io/badge/build-passing-green.svg)](https://github.com/arcmoonstudios/yoshi)
 
@@ -101,7 +101,7 @@ python ams.py --help
 **AMS.py Feature Matrix:**
 
 | Feature Category | Capabilities | Enterprise Benefits |
-|-----------------|--------------|-------------------|
+|------------------|--------------|---------------------|
 | **Project Management** | Scaffold, template, structure | 10x faster project setup |
 | **Dependency Control** | Update, audit, optimize | Automated security patching |
 | **Quality Assurance** | Test, benchmark, validate | 99.9% reliability standards |
@@ -130,7 +130,7 @@ python cratecheck.py --comprehensive
 **Quality Validation Standards:**
 
 | Metric | Threshold | Validation Method |
-|--------|-----------|------------------|
+|--------|-----------|-------------------|
 | **Test Coverage** | ≥95% | Line and branch analysis |
 | **Documentation** | ≥99% | API completeness check |
 | **Clippy Compliance** | Zero warnings | Automated linting |
@@ -163,20 +163,25 @@ Mathematical comparison of Rust error handling frameworks
 
 **Latest Benchmark Results (Yoshi vs Competitors):**
 
-| Framework | Overall Score | Performance | Features | Usability | Ecosystem |
-|-----------|---------------|-------------|----------|-----------|-----------|
-| **🏆 Yoshi** | **94.3/100** | **98.5** | **95.0** | **92.0** | **91.5** |
-| snafu | 66.7/100 | 70.0 | 75.0 | 65.0 | 57.0 |
-| eyre | 62.5/100 | 65.0 | 70.0 | 60.0 | 55.0 |
-| thiserror | 59.2/100 | 80.0 | 50.0 | 55.0 | 52.0 |
-| anyhow | 55.0/100 | 75.0 | 45.0 | 50.0 | 50.0 |
+| Framework | Overall Score | Context Richness | Ergonomics | Derive Capabilities |
+|-----------|---------------|------------------|------------|---------------------|
+| **🏆 Yoshi** | **78.6/100** | **77.0** | **73.7** | **85.0** |
+| snafu | 55.2/100 | 45.0 | **73.8** | 47.0 |
+| thiserror | 55.2/100 | 42.5 | 55.0 | **88.0** |
+| eyre | 41.2/100 | 40.0 | 50.0 | 33.5 |
+| anyhow | 41.2/100 | 42.0 | 48.5 | 33.0 |
 
-**Performance Superiority:**
+**Performance Comparison:**
 
-- **Error Creation**: 2.3x faster than nearest competitor
-- **Memory Efficiency**: 40% lower allocation overhead
-- **Context Propagation**: Sub-microsecond performance
-- **Formatting Speed**: 3.1x faster error display
+| Framework | Error Creation | Memory Footprint | Error Formatting | Context Addition | Error Propagation |
+|-----------|---------------|------------------|------------------|------------------|------------------|
+| Yoshi | 1201 ns/op | 208 bytes | 12280 ns/op | 2033 ns/op | 3467 ns/op |
+| thiserror | **22 ns/op** | 24 bytes | - | - | - |
+| anyhow | 629 ns/op | **8 bytes** | 50 ns/op | 726 ns/op | 2060 ns/op |
+| eyre | 51 ns/op | **8 bytes** | 55 ns/op | - | 773 ns/op |
+| snafu | 74 ns/op | **8 bytes** | - | **49 ns/op** | - |
+
+_Note: Each framework has different trade-offs between features and performance_
 
 ```bash
 # View complete analysis reports
@@ -186,7 +191,7 @@ open analysis_reports/comprehensive_analysis.html  # Interactive dashboard
 
 #### **Interactive Analysis Dashboard**
 
-**HTML-based comprehensive framework comparison*
+*HTML-based comprehensive framework comparison**
 
 ```html
 <!-- Generated analysis dashboard with real-time metrics -->
@@ -223,7 +228,7 @@ Features:
 **P.R.I.M.E. Enhancement Capabilities:**
 
 | Enhancement Layer | Capability | Quality Improvement |
-|------------------|------------|-------------------|
+|-------------------|------------|---------------------|
 | **Prompt Precision** | Specificity enhancement | ≥98% accuracy |
 | **Research Integration** | Knowledge synthesis | ≥97% completeness |
 | **Iterative Refinement** | Up to 7 cycles | Early termination optimization |
@@ -638,16 +643,16 @@ cargo fmt --check
 
 ## 📄 License
 
-This project is licensed under the [Business Source License 1.1](LICENSE).
+Licensed under either of
 
-### **License Summary**
+- Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)
+- MIT License ([LICENSE-MIT](LICENSE-MIT) or http://opensource.org/licenses/MIT)
 
-- ✅ **Non-commercial use**: Free for development, testing, and non-production use
-- ✅ **Open source**: Full source code available for review and contribution
-- ❌ **Commercial/Production use**: Requires a commercial license from ArcMoon Studios
-- 🕐 **Change License**: Automatically becomes GPL v3 after 48 months
+at your option.
 
-For commercial licensing, contact: [LordXyn@proton.me](mailto:LordXyn@proton.me)
+### **Contribution**
+
+Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in the work by you, as defined in the Apache-2.0 license, shall be dual licensed as above, without any additional terms or conditions.
 
 ## 🏢 About ArcMoon Studios
 

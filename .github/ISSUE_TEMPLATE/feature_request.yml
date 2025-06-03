@@ -1,4 +1,12 @@
-# yoshi\.github\ISSUE_TEMPLATE\feature_request.yml
+# yoshi\.github\# **GitHub:** ArcMoon Studios (https://github.com/arcmoonstudios)
+# **Copyright:** (c) 2025 ArcMoon Studios
+# **License:** MIT OR Apache-2.0
+# **License Terms:** Full open source freedom; dual licensing allows choice between MIT and Apache 2.0
+# **Effective Date:** 2025-05-30 | **Open Source Release**
+# **License File:** /LICENSE
+# **Contact:** LordXyn@proton.me
+# **Author:** Lord Xyn
+# **Last Validation:** 2025-06-02PLATE\feature_request.yml
 #
 # **Brief:** Feature request template with business justification and technical analysis.
 #
@@ -16,13 +24,13 @@
 # ~=####====A===r===c===M===o===o===n====S===t===u===d===i===o===s====X|0|$>
 # **GitHub:** ArcMoon Studios (https://github.com/arcmoonstudios)
 # **Copyright:** (c) 2025 ArcMoon Studios
-# **License:** Business Source License 1.1 (BSL-1.1)  
-# **License Terms:** Non-production use only; commercial/production use requires paid license.
-# **Effective Date:** 2025-05-25 | **Change License:** GPL v3
+# **License:** MIT OR Apache-2.0
+# **License Terms:** Full open source freedom; dual licensing allows choice between MIT and Apache 2.0
+# **Effective Date:** 2025-05-30 | **Open Source Release**
 # **License File:** /LICENSE
 # **Contact:** LordXyn@proton.me
 # **Author:** Lord Xyn
-# **Last Validation:** 2025-05-30
+# **Last Validation:** 2025-06-02
 
 name: ✨ Feature Request
 description: Suggest a new feature or enhancement for the Yoshi error handling framework
@@ -35,9 +43,9 @@ body:
     attributes:
       value: |
         ## 🌙 ArcMoon Studios Enterprise Feature Request
-        
+
         Thank you for contributing to the evolution of the Yoshi error handling framework! Your suggestions help us build better tools for mission-critical applications.
-        
+
         **For Priority Feature Development:** Contact [LordXyn@proton.me](mailto:LordXyn@proton.me?subject=[Yoshi%20Enterprise]%20Priority%20Feature%20Request) for sponsored development with guaranteed timelines.
 
   - type: textarea
@@ -92,9 +100,9 @@ body:
         2. **Use Case 2:** In production environments where...
         3. **Use Case 3:** For enterprise applications that...
       value: |
-        1. **Use Case 1:** 
-        2. **Use Case 2:** 
-        3. **Use Case 3:** 
+        1. **Use Case 1:**
+        2. **Use Case 2:**
+        3. **Use Case 3:**
     validations:
       required: true
 
@@ -120,7 +128,7 @@ body:
       placeholder: |
         ```rust
         use yoshi::prelude::*;
-        
+
         // Example of how the new feature would be used
         let error = Yoshi::new("Example error")
             .with_new_feature(parameters)
@@ -176,11 +184,11 @@ body:
       label: ⚡ Performance Impact Analysis
       description: How might this feature affect performance?
       placeholder: |
-        - Compile-time impact: 
-        - Runtime performance: 
-        - Memory usage: 
-        - Binary size: 
-        - Any performance benchmarks needed: 
+        - Compile-time impact:
+        - Runtime performance:
+        - Memory usage:
+        - Binary size:
+        - Any performance benchmarks needed:
     validations:
       required: false
 
@@ -190,10 +198,10 @@ body:
       label: 🧪 Testing Strategy
       description: How should this feature be tested?
       placeholder: |
-        - Unit tests needed: 
-        - Integration tests required: 
-        - Performance benchmarks: 
-        - Edge cases to consider: 
+        - Unit tests needed:
+        - Integration tests required:
+        - Performance benchmarks:
+        - Edge cases to consider:
     validations:
       required: false
 
@@ -264,5 +272,5 @@ body:
           required: true
         - label: I have considered the implementation impact and requirements
           required: true
-        - label: I understand this is governed by the Business Source License 1.1
+        - label: I understand this is governed by dual MIT/Apache 2.0 open source licensing
           required: true

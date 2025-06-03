@@ -161,10 +161,8 @@
 // ~=####====A===r===c===M===o===o===n====S===t===u===d===i===o===s====X|0|$>
 // **GitHub:** [ArcMoon Studios](https://github.com/arcmoonstudios)
 // **Copyright:** (c) 2025 ArcMoon Studios
-// **License:** Business Source License 1.1 (BSL-1.1)
+// **License:** MIT OR Apache-2.0
 // **License File:** /LICENSE
-// **License Terms:** Non-production use only; commercial/production use requires a paid license.
-// **Effective Date:** 2025-05-25 | **Change License:** GPL v3
 // **Contact:** LordXyn@proton.me
 // **Author:** Lord Xyn
 
@@ -261,6 +259,18 @@ static REGEX_CACHE: LazyLock<HashMap<&'static str, Regex>> = LazyLock::new(|| {
         "error_code_pattern",
         Regex::new(r"^[A-Z][A-Z0-9_]*$").unwrap(),
     );
+
+    // 2025 Enhancement: Add shorthand attribute detection
+    cache.insert("shorthand_attribute", Regex::new(r"^y_[a-z_]+$").unwrap());
+    cache.insert(
+        "error_type_detection",
+        Regex::new(r"(?i)(error|exception|fault|failure)").unwrap(),
+    );
+    cache.insert(
+        "duration_field",
+        Regex::new(r"(?i)(duration|timeout|elapsed|delay)").unwrap(),
+    );
+
     cache
 });
 

@@ -12,7 +12,7 @@
 //!  - Documentation integration verification
 //!  - Performance monitoring functionality
 // ~=####====A===r===c===M===o===o===n====S===t===u===d===i===o===s====X|0|$>
-//! 
+//!
 //! ## Mathematical Properties
 //!
 //! **Algorithmic Complexity:**
@@ -26,25 +26,25 @@
 //! - Optimization Opportunities: Zero-cost error conversion
 //!
 // **GitHub:** [ArcMoon Studios](https://github.com/arcmoonstudios)
-// **Copyright:** (c) 2025 ArcMoon Studios  
+// **Copyright:** (c) 2025 ArcMoon Studios
 // **Author:** Lord Xyn
-// **License:** Business Source License 1.1 (BSL-1.1)
+// **License:** MIT OR Apache-2.0
 // **License File:** /LICENSE
-// **License Terms:** Non-production use only; commercial/production use requires paid license.
-// **Effective Date:** 2025-05-25 | **Change License:** GPL v3
+// **License Terms:** Full open source freedom; dual licensing allows choice between MIT and Apache 2.0
+// **Effective Date:** 2025-05-30 | **Open Source Release**
 // **Contact:** LordXyn@proton.me
 // **Quality Certification:** Elite Level (≥99.99% composite score)
 // **Agent Mode:** Enhanced with mathematical optimization
-// **Last Validation:** 2025-05-29
+// **Last Validation:** 2025-06-02
 
-use yoshi::{YoshiError, Yoshi, YoshiKind};
 use std::error::Error;
 use std::fmt;
+use yoshi::{Yoshi, YoshiError, YoshiKind};
 
 /// Test error enum with comprehensive YoshiError derive functionality.
-/// 
+///
 /// This enum demonstrates the fixed implementation of the YoshiError derive macro,
-/// including visibility-aware implementations, custom conversion logic, and 
+/// including visibility-aware implementations, custom conversion logic, and
 /// documentation integration.
 #[derive(Debug, YoshiError)]
 #[yoshi(error_code_prefix = "TEST")]
@@ -62,7 +62,7 @@ pub enum TestError {
         #[yoshi(doc = "File path that caused the error")]
         path: String,
     },
-    
+
     /// Network connectivity issue with custom conversion
     #[yoshi(kind = "Network")]
     #[yoshi(convert_with = "custom_network_conversion")]
@@ -73,7 +73,7 @@ pub enum TestError {
         #[yoshi(doc = "hidden")]
         internal_state: String,
     },
-    
+
     /// Validation error with field documentation
     #[yoshi(kind = "Validation")]
     #[yoshi(error_code = 3001)]
@@ -86,7 +86,7 @@ pub enum TestError {
 }
 
 /// Custom conversion function for network errors.
-/// 
+///
 /// This function demonstrates the custom conversion logic functionality
 /// that uses the `convert_with` field implementation.
 pub fn custom_network_conversion(err: &TestError) -> Yoshi {
@@ -104,28 +104,28 @@ fn main() {
         cause: io_err,
         path: "/tmp/test.txt".to_string(),
     };
-    
+
     println!("Created error: {}", test_err);
     println!("Error source: {:?}", test_err.source());
-      // Test conversion to Yoshi
+    // Test conversion to Yoshi
     let yoshi_err: Yoshi = test_err.into();
     println!("Converted to Yoshi: {}", yoshi_err);
-    
+
     // Test network error with custom conversion
     let network_err = TestError::NetworkError {
         endpoint: "https://api.example.com".to_string(),
         internal_state: "connection_pool_exhausted".to_string(),
     };
-    
+
     println!("Network error: {}", network_err);
-    
+
     // Test validation error with doc features
     let validation_err = TestError::ValidationFailed {
         message: "This is a very long validation message that should be truncated based on the doc attribute configuration".to_string(),
         debug_info: "This should be skipped in display".to_string(),
     };
-    
+
     println!("Validation error: {}", validation_err);
-    
+
     println!("All tests completed successfully!");
 }

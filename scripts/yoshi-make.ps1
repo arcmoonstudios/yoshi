@@ -16,7 +16,7 @@
 #!  - Git safety integration with upgrade system
 #!  - Color-coded output with timestamp logging
 # ~=####====A===r===c===M===o===o===n====S===t===u===d===i===o===s====X|0|$>
-#! 
+#!
 #! ## Mathematical Properties
 #!
 #! **Algorithmic Complexity:**
@@ -30,12 +30,10 @@
 #! - Optimization Opportunities: Parallel task execution
 #!
 # **GitHub:** [ArcMoon Studios](https://github.com/arcmoonstudios)
-# **Copyright:** (c) 2025 ArcMoon Studios  
+# **Copyright:** (c) 2025 ArcMoon Studios
 # **Author:** Lord Xyn
-# **License:** Business Source License 1.1 (BSL-1.1)
+# **License:** MIT OR Apache-2.0
 # **License File:** /LICENSE
-# **License Terms:** Non-production use only; commercial/production use requires paid license.
-# **Effective Date:** 2025-05-25 | **Change License:** GPL v3
 # **Contact:** LordXyn@proton.me
 # **Quality Certification:** Elite Level (≥99.99% composite score)
 # **Agent Mode:** Enhanced with mathematical optimization
@@ -45,7 +43,7 @@
 param(
     [Parameter(Position = 0)]
     [string]$Target = "help",
-    
+
     [switch]$Force
 )
 
@@ -65,27 +63,28 @@ function Write-ArcMoonLog {
         [string]$Level = "Info",
         [ConsoleColor]$Color = [ConsoleColor]::White
     )
-    
+
     $timestamp = Get-Date -Format "HH:mm:ss.fff"
     $prefix = switch ($Level) {
         "Success" { "✅" }
         "Warning" { "⚠️ " }
-        "Error"   { "❌" }
-        "Info"    { "ℹ️ " }
-        default   { "📝" }
+        "Error" { "❌" }
+        "Info" { "ℹ️ " }
+        default { "📝" }
     }
-    
+
     Write-Host "[$timestamp] $prefix $Message" -ForegroundColor $Color
 }
 
 # Tool availability check
 function Test-ToolAvailability {
     param([string]$ToolName)
-    
+
     try {
         $null = Get-Command $ToolName -ErrorAction Stop
         return $true
-    } catch {
+    }
+    catch {
         return $false
     }
 }
@@ -93,13 +92,14 @@ function Test-ToolAvailability {
 # Install missing tools
 function Install-CargoTool {
     param([string]$ToolName)
-    
+
     Write-ArcMoonLog "Installing $ToolName..." -Level "Warning" -Color Yellow
     try {
         & cargo install $ToolName --quiet
         Write-ArcMoonLog "$ToolName installed successfully." -Level "Success" -Color Green
         return $true
-    } catch {
+    }
+    catch {
         Write-ArcMoonLog "Failed to install $ToolName : $($_.Exception.Message)" -Level "Error" -Color Red
         return $false
     }
@@ -134,7 +134,7 @@ function Invoke-Help {
 # Git safety check
 function Test-GitSafety {
     Write-ArcMoonLog "Checking for uncommitted changes in Cargo.toml..." -Level "Info" -Color Cyan
-    
+
     try {
         $gitStatus = git status --porcelain Cargo.toml 2>$null
         if ($gitStatus) {
@@ -142,20 +142,22 @@ function Test-GitSafety {
             if ($changes -gt 0) {
                 Write-ArcMoonLog "Uncommitted changes detected in Cargo.toml:" -Level "Warning" -Color Yellow
                 Write-Host $gitStatus -ForegroundColor Yellow
-                
+
                 if (-not $Force) {
                     Write-ArcMoonLog "Upgrade cancelled for safety. Use -Force to override or commit changes first." -Level "Error" -Color Red
                     Write-ArcMoonLog "💡 Recommended: git add Cargo.toml && git commit -m 'Pre-upgrade snapshot'" -Level "Info" -Color Cyan
                     return $false
-                } else {
+                }
+                else {
                     Write-ArcMoonLog "Proceeding with upgrade despite uncommitted changes (Force mode)." -Level "Warning" -Color Yellow
                 }
             }
         }
-        
+
         Write-ArcMoonLog "Git safety check passed." -Level "Success" -Color Green
         return $true
-    } catch {
+    }
+    catch {
         Write-ArcMoonLog "Git safety check failed: $($_.Exception.Message)" -Level "Error" -Color Red
         return $false
     }
@@ -167,26 +169,27 @@ function Invoke-Upgrade {
         if (-not (Test-GitSafety)) {
             return $false
         }
-        
+
         if (-not (Test-ToolAvailability "cargo-upgrade")) {
             if (-not (Install-CargoTool "cargo-edit")) {
                 return $false
             }
         }
-        
+
         Write-ArcMoonLog "⬆️  Upgrading dependencies..." -Level "Info" -Color Cyan
         Write-ArcMoonLog "📊 Current dependency snapshot:" -Level "Info" -Color Cyan
         & cargo tree --depth 1
-        
+
         Write-ArcMoonLog "🔄 Executing cargo upgrade..." -Level "Info" -Color Cyan
         & cargo upgrade
-        
+
         Write-ArcMoonLog "✅ Dependencies upgraded successfully!" -Level "Success" -Color Green
         Write-ArcMoonLog "📊 Updated dependency snapshot:" -Level "Info" -Color Cyan
         & cargo tree --depth 1
-        
+
         return $true
-    } else {
+    }
+    else {
         Write-ArcMoonLog "ℹ️  CARGO_ARCMOON_UPGRADE not set to 'true'. Skipping dependency upgrade." -Level "Info" -Color Cyan
         Write-ArcMoonLog "💡 To enable upgrades: `$env:CARGO_ARCMOON_UPGRADE='true'; .\scripts\yoshi-make.ps1 upgrade" -Level "Warning" -Color Yellow
         return $true
@@ -200,14 +203,15 @@ function Invoke-Check {
             return $false
         }
     }
-    
+
     Write-ArcMoonLog "🔍 Running cargo check..." -Level "Info" -Color Cyan
     & cargo check $script:CargoFlags.Split(' ')
-    
+
     if ($LASTEXITCODE -eq 0) {
         Write-ArcMoonLog "✅ Cargo check completed successfully!" -Level "Success" -Color Green
         return $true
-    } else {
+    }
+    else {
         Write-ArcMoonLog "❌ Cargo check failed!" -Level "Error" -Color Red
         return $false
     }
@@ -217,11 +221,12 @@ function Invoke-Check {
 function Invoke-Build {
     Write-ArcMoonLog "🔨 Building $script:ProjectName in $script:BuildMode mode..." -Level "Info" -Color Cyan
     & cargo build $script:CargoFlags.Split(' ')
-    
+
     if ($LASTEXITCODE -eq 0) {
         Write-ArcMoonLog "✅ Build completed successfully!" -Level "Success" -Color Green
         return $true
-    } else {
+    }
+    else {
         Write-ArcMoonLog "❌ Build failed!" -Level "Error" -Color Red
         return $false
     }
@@ -231,11 +236,12 @@ function Invoke-Build {
 function Invoke-Test {
     Write-ArcMoonLog "🧪 Running comprehensive test suite..." -Level "Info" -Color Cyan
     & cargo test $script:TestFlags.Split(' ') $script:CargoFlags.Split(' ')
-    
+
     if ($LASTEXITCODE -eq 0) {
         Write-ArcMoonLog "✅ All tests passed!" -Level "Success" -Color Green
         return $true
-    } else {
+    }
+    else {
         Write-ArcMoonLog "❌ Tests failed!" -Level "Error" -Color Red
         return $false
     }
@@ -245,11 +251,12 @@ function Invoke-Test {
 function Invoke-Format {
     Write-ArcMoonLog "🎨 Formatting code..." -Level "Info" -Color Cyan
     & cargo fmt --all
-    
+
     if ($LASTEXITCODE -eq 0) {
         Write-ArcMoonLog "✅ Code formatting completed!" -Level "Success" -Color Green
         return $true
-    } else {
+    }
+    else {
         Write-ArcMoonLog "❌ Code formatting failed!" -Level "Error" -Color Red
         return $false
     }
@@ -259,11 +266,12 @@ function Invoke-Format {
 function Invoke-Lint {
     Write-ArcMoonLog "📎 Running clippy lints..." -Level "Info" -Color Cyan
     & cargo clippy --all-targets --all-features -- -D warnings
-    
+
     if ($LASTEXITCODE -eq 0) {
         Write-ArcMoonLog "✅ Linting completed successfully!" -Level "Success" -Color Green
         return $true
-    } else {
+    }
+    else {
         Write-ArcMoonLog "❌ Linting failed!" -Level "Error" -Color Red
         return $false
     }
@@ -272,19 +280,20 @@ function Invoke-Lint {
 # Security audit target
 function Invoke-SecurityAudit {
     Write-ArcMoonLog "🔒 Running security audit..." -Level "Info" -Color Cyan
-    
+
     if (-not (Test-ToolAvailability "cargo-audit")) {
         if (-not (Install-CargoTool "cargo-audit")) {
             return $false
         }
     }
-    
+
     & cargo audit
-    
+
     if ($LASTEXITCODE -eq 0) {
         Write-ArcMoonLog "✅ Security audit completed!" -Level "Success" -Color Green
         return $true
-    } else {
+    }
+    else {
         Write-ArcMoonLog "❌ Security audit found issues!" -Level "Warning" -Color Yellow
         return $true  # Don't fail the build for security warnings
     }
@@ -294,11 +303,12 @@ function Invoke-SecurityAudit {
 function Invoke-PerformanceCheck {
     Write-ArcMoonLog "⚡ Running performance benchmarks..." -Level "Info" -Color Cyan
     & cargo bench --all-features
-    
+
     if ($LASTEXITCODE -eq 0) {
         Write-ArcMoonLog "✅ Performance check completed!" -Level "Success" -Color Green
         return $true
-    } else {
+    }
+    else {
         Write-ArcMoonLog "❌ Performance check failed!" -Level "Error" -Color Red
         return $false
     }
@@ -308,11 +318,12 @@ function Invoke-PerformanceCheck {
 function Invoke-Docs {
     Write-ArcMoonLog "📚 Generating documentation..." -Level "Info" -Color Cyan
     & cargo doc --all-features --no-deps --open
-    
+
     if ($LASTEXITCODE -eq 0) {
         Write-ArcMoonLog "✅ Documentation generated successfully!" -Level "Success" -Color Green
         return $true
-    } else {
+    }
+    else {
         Write-ArcMoonLog "❌ Documentation generation failed!" -Level "Error" -Color Red
         return $false
     }
@@ -322,11 +333,12 @@ function Invoke-Docs {
 function Invoke-Clean {
     Write-ArcMoonLog "🧹 Cleaning build artifacts..." -Level "Info" -Color Cyan
     & cargo clean
-    
+
     if ($LASTEXITCODE -eq 0) {
         Write-ArcMoonLog "✅ Cleanup completed!" -Level "Success" -Color Green
         return $true
-    } else {
+    }
+    else {
         Write-ArcMoonLog "❌ Cleanup failed!" -Level "Error" -Color Red
         return $false
     }
@@ -335,7 +347,7 @@ function Invoke-Clean {
 # All target (complete CI pipeline)
 function Invoke-All {
     Write-ArcMoonLog "🎯 Running complete CI pipeline..." -Level "Info" -Color Cyan
-    
+
     $steps = @(
         @{ Name = "Format"; Function = { Invoke-Format } },
         @{ Name = "Lint"; Function = { Invoke-Lint } },
@@ -344,7 +356,7 @@ function Invoke-All {
         @{ Name = "Security Audit"; Function = { Invoke-SecurityAudit } },
         @{ Name = "Documentation"; Function = { Invoke-Docs } }
     )
-    
+
     foreach ($step in $steps) {
         Write-ArcMoonLog "Running $($step.Name)..." -Level "Info" -Color Cyan
         if (-not (& $step.Function)) {
@@ -352,7 +364,7 @@ function Invoke-All {
             return $false
         }
     }
-    
+
     Write-ArcMoonLog "🎯 Complete CI pipeline executed successfully!" -Level "Success" -Color Green
     return $true
 }
@@ -363,7 +375,7 @@ try {
     Write-Host "🌙 ArcMoon Studios Enterprise PowerShell Makefile" -ForegroundColor Cyan
     Write-Host "================================================" -ForegroundColor Cyan
     Write-Host ""
-    
+
     $success = switch ($Target.ToLower()) {
         "help" { Invoke-Help; $true }
         "check" { Invoke-Check }
@@ -383,18 +395,20 @@ try {
             $false
         }
     }
-    
+
     if ($success) {
         Write-Host ""
         Write-Host "🌙 ArcMoon Studios Enterprise - Mathematical Precision in Every Operation" -ForegroundColor Cyan
         exit 0
-    } else {
+    }
+    else {
         Write-Host ""
         Write-Host "💥 Operation failed. Check the logs above for details." -ForegroundColor Red
         exit 1
     }
-    
-} catch {
+
+}
+catch {
     Write-ArcMoonLog "Unexpected error: $($_.Exception.Message)" -Level "Error" -Color Red
     Write-ArcMoonLog "Stack trace: $($_.ScriptStackTrace)" -Level "Error" -Color Red
     exit 1

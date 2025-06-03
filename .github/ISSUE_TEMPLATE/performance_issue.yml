@@ -1,4 +1,12 @@
-# yoshi\.github\ISSUE_TEMPLATE\performance_issue.yml
+# yoshi\.github\# **GitHub:** ArcMoon Studios (https://github.com/arcmoonstudios)
+# **Copyright:** (c) 2025 ArcMoon Studios
+# **License:** MIT OR Apache-2.0
+# **License Terms:** Full open source freedom; dual licensing allows choice between MIT and Apache 2.0
+# **Effective Date:** 2025-05-30 | **Open Source Release**
+# **License File:** /LICENSE
+# **Contact:** LordXyn@proton.me
+# **Author:** Lord Xyn
+# **Last Validation:** 2025-06-02PLATE\performance_issue.yml
 #
 # **Brief:** Performance issue template with benchmarking and profiling requirements.
 #
@@ -16,9 +24,9 @@
 # ~=####====A===r===c===M===o===o===n====S===t===u===d===i===o===s====X|0|$>
 # **GitHub:** ArcMoon Studios (https://github.com/arcmoonstudios)
 # **Copyright:** (c) 2025 ArcMoon Studios
-# **License:** Business Source License 1.1 (BSL-1.1)
-# **License Terms:** Non-production use only; commercial/production use requires paid license.
-# **Effective Date:** 2025-05-25 | **Change License:** GPL v3
+# **License:** MIT OR Apache-2.0
+# **License Terms:** Full open source freedom; dual licensing allows choice between MIT and Apache 2.0
+# **Effective Date:** 2025-05-30 | **Open Source Release**
 # **License File:** /LICENSE
 # **Contact:** LordXyn@proton.me
 # **Author:** Lord Xyn
@@ -35,9 +43,9 @@ body:
     attributes:
       value: |
         ## 🌙 ArcMoon Studios Performance Analysis
-        
+
         Performance is critical for enterprise applications. Help us maintain Yoshi's high-performance standards by providing detailed performance analysis.
-        
+
         **For Critical Performance Issues:** Contact [LordXyn@proton.me](mailto:LordXyn@proton.me?subject=[Yoshi%20Enterprise]%20Critical%20Performance%20Issue) for immediate enterprise support.
 
   - type: textarea
@@ -97,7 +105,7 @@ body:
         - Comparison with expected performance
         - Statistical significance (if available)
         - Measurement methodology used
-        
+
         Example:
         ```
         Before: 1.234 ms ± 0.045 ms
@@ -117,15 +125,15 @@ body:
         ```rust
         use yoshi::prelude::*;
         use std::time::Instant;
-        
+
         fn main() {
             let start = Instant::now();
-            
+
             // Code that demonstrates the performance issue
             for i in 0..10000 {
                 // Your performance-critical code here
             }
-            
+
             let duration = start.elapsed();
             println!("Time taken: {:?}", duration);
         }
@@ -156,27 +164,27 @@ body:
       label: 🔧 Environment Details
       description: Detailed environment information for performance analysis
       placeholder: |
-        - **Yoshi Version:** 
-        - **Rust Version:** 
-        - **Operating System:** 
+        - **Yoshi Version:**
+        - **Rust Version:**
+        - **Operating System:**
         - **Architecture:** (x86_64, aarch64, etc.)
-        - **CPU Model:** 
-        - **RAM:** 
-        - **Compiler Flags:** 
+        - **CPU Model:**
+        - **RAM:**
+        - **Compiler Flags:**
         - **Build Profile:** (debug, release, release with debug info)
-        - **Features Enabled:** 
-        - **Target Triple:** 
+        - **Features Enabled:**
+        - **Target Triple:**
       value: |
-        - **Yoshi Version:** 
-        - **Rust Version:** 
-        - **Operating System:** 
-        - **Architecture:** 
-        - **CPU Model:** 
-        - **RAM:** 
-        - **Compiler Flags:** 
-        - **Build Profile:** 
-        - **Features Enabled:** 
-        - **Target Triple:** 
+        - **Yoshi Version:**
+        - **Rust Version:**
+        - **Operating System:**
+        - **Architecture:**
+        - **CPU Model:**
+        - **RAM:**
+        - **Compiler Flags:**
+        - **Build Profile:**
+        - **Features Enabled:**
+        - **Target Triple:**
     validations:
       required: true
 
@@ -186,11 +194,11 @@ body:
       label: 📊 Baseline Comparison
       description: What are you comparing the performance against?
       placeholder: |
-        - Previous version of Yoshi: 
-        - Alternative error handling library: 
-        - Expected performance based on: 
-        - Industry benchmark: 
-        - Theoretical optimal performance: 
+        - Previous version of Yoshi:
+        - Alternative error handling library:
+        - Expected performance based on:
+        - Industry benchmark:
+        - Theoretical optimal performance:
     validations:
       required: true
 
@@ -216,12 +224,12 @@ body:
       label: 📈 Statistical Analysis
       description: Provide statistical significance of your measurements
       placeholder: |
-        - Number of iterations: 
-        - Standard deviation: 
-        - Confidence interval: 
-        - P-value (if applicable): 
-        - Sample size: 
-        - Outlier handling: 
+        - Number of iterations:
+        - Standard deviation:
+        - Confidence interval:
+        - P-value (if applicable):
+        - Sample size:
+        - Outlier handling:
     validations:
       required: false
 
@@ -231,10 +239,10 @@ body:
       label: 📉 Regression Information
       description: If this is a regression, when did it start?
       placeholder: |
-        - Last known good version: 
-        - First bad version: 
-        - Suspected causing commit/PR: 
-        - Bisection results: 
+        - Last known good version:
+        - First bad version:
+        - Suspected causing commit/PR:
+        - Bisection results:
     validations:
       required: false
 
@@ -277,11 +285,11 @@ body:
       label: 💼 Business Impact
       description: How does this performance issue affect your business/project?
       placeholder: |
-        - Impact on user experience: 
-        - Effect on system capacity: 
-        - Cost implications: 
-        - SLA violations: 
-        - Competitive disadvantage: 
+        - Impact on user experience:
+        - Effect on system capacity:
+        - Cost implications:
+        - SLA violations:
+        - Competitive disadvantage:
     validations:
       required: false
 
@@ -312,5 +320,5 @@ body:
           required: true
         - label: I have searched for similar performance issues
           required: true
-        - label: I understand this is governed by the Business Source License 1.1
+        - label: I understand this is governed by dual MIT/Apache 2.0 open source licensing
           required: true

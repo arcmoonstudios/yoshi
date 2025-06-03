@@ -2,30 +2,26 @@
 
 **Brief:** ArcMoon Studios Code of Conduct for the Yoshi error handling framework community.
 
-**Module Classification:** Standard  
-**Complexity Level:** Low  
+**Module Classification:** Standard
+**Complexity Level:** Low
 **API Stability:** Stable
 
 ~=####====A===r===c===M===o===o===n====S===t===u===d===i===o===s====X|0|$>
-
 **Community standards and behavioral guidelines for enterprise collaboration*
 
-- Professional conduct standards with zero tolerance enforcement: O(1) moderation
 - Inclusive environment with diversity and accessibility focus: O(1) participation
-- Conflict resolution with escalation procedures: O(log n) resolution
-- Enterprise collaboration with business ethics integration: O(1) partnership
+- Professional conduct standards with zero tolerance enforcement: O(1) moderation
 - Global community with cross-cultural communication guidelines: O(1) inclusion
-
+- Enterprise collaboration with business ethics integration: O(1) partnership
+- Conflict resolution with escalation procedures: O(log n) resolution
 ~=####====A===r===c===M===o===o===n====S===t===u===d===i===o===s====X|0|$>
-
-**GitHub:** [ArcMoon Studios](https://github.com/arcmoonstudios)  
-**Copyright:** (c) 2025 ArcMoon Studios  
-**License:** Business Source License 1.1 (BSL-1.1)  
-**License Terms:** Non-production use only; commercial/production use requires paid license.  
-**Effective Date:** 2025-05-25 | Change License: GPL v3  
-**License File:** /LICENSE  
+**GitHub:** [ArcMoon Studios](https://github.com/arcmoonstudios)
+**Copyright:** (c) 2025 ArcMoon Studios
+**License:** MIT OR Apache-2.0
+**Effective Date:** 2025-05-30 | **Open Source Release**
+**License File:** /LICENSE
 **Contact:** <LordXyn@proton.me>
-**Author:** Lord Xyn  
+**Author:** Lord Xyn
 **Last Validation:** 2025-05-30
 
 ## Our Commitment to Excellence
@@ -281,4 +277,4 @@ Together, we are building not just better error handling, but a better way of wo
 - **GitHub:** ArcMoon Studios
 - **Project:** Yoshi Error Handling Framework
 - **Last Updated:** 2025-05-30
-- **Version:** 1.0.0
+- **Version:** 0.1.2

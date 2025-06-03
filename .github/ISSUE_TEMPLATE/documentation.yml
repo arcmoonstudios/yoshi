@@ -1,4 +1,12 @@
-# yoshi\.github\ISSUE_TEMPLATE\documentation.yml
+# yoshi\.github\# **GitHub:** ArcMoon Studios (https://github.com/arcmoonstudios)
+# **Copyright:** (c) 2025 ArcMoon Studios
+# **License:** MIT OR Apache-2.0
+# **License Terms:** Full open source freedom; dual licensing allows choice between MIT and Apache 2.0
+# **Effective Date:** 2025-05-30 | **Open Source Release**
+# **License File:** /LICENSE
+# **Contact:** LordXyn@proton.me
+# **Author:** Lord Xyn
+# **Last Validation:** 2025-06-02PLATE\documentation.yml
 #
 # **Brief:** Documentation improvement template for API docs, guides, and examples.
 #
@@ -16,13 +24,13 @@
 # ~=####====A===r===c===M===o===o===n====S===t===u===d===i===o===s====X|0|$>
 # **GitHub:** ArcMoon Studios (https://github.com/arcmoonstudios)
 # **Copyright:** (c) 2025 ArcMoon Studios
-# **License:** Business Source License 1.1 (BSL-1.1)
-# **License Terms:** Non-production use only; commercial/production use requires paid license.
-# **Effective Date:** 2025-05-25 | **Change License:** GPL v3
+# **License:** MIT OR Apache-2.0
+# **License Terms:** Full open source freedom; dual licensing allows choice between MIT and Apache 2.0
+# **Effective Date:** 2025-05-30 | **Open Source Release**
 # **License File:** /LICENSE
 # **Contact:** <LordXyn@proton.me>
 # **Author:** Lord Xyn
-# **Last Validation:** 2025-05-30
+# **Last Validation:** 2025-06-02
 
 name: 📚 Documentation Improvement
 description: Suggest improvements to documentation, examples, or guides
@@ -35,9 +43,9 @@ body:
     attributes:
       value: |
         ## 🌙 ArcMoon Studios Documentation Excellence
-        
+
         Help us maintain world-class documentation for the Yoshi error handling framework. Clear, comprehensive documentation is essential for enterprise adoption.
-        
+
         **For Technical Writing Services:** Contact [LordXyn@proton.me](mailto:LordXyn@proton.me?subject=[Yoshi%20Enterprise]%20Documentation%20Services) for professional technical writing and documentation audit services.
 
   - type: dropdown
@@ -88,7 +96,7 @@ body:
         - File path in the repository
         - Specific section or function name
         - Line numbers if applicable
-        
+
         Example:
         - https://docs.rs/yoshi/latest/yoshi/struct.Yoshi.html
         - docs/getting-started.md, section "Basic Usage"
@@ -117,16 +125,16 @@ body:
       description: If you have specific content to suggest, provide it here
       placeholder: |
         If you have drafted improved content, include it here:
-        
+
         \```markdown
         ## Improved Section Title
-        
+
         Your improved documentation content...
-        
+
         \```rust
         // Improved code example
         use yoshi::prelude::*;
-        
+
         fn example() {
             // Clear, working example
         }
@@ -269,5 +277,5 @@ body:
           required: true
         - label: I have searched for existing documentation improvement requests
           required: true
-        - label: I understand this is governed by the Business Source License 1.1
+        - label: I understand this is governed by dual MIT/Apache 2.0 open source licensing
           required: true

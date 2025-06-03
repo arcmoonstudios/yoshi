@@ -1,63 +1,14 @@
-# Business Source License 1.1
+# Yoshi Framework - Open Source License
 
-                              (Yoshi Framework Edition)
+Licensed under either of
 
-## Parameters
+- Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)
+- MIT License ([LICENSE-MIT](LICENSE-MIT) or http://opensource.org/licenses/MIT)
 
-Licensor:           ArcMoon Studios, Inc. ("Licensor")
+at your option.
 
-Licensed Work:      "Yoshi" error-handling framework –
-                    source code in this repository and any official forks.
+## Contribution
 
-Additional Use:     Non-commercial, non-production use only.  All other
-                    exercise of the Licensed Work (including but not limited to
-                    running in production, providing SaaS, internal line-of-
-                    business usage, or use that generates revenue directly or
-                    indirectly) requires a Commercial License from Licensor.
-
-Change Date:        48 months after the first public release tag of any given
-                    source-code file (the "Change Date" for that file).
-
-Change License:     GNU General Public License version 3.
-
-## Terms
-
-1. Grant.  For the duration until the Change Date, Licensor grants You a
-   non-exclusive, worldwide, royalty-free copyright license to copy, modify,
-   create derivative works, and redistribute the Licensed Work, solely for the
-   Additional Use defined above.
-
-2. Commercial Use.  Any use that is not Additional Use ("Commercial Use") is
-   forbidden without a separate written agreement with Licensor.  Running the
-   Licensed Work (or modified versions) in production, as part of a service you
-   offer to others, or for any activity intended for or resulting in commercial
-   advantage or monetary compensation constitutes Commercial Use.
-
-3. Patent Grant.  Licensor grants You a patent license consistent with the
-   scope of Section 1, limited to Additional Use.  No patent rights are granted
-   for Commercial Use.
-
-4. External Contributions.  Contributions merged into the Licensed Work are
-   accepted under this same license with identical Change Date and Change
-   License, unless explicitly stated otherwise.
-
-5. NO WARRANTY.  THE LICENSED WORK IS PROVIDED "AS IS".  LICENSOR DISCLAIMS
-   ALL WARRANTIES, EXPRESS OR IMPLIED, INCLUDING MERCHANTABILITY, FITNESS FOR
-   A PARTICULAR PURPOSE AND NON-INFRINGEMENT.  IN NO EVENT SHALL LICENSOR BE
-   LIABLE FOR ANY DAMAGES ARISING IN CONNECTION WITH THE LICENSED WORK, EVEN
-   IF ADVISED OF THE POSSIBILITY.
-
-6. Change License.  On each Change Date the applicable file automatically
-   becomes subject to the Change License, permitting all use (including
-   commercial) under GPL v3.
-
-7. Trademarks.  This license grants no trademark rights.  "Yoshi" and any
-   associated logos remain property of Licensor.
-
-8. Termination.  If You violate this License, Your rights terminate
-   automatically.  Termination is not an exclusive remedy and Licensor may
-   take further action.
-
-For the avoidance of doubt, after the Change Date You may continue to use,
-modify, and redistribute any particular file under either (a) this License
-(for Additional Use only) *or* (b) GPL v3, at Your option.
+Unless you explicitly state otherwise, any contribution intentionally submitted
+for inclusion in the work by you, as defined in the Apache-2.0 license, shall be
+dual licensed as above, without any additional terms or conditions.

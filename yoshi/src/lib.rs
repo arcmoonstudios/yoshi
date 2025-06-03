@@ -39,7 +39,7 @@
 //! - [`YoshiLocation`]: Represents a source code location.
 //! - [`YoshiBacktrace`]: Wraps a standard library backtrace with performance metadata.
 //! - [`HatchExt`]: An extension trait for `Result` to easily attach context.
-//! - [`NoStdIo`]: A minimal I/O error type for `no_std` environments (available in `no_std` environments).
+//! - `NoStdIo`: A minimal I/O error type for `no_std` environments (available in `no_std` environments).
 //! - [`Result`]: A type alias for `std::result::Result` or `core::result::Result` with `Yoshi` as the default error.
 //! - [`error_instance_count()`]: Global counter for Yoshi error instances.
 //! - [`process_communication`]: Module for cross-process error reporting (feature `rust-1-87`, `std`).
@@ -113,10 +113,8 @@
 // ~=####====A===r===c===M===o===o===n====S===t===u===d===i===o===s====X|0|$>
 // **GitHub:** [ArcMoon Studios](https://github.com/arcmoonstudios)
 // **Copyright:** (c) 2025 ArcMoon Studios
-// **License:** Business Source License 1.1 (BSL-1.1)
+// **License:** MIT OR Apache-2.0
 // **License File:** /LICENSE
-// **License Terms:** Non-production use only; commercial/production use requires paid license.
-// **Effective Date:** 2025-05-25 | **Change License:** GPL v3
 // **Contact:** LordXyn@proton.me
 // **Author:** Lord Xyn
 
@@ -140,7 +138,10 @@ pub use yoshi_std::{NoStdIo, OnceLock, SystemTime, ThreadId};
 
 // Conditional modules re-exports based on features
 #[cfg(feature = "std")]
-pub use yoshi_std::{async_error_handling, process_communication};
+pub use yoshi_std::async_error_handling;
+
+#[cfg(all(feature = "std", feature = "serde"))]
+pub use yoshi_std::process_communication;
 
 #[cfg(all(feature = "unstable-metrics", target_arch = "x86_64"))]
 pub use yoshi_std::simd_optimization;

@@ -353,7 +353,7 @@ echo "Duration: ${DURATION} seconds"
 ```bash
 # Complete validation sequence
 make format          # Code formatting
-make lint            # Clippy lints  
+make lint            # Clippy lints
 make check           # Compilation check
 make test            # Test execution
 make security-audit  # Security scan
@@ -449,12 +449,11 @@ make dev-check
 
 ## 📝 License
 
-## **Business Source License 1.1 (BSL-1.1)**
+## **MIT OR Apache-2.0**
 
-- **Non-production use only**
-- **Commercial/production use requires paid license**
-- **Effective Date:** 2025-05-25
-- **Change License:** GPL v3
+- **Full open source freedom**
+- **Dual licensing allows choice between MIT and Apache 2.0**
+- **Effective Date:** 2025-05-30 | **Open Source Release**
 - **License File:** `/LICENSE`
 
 ## 📞 Support

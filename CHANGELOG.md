@@ -10,9 +10,24 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
-## [2.4.0] - 2025-06-01
+## [2.4.0] - 2025-06-02
 
-### 🚀 Enterprise Error Handling Framework - Comprehensive Toolkit Release
+### 🎉 **MAJOR RELEASE** - Enterprise Error Handling Framework & Open Source Transition
+
+#### 🆓 **License Transition - Full Open Source Release**
+
+- **🔓 Transitioned from Business Source License (BSL) to Dual MIT/Apache 2.0 License**
+  - **Version 0.1.2 and earlier**: Business Source License with production restrictions
+  - **Version 0.1.2 and later**: Full dual MIT/Apache 2.0 open source licensing
+  - **Complete commercial freedom**: No restrictions on production use, commercial deployment, or enterprise integration
+  - **Enhanced ecosystem compatibility**: Full compatibility with Rust ecosystem licensing standards
+  - **Developer-friendly licensing**: Choose MIT or Apache 2.0 based on your project requirements
+
+- **🎌 New Yoshi-Themed API Showcase**
+  - **Complete examples/ directory overhaul** with Yoshi-inspired naming conventions
+  - **Enhanced developer experience** with intuitive, anime-themed error handling patterns
+  - **Production-ready examples** demonstrating enterprise-grade error management
+  - **Comprehensive API demonstration** across all Yoshi framework capabilities
 
 #### ✨ **Major Features Added**
 
@@ -103,6 +118,18 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- 🆓 **Open Source License Transition**: Complete licensing framework overhaul
+  - Transitioned from Business Source License (BSL) to dual MIT/Apache 2.0 licensing
+  - Full commercial freedom with no production use restrictions
+  - Enhanced ecosystem compatibility with standard Rust licensing practices
+  - Developer-friendly dual licensing allowing choice between MIT and Apache 2.0
+
+- 🎌 **Yoshi-Themed API Examples**: Complete examples directory redesign
+  - **Enhanced Developer Experience**: Intuitive anime-themed error handling patterns
+  - **Production-Ready Demonstrations**: Enterprise-grade error management examples
+  - **Comprehensive API Showcase**: Full coverage of Yoshi framework capabilities
+  - **Beginner-Friendly**: Clear progression from simple to advanced usage patterns
+
 - 🚀 **Comprehensive Error Analysis Framework**: Added advanced benchmarking and comparison system
   - Comprehensive error framework analysis with HTML and text reports
   - Multi-dimensional comparative evaluation against thiserror, anyhow, eyre, and snafu
@@ -147,8 +174,53 @@ All notable changes to this project will be documented in this file.
 - 🛠️ **Developer Experience**: Enhanced tooling and validation
   - Enhanced package validation process for better error reporting
   - Updated documentation examples to use standard library types
-  - Comprehensive benchmarking with HTML report generation
-  - Cross-platform script compatibility for Windows, Linux, and macOS
+  - Comprehensive benchmarking with HTML report generation  - Cross-platform script compatibility for Windows, Linux, and macOS
+
+## [0.1.2] - 2025-05-30
+
+### 🔓 **Open Source License Transition**
+
+#### **BREAKING LICENSE CHANGE**: Business Source License → Dual MIT/Apache 2.0
+
+- **Full Open Source Release**: Transitioned from Business Source License to dual MIT/Apache 2.0
+- **Commercial Freedom**: Removed all production use restrictions
+- **Enterprise Ready**: Full compatibility with commercial and enterprise deployments
+- **Ecosystem Integration**: Standard Rust licensing for seamless dependency management
+
+### Added
+
+- 🎌 **Yoshi-Themed API Examples**: Complete examples directory redesign
+  - Enhanced developer experience with anime-themed error handling patterns
+  - Production-ready demonstrations of enterprise-grade error management
+  - Comprehensive API showcase across all Yoshi framework capabilities
+  - Clear progression from simple to advanced usage patterns
+
+### Improved
+
+- 📄 **Licensing Documentation**: Comprehensive licensing framework documentation
+- 🔧 **Build System**: Enhanced CI/CD pipeline for dual-license compatibility
+- 📚 **Documentation**: Updated all documentation to reflect open source status
+
+## [0.1.2] - 2025-05-29
+
+### Added
+
+- **Last Business Source License Release**: Final version under BSL licensing
+- Enhanced error handling framework with production restrictions
+- Comprehensive testing suite and benchmarking capabilities
+
+### Note
+
+> **Important**: This was the final version released under Business Source License.
+> Starting with version 0.1.2, Yoshi transitioned to full dual MIT/Apache 2.0 open source licensing.
+
+## [0.1.1] - 2025-05-27
+
+### Added
+
+- Enhanced derive macro capabilities
+- Improved error formatting and display features
+- Comprehensive documentation and examples
 
 ## [0.1.0] - 2025-05-25
 

@@ -16,7 +16,7 @@
 #!  - Rollback capability for failed upgrade operations
 #!  - Performance monitoring and execution time tracking
 # ~=####====A===r===c===M===o===o===n====S===t===u===d===i===o===s====X|0|$>
-#! 
+#!
 #! ## Mathematical Properties
 #!
 #! **Algorithmic Complexity:**
@@ -30,16 +30,16 @@
 #! - Optimization Opportunities: Parallel dependency resolution
 #!
 # **GitHub:** [ArcMoon Studios](https://github.com/arcmoonstudios)
-# **Copyright:** (c) 2025 ArcMoon Studios  
+# **Copyright:** (c) 2025 ArcMoon Studios
 # **Author:** Lord Xyn
-# **License:** Business Source License 1.1 (BSL-1.1)
+# **License:** MIT OR Apache-2.0
 # **License File:** /LICENSE
-# **License Terms:** Non-production use only; commercial/production use requires paid license.
-# **Effective Date:** 2025-05-25 | **Change License:** GPL v3
+# **License Terms:** Full open source freedom; dual licensing allows choice between MIT and Apache 2.0
+# **Effective Date:** 2025-05-30 | **Open Source Release**
 # **Contact:** LordXyn@proton.me
 # **Quality Certification:** Elite Level (≥99.99% composite score)
 # **Agent Mode:** Enhanced with mathematical optimization
-# **Last Validation:** 2025-05-29
+# **Last Validation:** 2025-06-02
 
 [CmdletBinding()]
 param(
@@ -65,7 +65,7 @@ function Write-ArcMoonLog {
         [string]$Level = "Info",
         [ConsoleColor]$Color = [ConsoleColor]::White
     )
-    
+
     $timestamp = Get-Date -Format "HH:mm:ss.fff"
     $prefix = switch ($Level) {
         "Success" { "✅" }
@@ -74,14 +74,14 @@ function Write-ArcMoonLog {
         "Info"    { "ℹ️ " }
         default   { "📝" }
     }
-    
+
     Write-Host "[$timestamp] $prefix $Message" -ForegroundColor $Color
 }
 
 # Git safety check function
 function Test-GitSafety {
     Write-ArcMoonLog "Checking for uncommitted changes in Cargo.toml..." -Level "Info" -Color Cyan
-    
+
     try {
         $gitStatus = git status --porcelain Cargo.toml 2>$null
         if ($gitStatus) {
@@ -89,7 +89,7 @@ function Test-GitSafety {
             if ($changes -gt 0) {
                 Write-ArcMoonLog "Uncommitted changes detected in Cargo.toml:" -Level "Warning" -Color Yellow
                 Write-Host $gitStatus -ForegroundColor Yellow
-                
+
                 if (-not $Force -and -not $SkipGitCheck) {
                     Write-ArcMoonLog "Upgrade cancelled for safety. Use -Force to override or commit changes first." -Level "Error" -Color Red
                     Write-ArcMoonLog "💡 Recommended: git add Cargo.toml && git commit -m 'Pre-upgrade snapshot'" -Level "Info" -Color Cyan
@@ -99,7 +99,7 @@ function Test-GitSafety {
                 }
             }
         }
-        
+
         Write-ArcMoonLog "Git safety check passed." -Level "Success" -Color Green
         return $true
     } catch {
@@ -111,20 +111,20 @@ function Test-GitSafety {
 # Cargo-edit installation verification
 function Test-CargoEditInstallation {
     Write-ArcMoonLog "Verifying cargo-edit installation..." -Level "Info" -Color Cyan
-    
+
     try {
         $null = Get-Command cargo-upgrade -ErrorAction Stop
         Write-ArcMoonLog "cargo-upgrade is available." -Level "Success" -Color Green
         return $true
     } catch {
         Write-ArcMoonLog "cargo-upgrade not found. Installing cargo-edit..." -Level "Warning" -Color Yellow
-        
+
         try {
             if ($DryRun) {
                 Write-ArcMoonLog "[DRY RUN] Would install cargo-edit" -Level "Info" -Color Magenta
                 return $true
             }
-            
+
             & cargo install cargo-edit --quiet
             Write-ArcMoonLog "cargo-edit installed successfully." -Level "Success" -Color Green
             return $true
@@ -138,7 +138,7 @@ function Test-CargoEditInstallation {
 # Dependency snapshot function
 function Get-DependencySnapshot {
     param([string]$Description)
-    
+
     Write-ArcMoonLog "$Description" -Level "Info" -Color Cyan
     try {
         & cargo tree --depth 1
@@ -152,22 +152,22 @@ function Invoke-DependencyUpgrade {
     Write-ArcMoonLog "🚀 Starting ArcMoon Studios Enterprise Dependency Upgrade" -Level "Info" -Color Cyan
     Write-ArcMoonLog "Project: $script:ProjectName" -Level "Info" -Color White
     Write-ArcMoonLog "Timestamp: $script:LogTimestamp" -Level "Info" -Color White
-    
+
     # Phase 1: Safety checks
     if (-not (Test-GitSafety)) {
         return $false
     }
-    
+
     if (-not (Test-CargoEditInstallation)) {
         return $false
     }
-    
+
     # Phase 2: Pre-upgrade snapshot
     Get-DependencySnapshot "📊 Current dependency snapshot:"
-    
+
     # Phase 3: Execute upgrade
     Write-ArcMoonLog "🔄 Executing dependency upgrade..." -Level "Info" -Color Cyan
-    
+
     try {
         if ($DryRun) {
             Write-ArcMoonLog "[DRY RUN] Would execute: cargo upgrade" -Level "Info" -Color Magenta
@@ -179,15 +179,15 @@ function Invoke-DependencyUpgrade {
         Write-ArcMoonLog "Dependency upgrade failed: $($_.Exception.Message)" -Level "Error" -Color Red
         return $false
     }
-    
+
     # Phase 4: Post-upgrade snapshot
     if (-not $DryRun) {
         Get-DependencySnapshot "📊 Updated dependency snapshot:"
     }
-    
+
     # Phase 5: Validation
     Write-ArcMoonLog "🔍 Validating upgraded dependencies..." -Level "Info" -Color Cyan
-    
+
     try {
         if ($DryRun) {
             Write-ArcMoonLog "[DRY RUN] Would execute: cargo check" -Level "Info" -Color Magenta
@@ -199,7 +199,7 @@ function Invoke-DependencyUpgrade {
         Write-ArcMoonLog "Dependency validation failed: $($_.Exception.Message)" -Level "Warning" -Color Yellow
         Write-ArcMoonLog "💡 Consider running 'cargo update' or checking for breaking changes." -Level "Info" -Color Cyan
     }
-    
+
     return $true
 }
 
@@ -207,7 +207,7 @@ function Invoke-DependencyUpgrade {
 function Show-ExecutionSummary {
     $endTime = Get-Date
     $duration = $endTime - $script:StartTime
-    
+
     Write-ArcMoonLog "⚡ Execution Summary:" -Level "Info" -Color Cyan
     Write-ArcMoonLog "Duration: $($duration.TotalSeconds.ToString('F2')) seconds" -Level "Info" -Color White
     Write-ArcMoonLog "Completed: $($endTime.ToString('yyyy-MM-dd HH:mm:ss'))" -Level "Info" -Color White
@@ -220,7 +220,7 @@ try {
     Write-Host "🌙 ArcMoon Studios Enterprise Dependency Upgrade System" -ForegroundColor Cyan
     Write-Host "================================================" -ForegroundColor Cyan
     Write-Host ""
-    
+
     # Environment validation
     if (-not $env:CARGO_ARCMOON_UPGRADE -and -not $Force) {
         Write-ArcMoonLog "CARGO_ARCMOON_UPGRADE environment variable not set." -Level "Warning" -Color Yellow
@@ -228,13 +228,13 @@ try {
         Write-ArcMoonLog "Example: `$env:CARGO_ARCMOON_UPGRADE='true'; .\scripts\arcmoon-upgrade.ps1" -Level "Info" -Color Cyan
         exit 1
     }
-    
+
     # Execute upgrade
     $success = Invoke-DependencyUpgrade
-    
+
     # Show summary
     Show-ExecutionSummary
-    
+
     if ($success) {
         Write-ArcMoonLog "🎉 ArcMoon Studios Enterprise Upgrade completed successfully!" -Level "Success" -Color Green
         exit 0
@@ -242,7 +242,7 @@ try {
         Write-ArcMoonLog "💥 ArcMoon Studios Enterprise Upgrade failed!" -Level "Error" -Color Red
         exit 1
     }
-    
+
 } catch {
     Write-ArcMoonLog "Unexpected error: $($_.Exception.Message)" -Level "Error" -Color Red
     Write-ArcMoonLog "Stack trace: $($_.ScriptStackTrace)" -Level "Error" -Color Red

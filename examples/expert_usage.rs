@@ -6,585 +6,612 @@
 #![warn(clippy::cargo)]
 //! **Brief:** Demonstrates expert-level usage patterns for the Yoshi error handling framework.
 //!
-//! This module explores advanced error composition, detailed introspection, and
-//! integration with features like `YoshiError` derive and error recovery strategies.
-//! Examples are provided with both the `yoshi!` macro and explicit API calls.
+//! This module explores the most advanced error composition, introspection capabilities,
+//! and enterprise-grade error handling patterns using the complete Yoshi ecosystem.
 //!
 // ~=####====A===r===c===M===o===o===n====S===t===u===d===i===o===s====X|0|$>
 //! + [Expert Error Usage Patterns]
-//!  - [Chained Yoshi Errors: Nesting Yoshi errors as sources for complex traces]
-//!  - [Multiple Errors Aggregation: Using `YoshiKind::Multiple` for batch failures]
-//!  - [Custom Error Derive: Defining structured errors with `#[derive(YoshiError)]`]
-//!  - [Detailed Introspection: Accessing specific contexts, metadata, and typed payloads]
-//!  - [Error Recovery Strategy: Attaching recovery instructions as payloads]
+//!  - [Complex Error Aggregation: Multiple error composition and analysis]
+//!  - [Memory Management: String interning and performance optimization]
+//!  - [Cross-Process Communication: Advanced error reporting systems]
+//!  - [Performance Monitoring: SIMD optimization and metrics collection]
+//!  - [Enterprise Integration: Complete ecosystem utilization]
 // ~=####====A===r===c===M===o===o===n====S===t===u===d===i===o===s====X|0|$>
 // **GitHub:** [ArcMoon Studios](https://github.com/arcmoonstudios)
 // **Copyright:** (c) 2025 ArcMoon Studios
-// **License:** Business Source License 1.1 (BSL-1.1)
-// **License Terms:** Non-production use only; commercial/production use requires paid license.
-// **Effective Date:** 2025-05-25 | **Change License:** GPL v3
-// **License File:** /LICENSE
-// **Contact:** LordXyn@proton.me
+// **License:** MIT OR Apache-2.0
 // **Author:** Lord Xyn
-// **Last Validation:** 2025-05-30
 
-use yoshi::{yoshi, HatchExt, Result, YoContext, Yoshi, YoshiKind, YoshiLocation};
-// Conditional compilation for yoshi-derive and serde if the user's Cargo.toml has features
-use std::collections::HashMap; // For metadata inspection
-use std::sync::Arc; // For Arc<str> in YoshiKind fields
 use std::time::Duration;
-#[cfg(feature = "derive")]
-use yoshi_derive::YoshiError; // For YoshiKind::Timeout
+use yoshi_std::{
+    error_instance_count, memory, yum, Hatch, HatchExt, Hatchable, LayContext, YoContext, Yoshi,
+    YoshiKind, YoshiLocation,
+};
 
-/// Custom struct to use as a shell.
+#[cfg(all(feature = "std", feature = "serde"))]
+use yoshi_std::process_communication;
+
+#[cfg(feature = "unstable-metrics")]
+use yoshi_std::cross_process_metrics;
+
+/// Advanced error state for complex scenarios.
 #[derive(Debug, PartialEq, Clone)]
-struct CustomErrorState {
-    retries: u32,
-    service: String,
+struct AdvancedErrorState {
+    operation_id: String,
+    retry_count: u32,
+    service_tier: ServiceTier,
+    performance_metrics: PerformanceMetrics,
 }
 
-/// Recovery strategy shell to attach to errors.
 #[derive(Debug, PartialEq, Clone)]
-enum RecoveryStrategy {
-    RetryWithDelay(Duration),
-    FallbackToCache,
-    ManualIntervention,
+enum ServiceTier {
+    Critical,
+    Standard,
+    BestEffort,
 }
 
-/// Example 1: Error with a chain of Yoshi errors (nested Yoshi as source).
+#[derive(Debug, PartialEq, Clone)]
+struct PerformanceMetrics {
+    latency_ms: u64,
+    cpu_usage_percent: f64,
+    memory_usage_bytes: usize,
+}
+
+/// Recovery strategy with advanced decision logic.
+#[derive(Debug, PartialEq, Clone)]
+enum AdvancedRecoveryStrategy {
+    ExponentialBackoff {
+        initial_delay: Duration,
+        max_retries: u32,
+        backoff_multiplier: f64,
+    },
+    CircuitBreaker {
+        failure_threshold: u32,
+        recovery_timeout: Duration,
+    },
+    Failover {
+        target_service: String,
+        fallback_data: Option<String>,
+    },
+    ManualEscalation {
+        escalation_level: u8,
+        contact_info: String,
+    },
+}
+
+/// Example 1: Complex error aggregation with analysis.
 ///
-/// This demonstrates building a call stack of Yoshi errors where each layer
-/// provides additional context or wraps a lower-level Yoshi error.
-mod example_1_chained_yoshi_errors {
+/// This demonstrates sophisticated error composition and batch error handling
+/// with comprehensive analysis capabilities.
+mod example_1_complex_aggregation {
     use super::*;
 
-    /// Simulates a low-level network error.
-    fn low_level_network_error() -> Yoshi {
-        yoshi!(kind: YoshiKind::Network {
-            message: "TCP connection reset by peer".into(),
-            source: None,
-            error_code: Some(104),
-        })
-    }
-
-    /// Simulates a middle-level API error wrapping the network error.
-    fn middle_level_api_error_with_macro() -> Yoshi {
-        let network_err = low_level_network_error();
-        yoshi!(kind: YoshiKind::Internal {
-            message: "Failed to communicate with authentication service".into(),
-            source: Some(Box::new(network_err)),
-            component: Some("AuthService".into()),
-        },
-        with_metadata = ("api_endpoint", "/auth/login"),
-        with_suggestion = "Verify authentication service is running.")
-    }
-
-    /// Simulates a middle-level API error wrapping the network error using direct API.
-    fn middle_level_api_error_with_api() -> Yoshi {
-        let network_err = low_level_network_error();
-        Yoshi::new(YoshiKind::Internal {
-            message: "Failed to communicate with authentication service".into(),
-            source: Some(Box::new(network_err)),
-            component: Some("AuthService".into()),
-        })
-        .with_metadata("api_endpoint", "/auth/login".to_string())
-        .with_suggestion("Verify authentication service is running.".to_string())
-    }
-
-    /// Creates a high-level user-facing error wrapping the API error.
-    pub fn create_chained_with_macro() -> Yoshi {
-        let api_err = middle_level_api_error_with_macro();
-        yoshi!(kind: YoshiKind::Internal { // Using Internal as a general app error
-            message: "User login failed unexpectedly".into(),
-            source: Some(Box::new(api_err)),
-            component: Some("UserService".into()),
-        },
-        with_metadata = ("user_id", "test_user_id"),
-        with_suggestion = "Please try logging in again later. If the issue persists, contact support.")
-    }
-
-    /// Creates a high-level user-facing error wrapping the API error using direct API.
-    pub fn create_chained_with_api() -> Yoshi {
-        let api_err = middle_level_api_error_with_api();
-        Yoshi::new(YoshiKind::Internal {
-            message: "User login failed unexpectedly".into(),
-            source: Some(Box::new(api_err)),
-            component: Some("UserService".into()),
-        })
-        .with_metadata("user_id", "test_user_id".to_string())
-        .with_suggestion(
-            "Please try logging in again later. If the issue persists, contact support."
-                .to_string(),
-        )
-    }
-}
-
-/// Example 2: Aggregating multiple errors into a single `YoshiKind::Multiple`.
-///
-/// This is useful for scenarios like batch processing or form validation where
-/// multiple distinct failures can occur.
-mod example_2_multiple_errors {
-    use super::*;
-
-    /// Creates individual errors to aggregate.
-    fn create_individual_errors() -> Vec<Yoshi> {
+    /// Creates a set of related errors for aggregation.
+    fn create_error_batch() -> Vec<Yoshi> {
         vec![
-            yoshi!(kind: YoshiKind::Validation {
-                field: "username".into(),
-                message: "Username already taken".into(),
-                expected: None, actual: Some("existing_user".into())
-            }),
-            yoshi!(kind: YoshiKind::Validation {
-                field: "email".into(),
-                message: "Invalid email format".into(),
-                expected: Some("user@domain.com".into()), actual: Some("invalid".into())
-            }),
-            yoshi!(kind: YoshiKind::Internal {
-                message: "Internal processing error for profile creation".into(),
-                source: None, component: Some("ProfileService".into())
-            }),
+            Yoshi::new(YoshiKind::Validation {
+                field: "user_id".into(),
+                message: "Invalid user identifier format".into(),
+                expected: Some("UUID v4 format".into()),
+                actual: Some("12345".into()),
+            })
+            .with_metadata("validation_rule", "uuid_format")
+            .with_priority(150),
+            Yoshi::new(YoshiKind::Network {
+                message: "Authentication service unavailable".into(),
+                source: None,
+                error_code: Some(503),
+            })
+            .lay("Service discovery failed to locate auth endpoints")
+            .meta("service_registry", "consul")
+            .meta("datacenter", "us-west-2")
+            .with_priority(220),
+            Yoshi::new(YoshiKind::ResourceExhausted {
+                resource: "database_connections".into(),
+                limit: "100".into(),
+                current: "100".into(),
+                usage_percentage: Some(100.0),
+            })
+            .lay("Connection pool exhausted during user registration")
+            .help("Scale up connection pool or implement connection recycling")
+            .with_priority(240),
         ]
     }
 
-    /// Aggregates multiple errors using the `yoshi!` macro.
-    ///
-    /// Note: The `yoshi!` macro itself doesn't directly support `YoshiKind::Multiple`
-    /// as a simple `message` or `error` parameter. It must be explicitly constructed.
-    /// However, the example will show how the `yoshi!` macro *can be used to create the inner errors*.
-    pub fn aggregate_with_macro_components() -> Yoshi {
-        let errors = create_individual_errors();
+    /// Creates a complex aggregated error with analysis.
+    pub fn create_aggregated_error() -> Yoshi {
+        let errors = create_error_batch();
+        let total_severity: u16 = errors.iter().map(|e| e.severity() as u16).sum();
+        let avg_severity = (total_severity / errors.len() as u16) as u8;
+
         Yoshi::new(YoshiKind::Multiple {
             errors,
-            primary_index: Some(1), // Email validation is primary
+            primary_index: Some(2), // Resource exhaustion is primary
         })
-        .context("Failed to register new user due to multiple issues.".to_string())
-        .with_suggestion(
-            "Review all error messages and correct input fields. Try again.".to_string(),
-        )
+        .lay("User registration workflow failed with multiple critical issues")
+        .help("Address resource constraints and service dependencies before retry")
+        .meta("aggregate_severity", &avg_severity.to_string())
+        .meta("workflow_stage", "user_onboarding")
+        .with_priority(250)
     }
 
-    /// Aggregates multiple errors using direct Yoshi API calls.
-    pub fn aggregate_with_api() -> Yoshi {
-        let errors = vec![
-            Yoshi::new(YoshiKind::Validation {
-                field: "username".into(),
-                message: "Username already taken".into(),
-                expected: None,
-                actual: Some("existing_user".into()),
-            }),
-            Yoshi::new(YoshiKind::Validation {
-                field: "email".into(),
-                message: "Invalid email format".into(),
-                expected: Some("user@domain.com".into()),
-                actual: Some("invalid".into()),
-            }),
-            Yoshi::new(YoshiKind::Internal {
-                message: "Internal processing error for profile creation".into(),
+    /// Analyzes the aggregated error comprehensively.
+    pub fn analyze_aggregated_error() -> (usize, u8, bool) {
+        let error = create_aggregated_error();
+
+        // Use yum! for enhanced debugging
+        let debug_error = yum!(error);
+
+        // Perform comprehensive analysis
+        let analysis = debug_error.analyze_contexts();
+        println!("=== Comprehensive Error Analysis ===");
+        println!("Instance ID: {}", debug_error.instance_id());
+        println!("Total contexts: {}", analysis.total_contexts);
+        println!("Context depth: {}", analysis.context_depth);
+        println!("Has suggestions: {}", analysis.has_suggestions);
+        println!("Metadata entries: {}", analysis.metadata_entries);
+        println!("Primary priority: {}", analysis.primary_context_priority);
+
+        // Analyze multiple errors if present
+        if let YoshiKind::Multiple {
+            errors,
+            primary_index,
+        } = debug_error.kind()
+        {
+            println!("Multiple errors detected: {} total", errors.len());
+            if let Some(primary_idx) = primary_index {
+                println!("Primary error index: {}", primary_idx);
+                if let Some(primary_error) = errors.get(*primary_idx) {
+                    println!("Primary error: {}", primary_error);
+                }
+            }
+
+            for (i, err) in errors.iter().enumerate() {
+                println!(
+                    "  Error {}: Severity={}, Transient={}",
+                    i,
+                    err.severity(),
+                    err.is_transient()
+                );
+            }
+        }
+
+        (
+            analysis.total_contexts,
+            debug_error.severity(),
+            debug_error.is_transient(),
+        )
+    }
+}
+
+/// Example 2: Memory management and performance optimization.
+///
+/// This demonstrates advanced memory management features and performance
+/// monitoring capabilities.
+mod example_2_memory_optimization {
+    use super::*;
+
+    /// Creates errors with optimized string usage.
+    pub fn create_optimized_errors() -> Vec<Yoshi> {
+        let mut errors = Vec::new();
+
+        // Create multiple errors with shared string content
+        for i in 0..10 {
+            let error = Yoshi::new(YoshiKind::Internal {
+                message: memory::efficient_string("Shared error message"), // Uses string interning
                 source: None,
-                component: Some("ProfileService".into()),
-            }),
-        ];
-        Yoshi::new(YoshiKind::Multiple {
-            errors,
-            primary_index: Some(1),
-        })
-        .context("Failed to register new user due to multiple issues.".to_string())
-        .with_suggestion(
-            "Review all error messages and correct input fields. Try again.".to_string(),
-        )
+                component: Some(memory::efficient_string("SharedService")), // Reused string
+            })
+            .lay(&format!("Operation {} failed", i))
+            .meta("error_batch", "optimization_test")
+            .meta("shared_component", "SharedService");
+
+            errors.push(error);
+        }
+
+        errors
+    }
+
+    /// Analyzes memory usage and performance.
+    pub fn analyze_memory_performance() -> memory::MemoryStats {
+        let initial_count = error_instance_count();
+        let initial_stats = memory::get_memory_stats();
+
+        println!("=== Memory Performance Analysis ===");
+        println!("Initial error count: {}", initial_count);
+        println!("Initial memory stats: {:?}", initial_stats);
+
+        // Create batch of optimized errors
+        let errors = create_optimized_errors();
+
+        let final_count = error_instance_count();
+        let final_stats = memory::get_memory_stats();
+
+        println!("Final error count: {}", final_count);
+        println!("Errors created: {}", final_count - initial_count);
+        println!("Final memory stats: {:?}", final_stats);
+        println!(
+            "String intern hit rate: {:.2}%",
+            (final_stats.string_intern_hits as f64
+                / (final_stats.string_intern_hits + final_stats.string_intern_misses) as f64)
+                * 100.0
+        );
+
+        // Trigger cleanup for long-running applications
+        #[cfg(feature = "std")]
+        memory::cleanup_intern_pool();
+
+        drop(errors); // Explicit cleanup
+        final_stats
     }
 }
 
-/// Example 3: Using a custom error defined with `YoshiError` derive.
+/// Example 3: Cross-process error communication.
 ///
-/// This demonstrates how a custom enum, annotated with `#[derive(YoshiError)]`,
-/// integrates seamlessly with the Yoshi ecosystem, providing `From<CustomError> for Yoshi`
-/// conversions.
-#[cfg(feature = "derive")] // This module only compiles if `derive` feature is enabled
-mod example_3_custom_derive_error {
+/// This demonstrates enterprise-grade error reporting and coordination
+/// across process boundaries.
+#[cfg(all(feature = "std", feature = "serde"))]
+mod example_3_cross_process {
     use super::*;
 
-    // A custom error enum using YoshiError derive
-    #[derive(Debug, YoshiError)]
-    #[yoshi(error_code_prefix = "APP")]
-    pub enum MyAppError {
-        #[yoshi(display = "Failed to load {resource}: {message}")]
-        #[yoshi(kind = "NotFound")]
-        #[yoshi(error_code = 1001)]
-        ResourceLoadError {
-            resource: String,
-            message: String,
-            #[yoshi(context = "source_path")]
-            path: String,
-        },
-        #[yoshi(display = "Database transaction failed: {operation}")]
-        #[yoshi(kind = "Network")] // Mapping DB errors to Network kind
-        #[yoshi(error_code = 1002)]
-        #[yoshi(transient = true)]
-        DbTransactionError {
-            operation: String,
-            #[yoshi(source)]
-            source_err: std::io::Error, // Example of using std::io::Error as source
-            #[yoshi(shell)]
-            transaction_id: String,
-        },
-    }
-
-    /// Creates and converts a custom derived error using direct enum construction.
-    pub fn create_and_convert_with_derive() -> Yoshi {
-        let custom_err = MyAppError::ResourceLoadError {
-            resource: "User configuration".to_string(),
-            message: "File not found".to_string(),
-            path: "/home/user/.config/app.json".to_string(),
-        };
-        // The `YoshiError` derive automatically implements `From<MyAppError> for Yoshi`
-        let yoshi_err: Yoshi = custom_err.into();
-        yoshi_err.context("During application startup".to_string())
-    }
-
-    /// Creates and converts another custom derived error with a nested `std::io::Error`.
-    pub fn create_and_convert_db_error() -> Yoshi {
-        let io_err = std::io::Error::new(std::io::ErrorKind::TimedOut, "DB server did not respond");
-        let custom_db_err = MyAppError::DbTransactionError {
-            operation: "INSERT new record".to_string(),
-            source_err: io_err,
-            transaction_id: "tx_abc_123".to_string(),
-        };
-        let yoshi_err: Yoshi = custom_db_err.into();
-        yoshi_err
-            .with_suggestion("Check database server status and network connectivity.".to_string())
-    }
-}
-
-/// Example 4: Accessing contexts, metadata, and typed payloads from an error.
-///
-/// This shows how to programmatically inspect the detailed information within a Yoshi error.
-mod example_4_detailed_introspection {
-    use super::*;
-    use std::any::Any; // For Any::type_name()
-
-    /// Creates a complex error for introspection.
-    fn create_complex_error() -> Yoshi {
-        yoshi!(kind: YoshiKind::Internal {
-            message: "Service processing pipeline failed".into(),
-            source: None,
-            component: Some("DataPipeline".into()),
-        },
-        with_metadata = ("pipeline_id", "pipe_001"),
-        with_suggestion = "Inspect pipeline logs for details.",
-        with_shell = CustomErrorState { retries: 3, service: "ProcessorA".to_string() }
-        )
-        .context("Error occurred during data transformation step.".to_string())
-        .with_metadata("step", "transformation")
-        .with_shell(vec![10, 20, 30]) // Another shell
-        .context("Input validation failed before transformation.".to_string())
-        .with_priority(250) // High priority for this context
-        .with_metadata("validation_rule", "format_check")
-    }
-
-    /// Introspects a complex error created with `yoshi!` macro.
-    pub fn introspect_with_macro_created_error() {
-        let error = create_complex_error();
-
-        println!("\n--- Introspection of macro-created error ---");
-        println!("Error Display: {}", error);
-        println!("Error Debug: {:?}", error);
-        println!("Instance ID: {}", error.instance_id());
-        println!("Severity: {}", error.severity());
-        println!("Is Transient: {}", error.is_transient());
-
-        // Accessing primary context (highest priority)
-        if let Some(primary_ctx) = error.primary_context() {
-            println!("\nPrimary Context (Priority {}):", primary_ctx.priority);
-            println!("  Message: {:?}", primary_ctx.message.as_deref());
-            if let Some(loc) = primary_ctx.location {
-                println!("  Location: {}", loc);
-            }
-            println!("  Metadata: {:?}", primary_ctx.metadata);
-            println!("  Suggestion: {:?}", primary_ctx.suggestion.as_deref());
-
-            // Accessing typed payloads in primary context
-            if let Some(state) = primary_ctx.shell::<CustomErrorState>() {
-                println!("  Shell (CustomErrorState): {:?}", state);
-            }
-        }
-
-        // Iterating through all contexts (in order of addition, or sorted by priority by iterators)
-        println!("\nAll Contexts:");
-        for (i, ctx) in error.contexts().rev().enumerate() {
-            // .rev() to show in display order
-            println!(
-                "  Context {}: Message={:?}, Priority={}",
-                i,
-                ctx.message.as_deref(),
-                ctx.priority
-            );
-            if let Some(loc) = ctx.location {
-                println!("    Location: {}", loc);
-            }
-            if !ctx.metadata.is_empty() {
-                println!("    Metadata: {:?}", ctx.metadata);
-            }
-            if !ctx.payloads.is_empty() {
-                println!("    Shells (raw): {} items", ctx.payloads.len());
-                for (p_idx, payload_arc) in ctx.payloads.iter().enumerate() {
-                    println!(
-                        "      Shell {}: Type={}, Value={:?}",
-                        p_idx,
-                        payload_arc.type_id(),
-                        payload_arc
-                    );
-                }
-            }
-        }
-
-        // Accessing any shell across all contexts (via convenience method)
-        if let Some(vec_payload) = error.shell::<Vec<i32>>() {
-            println!("\nFound Vec<i32> shell anywhere: {:?}", vec_payload);
-        }
-    }
-
-    /// Introspects a complex error created using direct API calls.
-    pub fn introspect_with_api_created_error() {
-        let error = Yoshi::new(YoshiKind::Internal {
-            message: "Service processing pipeline failed".into(),
-            source: None,
-            component: Some("DataPipeline".into()),
-        })
-        .with_metadata("pipeline_id", "pipe_001".to_string())
-        .with_suggestion("Inspect pipeline logs for details.".to_string())
-        .with_shell(CustomErrorState {
-            retries: 3,
-            service: "ProcessorA".to_string(),
-        })
-        .context("Error occurred during data transformation step.".to_string())
-        .with_metadata("step", "transformation".to_string())
-        .with_shell(vec![10, 20, 30]) // Another shell
-        .context("Input validation failed before transformation.".to_string())
-        .with_priority(250) // High priority for this context
-        .with_metadata("validation_rule", "format_check".to_string());
-
-        // Same introspection logic as above, demonstrating API consistency
-        println!("\n--- Introspection of API-created error ---");
-        println!("Error Display: {}", error);
-        println!("Error Debug: {:?}", error);
-        println!("Instance ID: {}", error.instance_id());
-        println!("Severity: {}", error.severity());
-        println!("Is Transient: {}", error.is_transient());
-
-        // Accessing primary context (highest priority)
-        if let Some(primary_ctx) = error.primary_context() {
-            println!("\nPrimary Context (Priority {}):", primary_ctx.priority);
-            println!("  Message: {:?}", primary_ctx.message.as_deref());
-            if let Some(loc) = primary_ctx.location {
-                println!("  Location: {}", loc);
-            }
-            println!("  Metadata: {:?}", primary_ctx.metadata);
-            println!("  Suggestion: {:?}", primary_ctx.suggestion.as_deref());
-
-            // Accessing typed payloads in primary context
-            if let Some(state) = primary_ctx.shell::<CustomErrorState>() {
-                println!("  Shell (CustomErrorState): {:?}", state);
-            }
-        }
-
-        // Iterating through all contexts (in order of addition, or sorted by priority by iterators)
-        println!("\nAll Contexts:");
-        for (i, ctx) in error.contexts().rev().enumerate() {
-            // .rev() to show in display order
-            println!(
-                "  Context {}: Message={:?}, Priority={}",
-                i,
-                ctx.message.as_deref(),
-                ctx.priority
-            );
-            if let Some(loc) = ctx.location {
-                println!("    Location: {}", loc);
-            }
-            if !ctx.metadata.is_empty() {
-                println!("    Metadata: {:?}", ctx.metadata);
-            }
-            if !ctx.payloads.is_empty() {
-                println!("    Shells (raw): {} items", ctx.payloads.len());
-                for (p_idx, payload_arc) in ctx.payloads.iter().enumerate() {
-                    println!(
-                        "      Shell {}: Type={}, Value={:?}",
-                        p_idx,
-                        payload_arc.type_id(),
-                        payload_arc
-                    );
-                }
-            }
-        }
-
-        // Accessing any shell across all contexts (via convenience method)
-        if let Some(vec_payload) = error.shell::<Vec<i32>>() {
-            println!("\nFound Vec<i32> shell anywhere: {:?}", vec_payload);
-        }
-    }
-}
-
-/// Example 5: Demonstrating error recovery strategy.
-///
-/// This shows how to attach a specific `RecoveryStrategy` as a typed shell
-/// to an error, allowing higher-level error handlers to react appropriately.
-mod example_5_error_recovery_strategy {
-    use super::*;
-
-    /// Creates an error with a recovery strategy using the `yoshi!` macro.
-    pub fn create_with_macro() -> Yoshi {
-        yoshi!(kind: YoshiKind::Network {
-            message: "Third-party service unavailable".into(),
-            source: None,
-            error_code: Some(503),
-        },
-        with_shell = RecoveryStrategy::RetryWithDelay(Duration::from_secs(5)))
-    }
-
-    /// Creates an error with a recovery strategy using direct API calls.
-    pub fn create_with_api() -> Yoshi {
+    /// Creates an error suitable for cross-process communication.
+    pub fn create_distributed_error() -> Yoshi {
         Yoshi::new(YoshiKind::Network {
-            message: "Third-party service unavailable".into(),
+            message: "Distributed service coordination failure".into(),
             source: None,
-            error_code: Some(503),
+            error_code: Some(500),
         })
-        .with_shell(RecoveryStrategy::RetryWithDelay(Duration::from_secs(5)))
+        .lay("Inter-service communication breakdown detected")
+        .meta("service_mesh", "istio")
+        .meta("namespace", "production")
+        .meta("correlation_id", "dist_xyz_789")
+        .help("Check service mesh configuration and network policies")
+        .with_shell(AdvancedErrorState {
+            operation_id: "dist_op_001".to_string(),
+            retry_count: 3,
+            service_tier: ServiceTier::Critical,
+            performance_metrics: PerformanceMetrics {
+                latency_ms: 5000,
+                cpu_usage_percent: 85.0,
+                memory_usage_bytes: 512_000_000,
+            },
+        })
+        .with_priority(255) // Maximum priority
     }
 
-    /// Consumes the error and attempts recovery.
-    pub fn handle_error(error: Yoshi) {
-        if let Some(strategy) = error.shell::<RecoveryStrategy>() {
-            match strategy {
-                RecoveryStrategy::RetryWithDelay(delay) => {
-                    println!("\nError suggests retry after: {:?}", delay);
-                    // Simulate retry logic
+    /// Demonstrates cross-process error reporting.
+    pub fn report_distributed_error() -> Result<(), Box<dyn std::error::Error>> {
+        let error = create_distributed_error();
+
+        // Report to global cross-process system
+        process_communication::report_global_error(&error);
+
+        // Get global reporter for custom reporting
+        let reporter = process_communication::global_reporter();
+        reporter.report_error(&error)?;
+
+        println!("Distributed error reported to cross-process system");
+        Ok(())
+    }
+}
+
+/// Example 4: Performance monitoring and metrics.
+///
+/// This demonstrates advanced performance monitoring and metrics collection
+/// for enterprise-grade error handling.
+#[cfg(feature = "unstable-metrics")]
+mod example_4_performance_monitoring {
+    use super::*;
+
+    /// Creates performance-critical errors for monitoring.
+    pub fn create_performance_critical_errors() -> Vec<Yoshi> {
+        let mut errors = Vec::new();
+
+        // Create errors with varying severities
+        for severity in [50, 100, 150, 200, 250] {
+            let error = Yoshi::new(YoshiKind::Timeout {
+                operation: format!("Performance test operation (severity {})", severity).into(),
+                duration: Duration::from_millis(severity as u64 * 10),
+                expected_max: Some(Duration::from_millis(1000)),
+            })
+            .lay(&format!(
+                "Performance degradation detected at severity {}",
+                severity
+            ))
+            .meta("performance_test", "true")
+            .meta("severity_level", &severity.to_string())
+            .with_priority(severity as u8);
+
+            // Record in global metrics
+            cross_process_metrics::record_global_error(&error);
+            errors.push(error);
+        }
+
+        errors
+    }
+
+    /// Analyzes performance metrics and generates report.
+    pub fn analyze_performance_metrics() -> cross_process_metrics::MetricsReport {
+        println!("=== Performance Metrics Analysis ===");
+
+        // Create test errors
+        let errors = create_performance_critical_errors();
+
+        // Generate comprehensive metrics report
+        let report = cross_process_metrics::global_report();
+
+        println!("Metrics Report:");
+        println!("  Total errors: {}", report.total_errors);
+        println!("  High severity errors: {}", report.high_severity_errors);
+        println!(
+            "  Medium severity errors: {}",
+            report.medium_severity_errors
+        );
+        println!("  Low severity errors: {}", report.low_severity_errors);
+        println!("  Memory usage: {} bytes", report.memory_usage);
+        println!("  Report timestamp: {:?}", report.timestamp);
+
+        // Demonstrate memory stats integration
+        let memory_stats = memory::get_memory_stats();
+        println!("Memory Performance:");
+        println!(
+            "  Total errors created: {}",
+            memory_stats.total_errors_created
+        );
+        println!(
+            "  String intern efficiency: {:.2}%",
+            if memory_stats.string_intern_hits + memory_stats.string_intern_misses > 0 {
+                (memory_stats.string_intern_hits as f64
+                    / (memory_stats.string_intern_hits + memory_stats.string_intern_misses) as f64)
+                    * 100.0
+            } else {
+                0.0
+            }
+        );
+
+        drop(errors); // Cleanup
+        report
+    }
+}
+
+/// Example 5: Enterprise integration and complete ecosystem usage.
+///
+/// This demonstrates the complete Yoshi ecosystem in an enterprise scenario
+/// with all advanced features integrated.
+mod example_5_enterprise_integration {
+    use super::*;
+
+    /// Simulates a complete enterprise workflow with comprehensive error handling.
+    pub fn enterprise_workflow() -> Hatch<String> {
+        // Phase 1: Input validation with detailed error context
+        validate_enterprise_input("invalid_data")
+            .lay("Enterprise workflow input validation phase")
+            .meta("workflow_id", "ent_wf_001")
+            .meta("phase", "validation")?;
+
+        // Phase 2: Service coordination with recovery strategies
+        coordinate_enterprise_services()
+            .lay("Enterprise service coordination phase")
+            .meta("phase", "coordination")?;
+
+        // Phase 3: Data processing with performance monitoring
+        process_enterprise_data()
+            .lay("Enterprise data processing phase")
+            .meta("phase", "processing")?;
+
+        Ok("Enterprise workflow completed successfully".to_string())
+    }
+
+    /// Validates enterprise input with advanced error handling.
+    fn validate_enterprise_input(input: &str) -> Hatch<()> {
+        if input == "invalid_data" {
+            return Err(Yoshi::new(YoshiKind::Validation {
+                field: "enterprise_input".into(),
+                message: "Input failed enterprise validation criteria".into(),
+                expected: Some("Valid enterprise data format".into()),
+                actual: Some(input.into()),
+            }))
+            .with_shell(AdvancedRecoveryStrategy::ExponentialBackoff {
+                initial_delay: Duration::from_secs(1),
+                max_retries: 3,
+                backoff_multiplier: 2.0,
+            })
+            .help("Ensure input conforms to enterprise data standards");
+        }
+        Ok(())
+    }
+
+    /// Coordinates enterprise services with advanced error handling.
+    fn coordinate_enterprise_services() -> Hatch<()> {
+        Err(Yoshi::new(YoshiKind::Network {
+            message: "Enterprise service mesh coordination failure".into(),
+            source: None,
+            error_code: Some(503),
+        }))
+        .with_shell(AdvancedRecoveryStrategy::CircuitBreaker {
+            failure_threshold: 5,
+            recovery_timeout: Duration::from_secs(30),
+        })
+        .with_shell(AdvancedErrorState {
+            operation_id: "coord_001".to_string(),
+            retry_count: 2,
+            service_tier: ServiceTier::Critical,
+            performance_metrics: PerformanceMetrics {
+                latency_ms: 3000,
+                cpu_usage_percent: 70.0,
+                memory_usage_bytes: 256_000_000,
+            },
+        })
+        .help("Check enterprise service mesh health and circuit breaker status")
+    }
+
+    /// Processes enterprise data with comprehensive monitoring.
+    fn process_enterprise_data() -> Hatch<()> {
+        Err(Yoshi::new(YoshiKind::ResourceExhausted {
+            resource: "enterprise_compute_cluster".into(),
+            limit: "1000 cores".into(),
+            current: "1000 cores".into(),
+            usage_percentage: Some(100.0),
+        }))
+        .with_shell(AdvancedRecoveryStrategy::Failover {
+            target_service: "backup_compute_cluster".to_string(),
+            fallback_data: Some("cached_enterprise_results".to_string()),
+        })
+        .help("Scale enterprise compute resources or activate failover cluster")
+    }
+
+    /// Handles enterprise workflow errors with complete recovery logic.
+    pub fn handle_enterprise_workflow() {
+        match enterprise_workflow() {
+            Ok(result) => {
+                println!("✅ Enterprise workflow succeeded: {}", result);
+            }
+            Err(error) => {
+                // Use yum! for comprehensive debugging
+                let debug_error = yum!(error);
+
+                println!("❌ Enterprise workflow failed");
+                println!("Error analysis:");
+                let analysis = debug_error.analyze_contexts();
+                println!("  - Severity: {}", debug_error.severity());
+                println!("  - Contexts: {}", analysis.total_contexts);
+                println!(
+                    "  - Has recovery strategies: {}",
+                    analysis.typed_payloads > 0
+                );
+
+                // Check for recovery strategies
+                if let Some(strategy) = debug_error.shell::<AdvancedRecoveryStrategy>() {
+                    handle_recovery_strategy(strategy, &debug_error);
                 }
-                RecoveryStrategy::FallbackToCache => {
-                    println!("\nError suggests falling back to cache.");
-                    // Simulate fallback logic
-                }
-                RecoveryStrategy::ManualIntervention => {
-                    println!("\nError requires manual intervention.");
-                    // Alert human operator
+
+                // Report to enterprise systems
+                #[cfg(all(feature = "std", feature = "serde"))]
+                process_communication::report_global_error(&debug_error);
+
+                #[cfg(feature = "unstable-metrics")]
+                cross_process_metrics::record_global_error(&debug_error);
+            }
+        }
+    }
+
+    /// Handles recovery strategies based on error context.
+    fn handle_recovery_strategy(strategy: &AdvancedRecoveryStrategy, error: &Yoshi) {
+        match strategy {
+            AdvancedRecoveryStrategy::ExponentialBackoff {
+                initial_delay,
+                max_retries,
+                ..
+            } => {
+                println!("🔄 Initiating exponential backoff recovery");
+                println!(
+                    "   Initial delay: {:?}, Max retries: {}",
+                    initial_delay, max_retries
+                );
+            }
+            AdvancedRecoveryStrategy::CircuitBreaker {
+                failure_threshold,
+                recovery_timeout,
+            } => {
+                println!("⚡ Circuit breaker activated");
+                println!(
+                    "   Failure threshold: {}, Recovery timeout: {:?}",
+                    failure_threshold, recovery_timeout
+                );
+            }
+            AdvancedRecoveryStrategy::Failover {
+                target_service,
+                fallback_data,
+            } => {
+                println!("🔀 Initiating failover to: {}", target_service);
+                if let Some(data) = fallback_data {
+                    println!("   Using fallback data: {}", data);
                 }
             }
-        } else {
-            println!("\nNo specific recovery strategy found for error: {}", error);
+            AdvancedRecoveryStrategy::ManualEscalation {
+                escalation_level,
+                contact_info,
+            } => {
+                println!("🚨 Manual escalation required (Level {})", escalation_level);
+                println!("   Contact: {}", contact_info);
+                println!("   Error ID: {}", error.instance_id());
+            }
         }
     }
 }
 
-// Main function to run examples (for testing/demonstration)
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn test_example_1_chained_yoshi_errors() {
-        let err1 = example_1_chained_yoshi_errors::create_chained_with_macro();
-        assert!(format!("{}", err1).contains("User login failed unexpectedly"));
-        assert!(format!("{}", err1).contains("Failed to communicate with authentication service"));
-        assert!(format!("{}", err1).contains("TCP connection reset by peer"));
-        // Check metadata from original creation
-        assert!(err1
-            .primary_context()
-            .unwrap()
-            .metadata
-            .get(&"user_id".into())
-            .is_some());
+    fn test_example_1_complex_aggregation() {
+        let (total_contexts, severity, _transient) =
+            example_1_complex_aggregation::analyze_aggregated_error();
+        assert!(total_contexts > 0);
+        assert!(severity > 0);
 
-        let err2 = example_1_chained_yoshi_errors::create_chained_with_api();
-        assert!(format!("{}", err2).contains("User login failed unexpectedly"));
-        assert!(format!("{}", err2).contains("Failed to communicate with authentication service"));
-        assert!(format!("{}", err2).contains("TCP connection reset by peer"));
-        assert!(err2
-            .primary_context()
-            .unwrap()
-            .metadata
-            .get(&"user_id".into())
-            .is_some());
+        let error = example_1_complex_aggregation::create_aggregated_error();
+        assert!(matches!(error.kind(), YoshiKind::Multiple { .. }));
+        assert!(error.primary_context().unwrap().priority == 250);
     }
 
     #[test]
-    fn test_example_2_multiple_errors() {
-        let err1 = example_2_multiple_errors::aggregate_with_macro_components();
-        assert!(matches!(err1.kind(), YoshiKind::Multiple { .. }));
-        assert!(format!("{}", err1).contains("Multiple errors (3 total)"));
-        assert!(format!("{}", err1).contains("email"));
-        assert!(err1.primary_context().unwrap().suggestion.is_some());
+    fn test_example_2_memory_optimization() {
+        let stats = example_2_memory_optimization::analyze_memory_performance();
+        assert!(stats.total_errors_created > 0);
 
-        let err2 = example_2_multiple_errors::aggregate_with_api();
-        assert!(matches!(err2.kind(), YoshiKind::Multiple { .. }));
-        assert!(format!("{}", err2).contains("Multiple errors (3 total)"));
-        assert!(format!("{}", err2).contains("email"));
-        assert!(err2.primary_context().unwrap().suggestion.is_some());
+        let errors = example_2_memory_optimization::create_optimized_errors();
+        assert_eq!(errors.len(), 10);
+
+        // Verify string interning is working
+        for error in &errors {
+            assert!(error
+                .primary_context()
+                .unwrap()
+                .metadata
+                .contains_key(&"error_batch".into()));
+        }
     }
 
     #[test]
-    #[cfg(feature = "derive")]
-    fn test_example_3_custom_derive_error() {
-        let err1 = example_3_custom_derive_error::create_and_convert_with_derive();
-        assert!(matches!(err1.kind(), YoshiKind::NotFound { .. }));
-        assert!(format!("{}", err1).contains("APP-1001")); // Check for error code prefix
-        assert!(err1
-            .primary_context()
-            .unwrap()
-            .metadata
-            .get(&"source_path".into())
-            .is_some());
+    #[cfg(all(feature = "std", feature = "serde"))]
+    fn test_example_3_cross_process() {
+        let error = example_3_cross_process::create_distributed_error();
+        assert!(matches!(error.kind(), YoshiKind::Network { .. }));
+        assert!(error.shell::<AdvancedErrorState>().is_some());
+        assert_eq!(error.primary_context().unwrap().priority, 255);
 
-        let err2 = example_3_custom_derive_error::create_and_convert_db_error();
-        assert!(matches!(err2.kind(), YoshiKind::Network { .. }));
-        assert!(err2.is_transient());
-        assert!(err2.suggestion().is_some());
-        assert!(err2.shell::<String>().is_some()); // Check for transaction_id shell
+        // Test reporting (should not panic)
+        let _ = example_3_cross_process::report_distributed_error();
     }
 
     #[test]
-    fn test_example_4_detailed_introspection() {
-        // This test primarily relies on manual inspection of `println!` output
-        // for comprehensive verification, but basic checks are added.
-        let error_macro = example_4_detailed_introspection::create_complex_error();
-        assert!(error_macro
-            .primary_context()
-            .unwrap()
-            .metadata
-            .get(&"pipeline_id".into())
-            .is_some());
-        assert!(error_macro.shell::<CustomErrorState>().is_some());
-        assert!(error_macro.shell::<Vec<i32>>().is_some());
+    #[cfg(feature = "unstable-metrics")]
+    fn test_example_4_performance_monitoring() {
+        let report = example_4_performance_monitoring::analyze_performance_metrics();
+        assert!(report.total_errors > 0);
 
-        let error_api = example_4_detailed_introspection::create_complex_error();
-        assert!(error_api
-            .primary_context()
-            .unwrap()
-            .metadata
-            .get(&"pipeline_id".into())
-            .is_some());
-        assert!(error_api.shell::<CustomErrorState>().is_some());
-        assert!(error_api.shell::<Vec<i32>>().is_some());
+        let errors = example_4_performance_monitoring::create_performance_critical_errors();
+        assert_eq!(errors.len(), 5);
 
-        // For full demo, uncomment these and run `cargo test -- --nocapture`
-        // example_4_detailed_introspection::introspect_with_macro_created_error();
-        // example_4_detailed_introspection::introspect_with_api_created_error();
+        // Verify different severities
+        let severities: Vec<_> = errors.iter().map(|e| e.severity()).collect();
+        assert!(severities.iter().any(|&s| s >= 200)); // High severity present
     }
 
     #[test]
-    fn test_example_5_error_recovery_strategy() {
-        let err_macro = example_5_error_recovery_strategy::create_with_macro();
-        let strategy_macro = err_macro.shell::<RecoveryStrategy>().unwrap();
-        assert_eq!(
-            *strategy_macro,
-            RecoveryStrategy::RetryWithDelay(Duration::from_secs(5))
-        );
-        example_5_error_recovery_strategy::handle_error(err_macro);
+    fn test_example_5_enterprise_integration() {
+        // Test workflow components
+        let workflow_result = example_5_enterprise_integration::enterprise_workflow();
+        assert!(workflow_result.is_err());
 
-        let err_api = example_5_error_recovery_strategy::create_with_api();
-        let strategy_api = err_api.shell::<RecoveryStrategy>().unwrap();
-        assert_eq!(
-            *strategy_api,
-            RecoveryStrategy::RetryWithDelay(Duration::from_secs(5))
-        );
-        example_5_error_recovery_strategy::handle_error(err_api);
+        // Test comprehensive error handling (should not panic)
+        example_5_enterprise_integration::handle_enterprise_workflow();
+
+        // Verify error has recovery strategies
+        if let Err(error) = workflow_result {
+            assert!(error.shell::<AdvancedRecoveryStrategy>().is_some());
+        }
     }
 }
