@@ -1,8 +1,8 @@
 [package]
 name = "yoshi-derive"
-version = "0.1.2"
+version = "0.1.3"
 edition = "2021"
-rust-version = "1.87.0"
+# rust-version = "1.87.0"  # MSRV - Disabled for docs.rs compatibility
 authors = ["Lord Xyn <LordXyn@proton.me>"]
 repository = "https://github.com/arcmoonstudios/yoshi"
 license = "MIT OR Apache-2.0"

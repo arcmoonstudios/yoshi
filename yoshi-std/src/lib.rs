@@ -1,4 +1,5 @@
 /* yoshi/yoshi-std/src/lib.rs */
+#![cfg_attr(docsrs, feature(doc_cfg))]
 #![allow(dead_code)]
 #![warn(clippy::all)]
 #![warn(missing_docs)]

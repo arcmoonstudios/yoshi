@@ -1,8 +1,8 @@
 [package]
 name = "yoshi-std"
-version = "0.1.2"
+version = "0.1.3"
 edition = "2021"
-rust-version = "1.87.0"                                               # MSRV
+# rust-version = "1.87.0"                                               # MSRV - Disabled for docs.rs compatibility
 authors = ["Lord Xyn <LordXyn@proton.me>"]
 repository = "https://github.com/arcmoonstudios/yoshi"
 license = "MIT OR Apache-2.0"
@@ -35,3 +35,8 @@ unstable-smart-diagnostics = []
 [lib]
 name = "yoshi_std"
 path = "src/lib.rs"
+
+# docs.rs specific configuration for nightly compatibility
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
