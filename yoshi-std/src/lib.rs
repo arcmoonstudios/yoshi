@@ -3458,10 +3458,10 @@ impl Yoshi {
     ///
     /// ```
     /// use yoshi_std::{Yoshi, YoshiKind};
-    ///
-    /// let err = Yoshi::new(YoshiKind::Io(std::io::Error::new(std::io::ErrorKind::PermissionDenied, "file access denied")))
+    ///    /// let err = Yoshi::new(YoshiKind::Io(std::io::Error::new(std::io::ErrorKind::PermissionDenied, "file access denied")))
     ///     .with_suggestion("Check file permissions or path.");
-    ///    /// assert!(err.suggestion().as_deref() == Some("Check file permissions or path."));
+    ///
+    /// assert!(err.suggestion().as_deref() == Some("Check file permissions or path."));
     /// ```
     ///
     /// # Panics
