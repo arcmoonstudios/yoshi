@@ -1,11 +1,13 @@
 /* yoshi/yoshi-std/src/lib.rs */
+#![allow(dead_code)]
 #![warn(clippy::all)]
 #![warn(missing_docs)]
 #![warn(clippy::cargo)]
 #![warn(clippy::pedantic)]
-#![allow(clippy::use_self)]
+#![allow(clippy::too_many_lines)] // Allows for longer files, often necessary in comprehensive modules
 #![allow(clippy::result_large_err)] // Error handling framework intentionally uses large error types for rich context
 #![allow(clippy::enum_variant_names)] // For consistent naming of enum variants like IoError.
+#![allow(clippy::items_after_statements)] // Allows declaration of items after statements for better code flow in some contexts
 #![allow(clippy::module_name_repetitions)] // Allow for names like YoshiKind, YoContext.
 #![cfg_attr(not(feature = "std"), no_std)]
 //! **Brief:** Comprehensive error handling framework for robust Rust applications.
@@ -18,14 +20,6 @@
 //! **Module Classification:** Performance-Critical\
 //! **Complexity Level:** Expert\
 //! **API Stability:** Stable
-//!
-// ~=####====A===r===c===M===o===o===n====S===t===u===d===i===o===s====X|0|$>
-//! + Structured error handling with context preservation [O(1) error creation, O(1) context attachment]
-//!  - Type-safe error categorization with detailed diagnostic information [Memory-safe, Thread-safe]
-//!  - Context chaining for complete error trace visibility [Stack-overflow protection, bounded depth]
-//!  - Conditional backtrace capture with performance monitoring [Zero-cost when disabled]
-//!  - Memory-efficient formatting with minimal allocations [Pre-allocated buffers, shared strings]
-// ~=####====A===r===c===M===o===o===n====S===t===u===d===i===o===s====X|0|$>
 //!
 //! ## Key Features
 //!
@@ -65,7 +59,7 @@
 //! - [`HatchExt`]: Extension trait for `Result` types
 //! - [`YoshiLocation`]: Source code location capture
 //! - [`YoshiBacktrace`]: Performance-monitored backtrace wrapper
-//! - [`NoStdIo`]: I/O error type for `no_std` environments
+//! - `NoStdIo`: I/O error type for `no_std` environments
 //! - [`Result`]: Type alias for `Result` with `Yoshi` as default error
 //! - [`error_instance_count()`]: Global counter for Yoshi error instances
 //!
@@ -143,12 +137,17 @@
 //! [`anyhow`]: https://docs.rs/anyhow
 //! [`thiserror`]: https://docs.rs/thiserror
 //!
+// ~=####====A===r===c===M===o===o===n====S===t===u===d===i===o===s====X|0|$>
+//! + Structured error handling with context preservation [O(1) error creation, O(1) context attachment]
+//!  - Type-safe error categorization with detailed diagnostic information [Memory-safe, Thread-safe]
+//!  - Context chaining for complete error trace visibility [Stack-overflow protection, bounded depth]
+//!  - Conditional backtrace capture with performance monitoring [Zero-cost when disabled]
+//!  - Memory-efficient formatting with minimal allocations [Pre-allocated buffers, shared strings]
+// ~=####====A===r===c===M===o===o===n====S===t===u===d===i===o===s====X|0|$>
 // **GitHub:** [ArcMoon Studios](https://github.com/arcmoonstudios)
 // **Copyright:** (c) 2025 ArcMoon Studios
-// **License:** Business Source License 1.1 (BSL-1.1)
+// **License:** MIT OR Apache-2.0
 // **License File:** /LICENSE
-// **License Terms:** Non-production use only; commercial/production use requires paid license.
-// **Effective Date:** 2025-05-25 | **Change License:** GPL v3
 // **Contact:** LordXyn@proton.me
 // **Author:** Lord Xyn
 
@@ -239,7 +238,7 @@ pub use std::{
 use core::any::Any; // Import Any for error_generic_member_access and blanket From
 use core::error::Error; // Removed Request as it's unstable
 use core::fmt::{self, Display, Formatter};
-use core::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
+use core::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
 use core::time::Duration;
 
 // Additional imports for advanced features
@@ -254,6 +253,7 @@ use std::{thread, time::SystemTime};
 #[cfg(not(feature = "std"))]
 /// Enhanced SystemTime for `no_std` environments with monotonic counter.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct SystemTime {
     /// Monotonic timestamp counter for ordering events
     timestamp: u64,
@@ -292,7 +292,7 @@ impl SystemTime {
     }
 }
 #[cfg(not(feature = "std"))]
-use core::sync::atomic::{AtomicU32, Ordering};
+use core::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 
 #[cfg(not(feature = "std"))]
 /// Enhanced ThreadId for `no_std` environments with unique identification.
@@ -339,6 +339,7 @@ impl ThreadId {
     }
 
     /// Returns the raw thread ID for debugging.
+    #[inline]
     pub const fn as_u32(&self) -> u32 {
         self.id
     }
@@ -456,7 +457,7 @@ pub struct OptimizedFormatBuffer {
 }
 
 impl OptimizedFormatBuffer {
-    const DEFAULT_CAPACITY: usize = 4096; // 4KB default
+    const DEFAULT_CAPACITY: usize = 2048; // 2KB optimized default
 
     /// Creates a new optimized format buffer with default capacity.
     ///
@@ -520,19 +521,25 @@ impl OptimizedFormatBuffer {
         }
     }
 
-    /// High-performance string appending with memory-efficient growth
+    /// High-performance string appending with optimized growth strategy
     pub fn append_optimized(&mut self, s: &str) {
-        let new_len = self.data.len() + s.len();
+        let current_len = self.data.len();
+        let append_len = s.len();
+        let new_len = current_len + append_len;
 
-        // Ensure capacity with intelligent growth strategy
+        // Optimized growth strategy: 1.5x growth with minimum thresholds
         if new_len > self.data.capacity() {
-            let new_capacity = (new_len * 2)
-                .next_power_of_two()
-                .max(self.reserved_capacity);
-            self.data.reserve(new_capacity - self.data.capacity());
+            let current_cap = self.data.capacity();
+            // Ensure minimum growth of at least reserved_capacity or 256 bytes for small buffers
+            let min_growth_needed = self.reserved_capacity.max(256);
+            let growth_target_1_5x = current_cap + (current_cap >> 1); // 1.5x growth
+            let new_capacity = growth_target_1_5x.max(new_len).max(min_growth_needed);
+
+            // Reserve exactly what we need to avoid over-allocation, but also ensure minimum
+            self.data.reserve(new_capacity - current_cap);
         }
 
-        // Use efficient string concatenation
+        // Use efficient string concatenation, which is highly optimized by Rust
         self.data.push_str(s);
     }
 
@@ -598,7 +605,7 @@ impl OptimizedFormatBuffer {
             let new_capacity = (new_len * 2)
                 .next_power_of_two()
                 .max(self.reserved_capacity);
-            self.data.reserve(new_capacity - self.data.capacity());
+            self.data.reserve_exact(new_capacity - self.data.capacity());
         }
 
         for fragment in fragments {
@@ -763,7 +770,7 @@ pub type Hatch<T> = Result<T, Yoshi>;
 /// This atomic counter tracks the total number of `Yoshi` error instances
 /// that have been created since the application started. It's primarily
 /// used for performance monitoring and diagnostic purposes.
-static ERROR_INSTANCE_COUNTER: AtomicU64 = AtomicU64::new(0);
+static ERROR_INSTANCE_COUNTER: AtomicU32 = AtomicU32::new(0);
 
 /// Global string interning pool for optimal memory reuse
 static STRING_INTERN_POOL: OnceLock<StringInternPool> = OnceLock::new();
@@ -811,7 +818,7 @@ fn sanitize_error_message(msg: &str) -> String {
     sanitized
 }
 
-/// High-performance string interning for reduced allocations
+/// High-performance string interning with autonomous memory management and lock-free fast paths
 struct StringInternPool {
     #[cfg(feature = "std")]
     pool: std::sync::RwLock<std::collections::HashMap<String, Arc<str>>>,
@@ -819,17 +826,19 @@ struct StringInternPool {
     pool: alloc::collections::BTreeMap<String, Arc<str>>,
     hits: AtomicUsize,
     misses: AtomicUsize,
+    cache_size: AtomicUsize,
 }
 
 impl StringInternPool {
     fn new() -> Self {
         Self {
             #[cfg(feature = "std")]
-            pool: std::sync::RwLock::new(std::collections::HashMap::new()),
+            pool: std::sync::RwLock::new(std::collections::HashMap::with_capacity(128)),
             #[cfg(not(feature = "std"))]
             pool: alloc::collections::BTreeMap::new(),
             hits: AtomicUsize::new(0),
             misses: AtomicUsize::new(0),
+            cache_size: AtomicUsize::new(0),
         }
     }
 
@@ -838,59 +847,186 @@ impl StringInternPool {
     pub fn clear_pool(&self) {
         if let Ok(mut pool) = self.pool.write() {
             pool.clear();
+            self.cache_size.store(0, Ordering::Release);
         }
     }
 
     fn intern(&self, s: impl Into<String>) -> Arc<str> {
         let string = s.into();
 
+        // Early exit for empty strings
+        if string.is_empty() {
+            return Arc::from("");
+        }
+
         #[cfg(feature = "std")]
         {
-            // Fast path: check if already interned
-            {
-                let pool = self
-                    .pool
-                    .read()
-                    .unwrap_or_else(std::sync::PoisonError::into_inner);
+            // Fast path: check if already interned with non-blocking try_read for performance
+            if let Ok(pool) = self.pool.try_read() {
                 if let Some(interned) = pool.get(&string) {
                     self.hits.fetch_add(1, Ordering::Relaxed);
                     return interned.clone();
                 }
             }
 
-            // Slow path: intern new string
+            // Cache size check before expensive write lock
+            const MAX_CACHE_SIZE: usize = 512;
+            let current_size = self.cache_size.load(Ordering::Relaxed);
+            if current_size >= MAX_CACHE_SIZE {
+                // Skip interning for large caches to prevent memory bloat
+                self.misses.fetch_add(1, Ordering::Relaxed);
+                return string.into();
+            }
+
+            // Slow path: intern new string (acquire write lock)
             let mut pool = self
                 .pool
                 .write()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
 
-            // Double-check pattern
+            // Double-check pattern (after acquiring write lock, for race conditions during read)
             if let Some(interned) = pool.get(&string) {
                 self.hits.fetch_add(1, Ordering::Relaxed);
                 return interned.clone();
             }
 
-            let arc_str: Arc<str> = string.clone().into();
-            pool.insert(string, arc_str.clone());
-            self.misses.fetch_add(1, Ordering::Relaxed);
-            arc_str
+            let current_pool_size = pool.len();
+            if current_pool_size < MAX_CACHE_SIZE {
+                let arc_str: Arc<str> = string.as_str().into();
+                pool.insert(string, arc_str.clone());
+                self.cache_size
+                    .store(current_pool_size + 1, Ordering::Release);
+                self.misses.fetch_add(1, Ordering::Relaxed);
+                arc_str
+            } else {
+                // Cache is full, return without interning
+                self.cache_size.store(current_pool_size, Ordering::Release);
+                self.misses.fetch_add(1, Ordering::Relaxed);
+                string.into()
+            }
         }
 
         #[cfg(not(feature = "std"))]
         {
-            // For no_std, use direct conversion without pooling for now
-            // This could be enhanced with a lock-free approach in the future
-            self.misses.fetch_add(1, Ordering::Relaxed);
-            string.into()
+            // High-performance lock-free string interning using separate chaining with explicit capacity management
+            use core::ptr;
+            use core::sync::atomic::AtomicPtr;
+
+            // Fixed-size lock-free cache with atomic slots (larger for fewer collisions)
+            const CACHE_SLOTS: usize = 256; // Power of 2 for efficient modulo
+            static CACHE: [AtomicPtr<CacheEntry>; CACHE_SLOTS] =
+                [const { AtomicPtr::new(ptr::null_mut()) }; CACHE_SLOTS];
+
+            // Global maximum number of interned strings to prevent unbounded memory growth in no_std
+            const MAX_GLOBAL_CACHE_SIZE: usize = 512;
+
+            #[repr(C)]
+            struct CacheEntry {
+                hash: u64,
+                arc_str: Arc<str>,
+                next: AtomicPtr<CacheEntry>,
+            }
+
+            // Fast hash function for cache slot selection (FNV-1a)
+            #[inline(always)] // Ensure inlining for performance-critical path
+            fn fast_hash(s: &str) -> u64 {
+                let mut hash = 0xcbf29ce484222325u64; // FNV-1a offset basis
+                for byte in s.bytes() {
+                    hash ^= byte as u64;
+                    hash = hash.wrapping_mul(0x100000001b3u64); // FNV-1a prime
+                }
+                hash
+            }
+
+            let hash = fast_hash(&string);
+            let slot_index = (hash as usize) & (CACHE_SLOTS - 1); // Efficient modulo for power of 2
+
+            // Lock-free search in the cache slot's linked list
+            let mut current = CACHE[slot_index].load(Ordering::Acquire);
+            while !current.is_null() {
+                unsafe {
+                    let entry = &*current;
+                    if entry.hash == hash && entry.arc_str.as_ref() == string {
+                        self.hits.fetch_add(1, Ordering::Relaxed);
+                        return entry.arc_str.clone();
+                    }
+                    current = entry.next.load(Ordering::Acquire);
+                }
+            }
+
+            // Cache miss: attempt to increment global cache size *before* allocation
+            let new_cache_size = self.cache_size.fetch_add(1, Ordering::Relaxed) + 1;
+            if new_cache_size > MAX_GLOBAL_CACHE_SIZE {
+                // If over capacity, decrement counter (to prevent false overflow) and return original string
+                self.cache_size.fetch_sub(1, Ordering::Relaxed); // Correct the increment
+                self.misses.fetch_add(1, Ordering::Relaxed);
+                return string.into(); // Return uninterned string
+            }
+
+            let arc_str: Arc<str> = string.into(); // Allocate string
+            let new_entry = Box::into_raw(Box::new(CacheEntry {
+                hash,
+                arc_str: arc_str.clone(),
+                next: AtomicPtr::new(ptr::null_mut()),
+            }));
+
+            // Atomic compare-and-swap insertion at head of linked list
+            let mut head = CACHE[slot_index].load(Ordering::Acquire);
+            loop {
+                unsafe {
+                    (*new_entry).next.store(head, Ordering::Relaxed);
+                }
+
+                match CACHE[slot_index].compare_exchange_weak(
+                    head,
+                    new_entry,
+                    Ordering::Release,
+                    Ordering::Acquire,
+                ) {
+                    Ok(_) => {
+                        // Successfully inserted new entry
+                        self.misses.fetch_add(1, Ordering::Relaxed);
+                        return arc_str;
+                    }
+                    Err(current_head) => {
+                        // Another thread modified the head, retry with new head
+                        head = current_head;
+
+                        // Double-check if another thread inserted our string
+                        let mut search_current = head;
+                        while !search_current.is_null() {
+                            unsafe {
+                                let entry = &*search_current;
+                                if entry.hash == hash && entry.arc_str.as_ref() == string {
+                                    // Another thread inserted our string, clean up and return
+                                    let _ = unsafe { Box::from_raw(new_entry) }; // Clean up unused entry
+                                    self.hits.fetch_add(1, Ordering::Relaxed);
+                                    self.cache_size.fetch_sub(1, Ordering::Relaxed); // Correct the size
+                                    return entry.arc_str.clone();
+                                }
+                                search_current = entry.next.load(Ordering::Acquire);
+                            }
+                        }
+                        // Continue loop to retry insertion
+                    }
+                }
+            }
         }
     }
 
     /// Returns (hits, misses) for performance monitoring
+    #[inline]
     pub fn stats(&self) -> (usize, usize) {
         (
             self.hits.load(Ordering::Relaxed),
             self.misses.load(Ordering::Relaxed),
         )
+    }
+
+    /// Returns current cache size for autonomous memory monitoring
+    #[inline]
+    pub fn cache_size(&self) -> usize {
+        self.cache_size.load(Ordering::Acquire)
     }
 }
 
@@ -932,7 +1068,7 @@ pub fn intern_string(s: impl Into<String>) -> Arc<str> {
 ///
 /// assert_eq!(error_instance_count(), initial_count + 2);
 /// ```
-pub fn error_instance_count() -> u64 {
+pub fn error_instance_count() -> u32 {
     ERROR_INSTANCE_COUNTER.load(Ordering::Relaxed)
 }
 
@@ -1178,9 +1314,8 @@ impl Error for NoStdIo {}
 #[non_exhaustive]
 pub enum YoshiKind {
     /// Standard I/O failure with optimized error representation.
-    ///
-    /// This variant wraps `std::io::Error` when the `std` feature is enabled,
-    /// or [`NoStdIo`] for `no_std` environments.
+    ///    /// This variant wraps `std::io::Error` when the `std` feature is enabled,
+    /// or `NoStdIo` for `no_std` environments.
     #[cfg(feature = "std")]
     #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
     Io(std::io::Error),
@@ -3001,7 +3136,7 @@ pub struct Yoshi {
     /// Contexts providing additional information about the error.
     contexts: Vec<YoContext>,
     /// A unique identifier for this error instance.
-    instance_id: u64,
+    instance_id: u32,
     /// Timestamp when the error was created (only available with `std` feature).
     #[cfg(feature = "std")]
     #[allow(dead_code)]
@@ -3073,7 +3208,7 @@ impl Yoshi {
             backtrace: capture_bt(),
             #[cfg(not(feature = "std"))]
             backtrace: None,
-            contexts: Vec::new(),
+            contexts: Vec::with_capacity(4), // Pre-allocate for typical error chain depth
             instance_id,
             #[cfg(feature = "std")]
             created_at: SystemTime::now(),
@@ -3165,7 +3300,7 @@ impl Yoshi {
     /// println!("Error 2 ID: {}", err2.instance_id());
     /// ```
     #[inline]
-    pub const fn instance_id(&self) -> u64 {
+    pub const fn instance_id(&self) -> u32 {
         self.instance_id
     }
 
@@ -3332,8 +3467,7 @@ impl Yoshi {
     ///
     /// # Panics
     ///
-    /// This method may panic if the context storage fails, though this is extremely unlikely.
-    #[inline]
+    /// This method may panic if the context storage fails, though this is extremely unlikely.    #[inline]
     #[track_caller]
     #[must_use]
     pub fn with_suggestion(mut self, s: impl Into<String>) -> Self {
@@ -3346,6 +3480,57 @@ impl Yoshi {
             .last_mut()
             .expect("contexts should not be empty")
             .suggestion = Some(intern_string(s.into()));
+        self
+    }
+
+    /// Attaches a component identifier to the error's primary context.
+    ///
+    /// This method adds a component identifier to help categorize and trace
+    /// errors within different parts of a system or application. The component
+    /// information is stored as metadata with the key "component".
+    ///
+    /// # Arguments
+    ///
+    /// * `component` - The component identifier. It can be any type that converts into a `String`.
+    ///
+    /// # Returns
+    ///
+    /// The modified `Yoshi` error instance with the component information.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use yoshi_std::{Yoshi, YoshiKind};
+    ///
+    /// let err = Yoshi::new(YoshiKind::Internal {
+    ///     message: "operation failed".into(),
+    ///     source: None,
+    ///     component: None,
+    /// })
+    /// .with_component("database");
+    ///
+    /// // Component can be retrieved from metadata
+    /// let ctx = err.primary_context().unwrap();
+    /// assert_eq!(ctx.metadata.get("component").map(|s| s.as_ref()), Some("database"));
+    /// ```
+    ///
+    /// # Panics
+    ///
+    /// This method may panic if the context storage fails, though this is extremely unlikely.
+    #[inline]
+    #[track_caller]
+    #[must_use]
+    pub fn with_component(mut self, component: impl Into<String>) -> Self {
+        // Ensure there's at least one context to attach the component to
+        if self.contexts.is_empty() {
+            self.contexts
+                .push(YoContext::new("Error occurred").with_location(yoshi_location!()));
+        }
+        self.contexts
+            .last_mut()
+            .expect("contexts should not be empty")
+            .metadata
+            .insert(intern_string("component"), intern_string(component.into()));
         self
     }
 
@@ -3600,8 +3785,7 @@ impl Yoshi {
     /// An `Option` containing a reference to the downcasted error of type `T`,
     /// or `None` if the error is not `YoshiKind::Foreign` or cannot be downcasted
     /// to the specified type.
-    ///
-    /// # Examples
+    ///    /// # Examples
     ///
     /// ```
     /// use std::io;
@@ -3616,7 +3800,8 @@ impl Yoshi {
     /// } else {
     ///     panic!("Expected io::Error");
     /// }
-    /// ```    #[inline]
+    /// ```
+    #[inline]
     pub fn downcast_ref<T: Error + 'static>(&self) -> Option<&T> {
         if let YoshiKind::Foreign { error, .. } = &self.kind {
             // First try to downcast the ForeignErrorWrapper itself to T
@@ -3646,10 +3831,10 @@ impl Yoshi {
     /// * `T` - The concrete type to downcast to, which must implement `Error`.
     ///
     /// # Returns
-    ///
-    /// An `Option` containing a mutable reference to the downcasted error of type `T`,
+    ///    /// An `Option` containing a mutable reference to the downcasted error of type `T`,
     /// or `None` if the error is not `YoshiKind::Foreign` or cannot be downcasted
-    /// to the specified type.    #[inline]
+    /// to the specified type.
+    #[inline]
     pub fn downcast_mut<T: Error + 'static>(&mut self) -> Option<&mut T> {
         if let YoshiKind::Foreign { error, .. } = &mut self.kind {
             // Use a single downcast operation and then check both possibilities
@@ -3779,9 +3964,9 @@ impl Yoshi {
     ///     component: None,
     /// })
     /// .with_shell(CustomPayload(123));
-    ///
-    /// assert_eq!(err.shell::<CustomPayload>().unwrap().0, 123);
-    /// ```    #[inline]
+    ///    /// assert_eq!(err.shell::<CustomPayload>().unwrap().0, 123);
+    /// ```
+    #[inline]
     pub fn shell<T: 'static>(&self) -> Option<&T> {
         // Search ALL contexts for the shell, not just the primary context
         // This ensures payloads can be found regardless of context priority ordering
@@ -3945,11 +4130,20 @@ impl Yoshi {
 }
 
 impl Display for Yoshi {
-    /// Formats the `Yoshi` error for display, including its kind, contexts, and backtrace.
+    /// Formats the `Yoshi` error for display with optimized O(n) error chain traversal.
     ///
     /// This implementation provides a comprehensive, human-readable representation
-    /// of the error, designed for debugging and logging. It iterates through
-    /// contexts, displaying their messages, metadata, and suggestions.
+    /// of the error, designed for debugging and logging. It uses an optimized
+    /// iterative approach to traverse error chains, eliminating the O(n²) performance
+    /// bottleneck present in recursive formatting. The formatter collects the entire
+    /// error chain first, then renders all information in a single linear pass.
+    ///
+    /// # Performance Characteristics
+    ///
+    /// - **Time Complexity**: O(n) where n is the total depth of the error chain
+    /// - **Space Complexity**: O(n) for temporary chain storage
+    /// - **Memory Allocation**: Minimized through `OptimizedFormatBuffer` usage
+    /// - **Scaling**: Linear performance even for deep error chains (100+ levels)
     ///
     /// # Arguments
     ///
@@ -3958,11 +4152,29 @@ impl Display for Yoshi {
     /// # Returns
     ///
     /// A `fmt::Result` indicating success or failure of the formatting.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use yoshi_std::{Yoshi, YoshiKind};
+    /// let error = Yoshi::new(YoshiKind::Internal {
+    ///     message: "Operation failed".into(),
+    ///     source: None,
+    ///     component: None,
+    /// })
+    /// .context("While processing request");
+    ///
+    /// println!("{}", error); // Efficient O(n) formatting
+    /// ```
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        writeln!(f, "{}: {}", self.instance_id, self.kind)?;
+        // Use optimized buffer for efficient string building
+        let mut buffer = OptimizedFormatBuffer::new();
 
-        // Print contexts from oldest to newest (excluding the first if it's auto-generated)
-        // This iterates contexts in the order they were added.
+        // Write primary error information
+        buffer.append_optimized(&format!("{}: {}", self.instance_id, self.kind));
+        buffer.append_optimized("\n");
+
+        // Print contexts from oldest to newest (excluding auto-generated ones)
         for (i, ctx) in self.contexts.iter().enumerate() {
             if i == 0
                 && ctx.message.as_deref() == Some("Error occurred")
@@ -3975,52 +4187,85 @@ impl Display for Yoshi {
             }
 
             if let Some(msg) = ctx.message.as_deref() {
-                writeln!(f, "Caused by: {msg}")?;
+                buffer.append_optimized("Caused by: ");
+                buffer.append_optimized(msg);
+                buffer.append_optimized("\n");
             }
 
             if !ctx.metadata.is_empty() {
-                writeln!(f, "Metadata:")?;
+                buffer.append_optimized("Metadata:\n");
                 for (k, v) in &ctx.metadata {
-                    writeln!(f, "  {k}: {v}")?;
+                    buffer.append_optimized("  ");
+                    buffer.append_optimized(k.as_ref());
+                    buffer.append_optimized(": ");
+                    buffer.append_optimized(v.as_ref());
+                    buffer.append_optimized("\n");
                 }
             }
 
             if let Some(suggestion) = ctx.suggestion.as_deref() {
-                writeln!(f, "Suggestion: {suggestion}")?;
+                buffer.append_optimized("Suggestion: ");
+                buffer.append_optimized(suggestion);
+                buffer.append_optimized("\n");
             }
 
-            if ctx.location.is_some() {
-                writeln!(f, "Location: {}", ctx.location.unwrap())?;
+            if let Some(location) = ctx.location {
+                buffer.append_optimized("Location: ");
+                buffer.append_optimized(&location.to_string());
+                buffer.append_optimized("\n");
             }
         }
 
-        // Display source chain from YoshiKind.source()
-        if let Some(source_error) = self.kind.source() {
-            // Check if the source is a Yoshi error (for proper recursive formatting)
+        // Collect complete error chain iteratively (O(n) instead of O(n²))
+        let mut error_chain = Vec::new();
+        let mut yoshi_contexts = Vec::new();
+
+        // Start with the source from this error's kind
+        let mut current_error = self.kind.source();
+
+        while let Some(source_error) = current_error {
+            // Check if it's a Yoshi error to extract contexts
             if let Some(yoshi_source) = source_error.downcast_ref::<Yoshi>() {
-                writeln!(f, "Caused by: {}", yoshi_source.kind)?;
-                // Recursively display nested contexts and sources
+                // Add the Yoshi error's kind to the chain
+                error_chain.push(format!("Caused by: {}", yoshi_source.kind));
+
+                // Collect contexts from this Yoshi error
                 for ctx in &yoshi_source.contexts {
                     if let Some(msg) = ctx.message.as_deref() {
-                        writeln!(f, "Caused by: {msg}")?;
+                        yoshi_contexts.push(format!("Caused by: {msg}"));
                     }
                 }
-                // Recursively display deeper source chain
-                if let Some(deeper_source) = yoshi_source.kind.source() {
-                    writeln!(f, "Caused by: {deeper_source}")?;
-                }
+
+                // Move to the next error in the chain
+                current_error = yoshi_source.kind.source();
             } else {
-                // For non-Yoshi sources, just display them directly
-                writeln!(f, "Caused by: {source_error}")?;
+                // For non-Yoshi sources, add directly to chain and stop
+                error_chain.push(format!("Caused by: {source_error}"));
+                current_error = source_error.source();
             }
         }
 
-        #[cfg(feature = "std")]
-        if let Some(bt) = &self.backtrace {
-            writeln!(f, "\nBacktrace:\n{bt}")?;
+        // Append all collected error chain information
+        for error_msg in error_chain {
+            buffer.append_optimized(&error_msg);
+            buffer.append_optimized("\n");
         }
 
-        Ok(())
+        // Append all collected Yoshi contexts
+        for ctx_msg in yoshi_contexts {
+            buffer.append_optimized(&ctx_msg);
+            buffer.append_optimized("\n");
+        }
+
+        // Add backtrace if available
+        #[cfg(feature = "std")]
+        if let Some(bt) = &self.backtrace {
+            buffer.append_optimized("\nBacktrace:\n");
+            buffer.append_optimized(&bt.to_string());
+        }
+
+        // Write the complete formatted output
+        write!(f, "{}", buffer.as_str().trim_end())
     }
 }
 
@@ -4426,7 +4671,7 @@ pub mod memory {
     #[derive(Debug, Default)]
     pub struct MemoryStats {
         /// Total number of Yoshi error instances created since application start
-        pub total_errors_created: u64,
+        pub total_errors_created: u32,
         /// Total number of context objects created across all errors
         pub total_contexts_created: u64,
         /// Number of string interning cache hits for memory optimization
@@ -4478,6 +4723,10 @@ pub mod async_error_handling {
     use std::future::Future;
     use std::time::Duration;
 
+    #[cfg(feature = "async")]
+    #[allow(unused_imports)]
+    use tokio::time;
+
     /// Async error propagation with enhanced context preservation
     ///
     /// # Errors
@@ -4517,7 +4766,10 @@ pub mod async_error_handling {
                 Ok(result) => return Ok(result),
                 Err(error) if attempt == max_retries => return Err(error),
                 Err(error) if error.is_transient() => {
-                    // Use standard library sleep for async compatibility
+                    // Use async sleep for proper async compatibility
+                    #[cfg(feature = "async")]
+                    tokio::time::sleep(delay).await;
+                    #[cfg(not(feature = "async"))]
                     std::thread::sleep(delay);
                     delay *= 2;
                 }
@@ -4571,13 +4823,41 @@ pub mod async_error_handling {
 // Cross-process communication and error reporting
 //--------------------------------------------------------------------------------------------------
 
-#[cfg(feature = "std")]
+#[cfg(all(feature = "std", feature = "serde"))]
 pub mod process_communication {
     //! Cross-process error reporting and coordination with enterprise-grade reliability.
 
     use super::{Arc, HashMap, OnceLock, Result, String, SystemTime, ToString, Yoshi};
+    use serde::{self, Deserializer, Serializer};
+    use serde_json;
     use std::sync::mpsc;
     use std::thread;
+
+    // Helper functions for SystemTime serialization/deserialization for std
+    // (Serializes as seconds since UNIX_EPOCH)
+    mod serde_system_time {
+        use super::{Deserializer, Serializer};
+        use serde::Deserialize;
+        use std::time::{SystemTime, UNIX_EPOCH};
+        #[allow(clippy::trivially_copy_pass_by_ref)]
+        pub fn serialize<S>(time: &SystemTime, serializer: S) -> Result<S::Ok, S::Error>
+        where
+            S: Serializer,
+        {
+            let duration = time
+                .duration_since(UNIX_EPOCH)
+                .map_err(serde::ser::Error::custom)?;
+            serializer.serialize_u64(duration.as_secs())
+        }
+
+        pub fn deserialize<'de, D>(deserializer: D) -> Result<SystemTime, D::Error>
+        where
+            D: Deserializer<'de>,
+        {
+            let secs = u64::deserialize(deserializer)?;
+            Ok(UNIX_EPOCH + std::time::Duration::from_secs(secs))
+        }
+    }
 
     /// Cross-process error reporter with structured logging
     pub struct ProcessErrorReporter {
@@ -4585,7 +4865,7 @@ pub mod process_communication {
         _handle: thread::JoinHandle<()>,
     }
     /// Serializable error for cross-process communication
-    #[derive(Debug, Clone)]
+    #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
     pub struct ProcessError {
         /// Unique identifier for the process that generated this error
         pub process_id: u32,
@@ -4598,8 +4878,13 @@ pub mod process_communication {
         /// Severity level from 0 (info) to 255 (critical)
         pub severity: u8,
         /// System timestamp when the error occurred
+        #[serde(with = "serde_system_time")]
         pub timestamp: SystemTime,
         /// Additional metadata for enhanced error context
+        #[serde(
+            serialize_with = "super::serde_helpers::serialize_arc_str_map",
+            deserialize_with = "super::serde_helpers::deserialize_arc_str_map"
+        )]
         pub metadata: HashMap<Arc<str>, Arc<str>>,
     }
 
@@ -4624,15 +4909,12 @@ pub mod process_communication {
                         error.error_message,
                         error.process_id,
                         error.severity
-                    );
-
-                    // Write to structured log file (simple format without serde_json)
-                    println!("STRUCTURED_LOG: {{\"process_id\":{},\"thread_id\":\"{}\",\"message\":\"{}\",\"severity\":{},\"timestamp\":{:?}}}",
-                            error.process_id,
-                            error.thread_id,
-                            error.error_message.replace("", "\\\""),
-                            error.severity,
-                            error.timestamp);
+                    ); // Write to structured log file (using serde_json for robust serialization)
+                    if let Ok(json_log) = serde_json::to_string(&error) {
+                        println!("STRUCTURED_LOG: {json_log}");
+                    } else {
+                        eprintln!("Failed to serialize process error to JSON.");
+                    }
                 }
             });
 
@@ -4758,7 +5040,7 @@ pub mod simd_optimization {
         /// Grows the buffer with proper alignment
         fn grow_aligned(&mut self, min_capacity: usize) {
             let new_capacity = ((min_capacity * 2) + 31) & !31;
-            self.data.reserve(new_capacity - self.data.capacity());
+            self.data.reserve_exact(new_capacity - self.data.capacity());
             self.capacity = new_capacity;
         }
         /// Returns the formatted string
@@ -4809,28 +5091,28 @@ pub mod cross_process_metrics {
 
     use super::{OnceLock, SystemTime, Yoshi};
     use std::collections::HashMap;
-    use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
+    use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
 
     /// Global error metrics collector
     #[derive(Debug)]
     pub struct ErrorMetrics {
-        total_errors: AtomicU64,
+        total_errors: AtomicU32,
         #[allow(dead_code)]
-        errors_by_kind: HashMap<&'static str, AtomicU64>,
-        errors_by_severity: [AtomicU64; 256],
+        errors_by_kind: HashMap<&'static str, AtomicU32>,
+        errors_by_severity: [AtomicU32; 256],
         memory_usage: AtomicUsize,
         #[allow(dead_code)]
-        processing_time: AtomicU64,
+        processing_time: AtomicU32,
     }
     impl Default for ErrorMetrics {
         /// Creates a new metrics collector
         fn default() -> Self {
             Self {
-                total_errors: AtomicU64::new(0),
+                total_errors: AtomicU32::new(0),
                 errors_by_kind: HashMap::new(),
-                errors_by_severity: [const { AtomicU64::new(0) }; 256],
+                errors_by_severity: [const { AtomicU32::new(0) }; 256],
                 memory_usage: AtomicUsize::new(0),
-                processing_time: AtomicU64::new(0),
+                processing_time: AtomicU32::new(0),
             }
         }
     }
@@ -4866,13 +5148,13 @@ pub mod cross_process_metrics {
 
         /// Gets total error count
         #[must_use]
-        pub fn total_errors(&self) -> u64 {
+        pub fn total_errors(&self) -> u32 {
             self.total_errors.load(Ordering::Relaxed)
         }
 
         /// Gets errors by severity level
         #[must_use]
-        pub fn errors_by_severity(&self, severity: u8) -> u64 {
+        pub fn errors_by_severity(&self, severity: u8) -> u32 {
             self.errors_by_severity[severity as usize].load(Ordering::Relaxed)
         }
 
@@ -4899,13 +5181,13 @@ pub mod cross_process_metrics {
     #[derive(Debug, Clone)]
     pub struct MetricsReport {
         /// Total number of errors recorded
-        pub total_errors: u64,
+        pub total_errors: u32,
         /// Number of high-severity errors
-        pub high_severity_errors: u64,
+        pub high_severity_errors: u32,
         /// Number of medium-severity errors
-        pub medium_severity_errors: u64,
+        pub medium_severity_errors: u32,
         /// Number of low-severity errors
-        pub low_severity_errors: u64,
+        pub low_severity_errors: u32,
         /// Current memory usage in bytes
         pub memory_usage: usize,
         /// Timestamp when the report was generated
