@@ -48,9 +48,3 @@ smart-diagnostics = ["unstable-smart-diagnostics", "rust-1-87"]
 cross-process = ["pipe", "serde"]
 performance-monitoring = ["rust-1-87"]
 cli = ["std"]
-
-# Performance optimizations for facade crate
-[profile.release.package.yoshi]
-opt-level = 3           # Maximum optimization for facade
-codegen-units = 1       # Single unit for maximum inlining
-overflow-checks = false # Disable for performance

@@ -59,23 +59,6 @@ thiserror = { version = "2.0.12", optional = true }
 default = ["comparison"]
 comparison = ["dep:thiserror", "dep:anyhow", "dep:eyre", "dep:snafu"]
 
-# Performance optimizations for benchmark accuracy
-[profile.bench.package.yoshi-benches]
-opt-level = 3           # Maximum optimization for accurate benchmarking
-codegen-units = 1       # Single unit for consistency
-overflow-checks = false # Disable for pure performance measurement
-debug = false           # No debug overhead in benchmarks
-
-# Additional benchmark profiles for different scenarios
-[profile.bench-fast-compile]
-inherits = "bench"
-opt-level = 2      # Slightly lower optimization for faster compilation
-lto = "thin"       # Thinner LTO for faster builds
-
-[profile.bench-size]
-inherits = "bench"
-opt-level = "z"    # Size optimization for memory benchmark accuracy
-
 [dev-dependencies]
 criterion = { version = "0.6.0", features = [
     "html_reports",

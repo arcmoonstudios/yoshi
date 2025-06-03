@@ -39,13 +39,3 @@ path = "src/lib.rs"
 # docs.rs specific configuration for nightly compatibility
 [package.metadata.docs.rs]
 all-features = true
-
-# Performance optimizations for error handling framework
-[profile.release.package.yoshi-std]
-opt-level = 3           # Maximum optimization for core error handling
-codegen-units = 1       # Maximum inlining
-overflow-checks = false # Disable for maximum performance in production
-
-[profile.release.package.yoshi-derive]
-opt-level = 3           # Maximum optimization for proc macros
-codegen-units = 1       # Single unit for proc macro consistency

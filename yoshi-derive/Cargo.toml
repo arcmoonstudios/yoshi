@@ -21,9 +21,3 @@ quote = "1.0.40"
 regex = "1.11.1"
 syn = { version = "2.0.101", features = ["full", "extra-traits", "derive"] }
 yoshi-std = { version = "0.1.4", path = "../yoshi-std" }
-
-# Performance optimizations for procedural macros
-[profile.release.package.yoshi-derive]
-opt-level = 3           # Maximum optimization for proc macro performance
-codegen-units = 1       # Single unit for consistency
-overflow-checks = false # Disable for macro performance

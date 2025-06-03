@@ -1,14 +1,14 @@
-# Fast Release Workflow - Publishes in under 2 minutes!
+# Fast Release Workflow - Validates release builds
 name: Fast Release
 
 on:
   push:
-    tags: ['v*']
+    tags: ["v*"]
   workflow_dispatch:
 
 jobs:
-  publish:
-    name: 🚀 Fast Publish to crates.io
+  validate-release:
+    name: 🚀 Validate Release Build
     runs-on: ubuntu-latest
     steps:
       - name: 📥 Checkout
@@ -17,8 +17,24 @@ jobs:
       - name: 🦀 Install Rust (cached)
         uses: dtolnay/rust-toolchain@stable
 
-      - name: 📦 Publish to crates.io
-        run: cargo publish
+      - name: 📦 Cache dependencies
+        uses: swatinem/rust-cache@v2
+        with:
+          shared-key: "release-validation"
+          cache-on-failure: true
+
+      - name: 🔨 Build Release
+        run: cargo build --release --all-targets
         env:
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
           CARGO_TERM_COLOR: always
+
+      - name: 🧪 Test Release
+        run: cargo test --release --all-targets
+        env:
+          CARGO_TERM_COLOR: always
+
+      - name: ✅ Release Validation Complete
+        run: |
+          echo "✅ Release build validation completed successfully!"
+          echo "📦 All crates built and tested in release mode"
+          echo "🚀 Release ${{ github.ref_name }} is ready!"
