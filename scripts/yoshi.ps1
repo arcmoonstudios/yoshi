@@ -1,6 +1,6 @@
 <#
   File:    yoshi\scripts\yoshi.ps1
-  Purpose: Bootstrap, validate, and publish the Yoshi workspace
+  Purpose: Bootstrap, validate, and publish the Yoshi workspace (SSH-Exclusive)
   Usage:
 
   # Initialize workspace:
@@ -12,7 +12,7 @@
   PS> .\scripts\yoshi.ps1 validate -SkipBenchmarks # skip benchmark checks
   PS> .\scripts\yoshi.ps1 validate -CommitMessage "My commit message" # custom commit message
 
-  # Git operations:
+  # Git operations (SSH only):
   PS> .\scripts\yoshi.ps1 git                     # interactive git commit and push
   PS> .\scripts\yoshi.ps1 git -CommitMessage "My commit message" # with custom commit message
   PS> .\scripts\yoshi.ps1 git -CommitMessage "My commit message" -DoPush # commit and push
@@ -22,6 +22,7 @@
   PS> .\scripts\yoshi.ps1 publish                  # publish to crates.io in correct order
   PS> .\scripts\yoshi.ps1 publish -SkipBenchmarks  # publish without running benchmarks
   PS> .\scripts\yoshi.ps1 publish "yoshi-std yoshi-derive yoshi" # specify packages to publish
+  PS> .\scripts\yoshi.ps1 publish -DoPush          # publish and push via SSH
 #>
 
 [CmdletBinding()]
@@ -47,8 +48,8 @@ param(
 
 # ── Locate workspace root ─────────────────────────────────────────────────────
 $RootPath = (Resolve-Path "$PSScriptRoot\..").ProviderPath
-Write-Host "🦀 Yoshi Workspace Management 🦀" -ForegroundColor Magenta
-Write-Host "=================================" -ForegroundColor Magenta
+Write-Host "🦀 Yoshi Workspace Management (SSH-Exclusive) 🦀" -ForegroundColor Magenta
+Write-Host "=================================================" -ForegroundColor Magenta
 Write-Host "Workspace root  ➜  $RootPath`n"
 
 # ── Helper functions ─────────────────────────────────────────────────────────
@@ -114,11 +115,11 @@ function Initialize-UserOptions {
     )
 
     $options = @{
-        SkipBenchmarks  = $SkipBenchmarks
+        SkipBenchmarks  = $SkipBenchmarks.IsPresent
         CommitMessage   = $CommitMessage
-        DryRun          = $DryRun
-        DoCommit        = $DoCommit
-        DoPush          = $DoPush
+        DryRun          = $DryRun.IsPresent
+        DoCommit        = $DoCommit.IsPresent
+        DoPush          = $DoPush.IsPresent
         DoPublish       = $false
         PublishPackages = @()
     }
@@ -131,13 +132,13 @@ function Initialize-UserOptions {
     # Only ask for options that weren't explicitly provided via parameters
     switch ($Command) {
         'validate' {
-            if (-not ($PSBoundParameters.ContainsKey('SkipBenchmarks'))) {
+            if (-not $PSBoundParameters.ContainsKey('SkipBenchmarks')) {
                 Write-Host "`n📋 VALIDATION OPTIONS" -ForegroundColor Cyan
                 $benchChoice = Read-UserChoice "Skip benchmark compilation?" "N"
                 $options.SkipBenchmarks = ($benchChoice -eq 'y' -or $benchChoice -eq 'Y')
             }
 
-            if (-not ($PSBoundParameters.ContainsKey('DoCommit'))) {
+            if (-not $PSBoundParameters.ContainsKey('DoCommit')) {
                 $commitChoice = Read-UserChoice "Commit changes after validation?"
                 $options.DoCommit = ($commitChoice -eq 'y' -or $commitChoice -eq 'Y')
             }
@@ -153,7 +154,7 @@ function Initialize-UserOptions {
                 }
             }
 
-            if ($options.DoCommit -and -not ($PSBoundParameters.ContainsKey('DoPush'))) {
+            if ($options.DoCommit -and -not $PSBoundParameters.ContainsKey('DoPush')) {
                 $pushChoice = Read-UserChoice "Push changes after commit?"
                 $options.DoPush = ($pushChoice -eq 'y' -or $pushChoice -eq 'Y')
             }
@@ -161,17 +162,17 @@ function Initialize-UserOptions {
         'publish' {
             Write-Host "`n📦 PUBLISHING OPTIONS" -ForegroundColor Cyan
 
-            if (-not ($PSBoundParameters.ContainsKey('DryRun'))) {
+            if (-not $PSBoundParameters.ContainsKey('DryRun')) {
                 $dryRunChoice = Read-UserChoice "Perform dry run only (no actual publishing)?"
                 $options.DryRun = ($dryRunChoice -eq 'y' -or $dryRunChoice -eq 'Y')
             }
 
-            if (-not ($PSBoundParameters.ContainsKey('SkipBenchmarks'))) {
+            if (-not $PSBoundParameters.ContainsKey('SkipBenchmarks')) {
                 $benchChoice = Read-UserChoice "Skip benchmark compilation?" "N"
                 $options.SkipBenchmarks = ($benchChoice -eq 'y' -or $benchChoice -eq 'Y')
             }
 
-            if (-not ($PSBoundParameters.ContainsKey('DoCommit'))) {
+            if (-not $PSBoundParameters.ContainsKey('DoCommit')) {
                 $commitChoice = Read-UserChoice "Commit changes before publishing?"
                 $options.DoCommit = ($commitChoice -eq 'y' -or $commitChoice -eq 'Y')
             }
@@ -187,7 +188,7 @@ function Initialize-UserOptions {
                 }
             }
 
-            if ($options.DoCommit -and -not ($PSBoundParameters.ContainsKey('DoPush'))) {
+            if ($options.DoCommit -and -not $PSBoundParameters.ContainsKey('DoPush')) {
                 $pushChoice = Read-UserChoice "Push changes after commit?"
                 $options.DoPush = ($pushChoice -eq 'y' -or $pushChoice -eq 'Y')
             }
@@ -292,11 +293,75 @@ function ValidateForPublish {
     return $true
 }
 
+function ConvertToSSHUrl {
+    param(
+        [string]$Url
+    )
+
+    # Check if the URL is HTTPS GitHub URL
+    if ($Url -match '^https?://github.com/(.+?)(?:\.git)?$') {
+        $RepoPath = $matches[1]
+        # Ensure .git extension
+        if (-not $RepoPath.EndsWith('.git')) {
+            $RepoPath = "$RepoPath.git"
+        }
+        return "git@github.com:$RepoPath"
+    }
+
+    # Already SSH or other format, return as-is
+    return $Url
+}
+
+function EnsureSSHRemote {
+    Write-Host "`n🔐 Ensuring GitHub remote uses SSH..." -ForegroundColor Cyan
+
+    # Get current remote URL
+    $currentUrl = git remote get-url origin 2>$null
+
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "⚠️ No remote named 'origin' found." -ForegroundColor Yellow
+        return $false
+    }
+
+    # Check if it's already SSH
+    if ($currentUrl -match '^git@github\.com:.+') {
+        Write-Host "✓ Remote already using SSH: $currentUrl" -ForegroundColor Green
+        return $true
+    }
+
+    # Convert to SSH
+    $sshUrl = ConvertToSSHUrl -Url $currentUrl
+
+    if ($sshUrl -eq $currentUrl) {
+        Write-Host "✓ Remote URL doesn't need conversion: $currentUrl" -ForegroundColor Green
+        return $true
+    }
+
+    # Update the remote URL
+    Write-Host "► Converting remote URL to SSH..." -ForegroundColor Cyan
+    git remote set-url origin $sshUrl
+
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "✓ Successfully updated remote URL to: $sshUrl" -ForegroundColor Green
+        return $true
+    }
+    else {
+        Write-Host "✖ Failed to update remote URL" -ForegroundColor Red
+        return $false
+    }
+}
+
 function GitCommitAndPush {
     param(
         [string]$CommitMessage,
-        [switch]$DoPush
+        [bool]$DoPush = $false
     )
+
+    # Always ensure SSH remote for this script
+    $sshResult = EnsureSSHRemote
+    if (-not $sshResult -and $DoPush) {
+        Write-Host "⚠️ Warning: Could not ensure SSH remote. Push may fail." -ForegroundColor Yellow
+    }
 
     # Check if there are any changes
     $status = git status --porcelain
@@ -445,7 +510,7 @@ function Show-InteractiveMenu {
     Write-Host "Please select an operation (press a single key):" -ForegroundColor Cyan
     Write-Host "  [1] Initialize workspace (create folder structure)"
     Write-Host "  [2] Validate for publishing"
-    Write-Host "  [3] Add, Commit, & Push to Github"
+    Write-Host "  [3] Add, Commit, & Push to Github (SSH)"
     Write-Host "  [4] Publish to crates.io"
     Write-Host "  [q] Quit"
 
@@ -503,7 +568,8 @@ switch ($Command) {
 
         Write-Host "`n► Initializing Yoshi workspace..." -ForegroundColor Cyan
         # Init logic continues below...
-    }    'validate' {
+    }
+    'validate' {
         # Collect all user options upfront
         $userOptions = Initialize-UserOptions -Command 'validate' -SkipBenchmarks:$SkipBenchmarks -CommitMessage $CommitMessage -DoCommit:$DoCommit -DoPush:$DoPush
 
@@ -516,7 +582,7 @@ switch ($Command) {
         if ($userOptions.DoCommit) {
             Write-Host "   > Commit changes with message: '$($userOptions.CommitMessage)'"
             if ($userOptions.DoPush) {
-                Write-Host "   > Push changes to remote"
+                Write-Host "   > Push changes to remote (SSH)"
             }
         }
 
@@ -540,7 +606,8 @@ switch ($Command) {
 
         # Handle Git operations
         if ($userOptions.DoCommit) {
-            $commitResult = GitCommitAndPush -CommitMessage $userOptions.CommitMessage -DoPush:$userOptions.DoPush
+            $commitResult = GitCommitAndPush -CommitMessage $userOptions.CommitMessage -DoPush $userOptions.DoPush
+
             if (-not $commitResult) {
                 Write-Host "`n❌ Git operations failed." -ForegroundColor Red
                 exit 1
@@ -551,8 +618,10 @@ switch ($Command) {
         exit 0
     }
     'git' {
-        # Git operations mode
-        Write-Host "`n📝 GIT OPERATIONS" -ForegroundColor Cyan        # Get commit message
+        # Git operations mode - always uses SSH
+        Write-Host "`n📝 GIT OPERATIONS (SSH)" -ForegroundColor Cyan
+
+        # Get commit message
         if ([string]::IsNullOrEmpty($CommitMessage)) {
             Write-Host "`nEnter commit message:" -ForegroundColor Cyan
             $commitInput = Read-Host
@@ -572,9 +641,10 @@ switch ($Command) {
 
         # Display execution plan
         Write-Host "`n🔄 EXECUTION PLAN:" -ForegroundColor Magenta
+        Write-Host "   > Ensure SSH remote is configured"
         Write-Host "   > Add and commit changes with message: '$CommitMessage'"
         if ($DoPush) {
-            Write-Host "   > Push changes to remote"
+            Write-Host "   > Push changes to remote (SSH)"
         }
 
         # Confirm execution
@@ -586,7 +656,8 @@ switch ($Command) {
         }
 
         # Execute Git operations
-        $commitResult = GitCommitAndPush -CommitMessage $CommitMessage -DoPush:$DoPush
+        $commitResult = GitCommitAndPush -CommitMessage $CommitMessage -DoPush $DoPush
+
         if (-not $commitResult) {
             Write-Host "`n❌ Git operations failed." -ForegroundColor Red
             exit 1
@@ -608,7 +679,7 @@ switch ($Command) {
         if ($userOptions.DoCommit) {
             Write-Host "   > Commit changes with message: '$($userOptions.CommitMessage)'"
             if ($userOptions.DoPush) {
-                Write-Host "   > Push changes to remote"
+                Write-Host "   > Push changes to remote (SSH)"
             }
         }
 
@@ -643,7 +714,8 @@ switch ($Command) {
 
         # Handle Git operations if requested
         if ($userOptions.DoCommit) {
-            $commitResult = GitCommitAndPush -CommitMessage $userOptions.CommitMessage -DoPush:$userOptions.DoPush
+            $commitResult = GitCommitAndPush -CommitMessage $userOptions.CommitMessage -DoPush $userOptions.DoPush
+
             if (-not $commitResult) {
                 Write-Host "`n❌ Git operations failed." -ForegroundColor Red
                 $proceed = Read-UserChoice "Continue with publishing anyway?" "N"

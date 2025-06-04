@@ -38,7 +38,6 @@
 // **License File:** /LICENSE
 // **Contact:** LordXyn@proton.me
 // **Author:** Lord Xyn
-// **Last Validation:** 2025-06-02
 
 use criterion::{criterion_group, criterion_main, Criterion, Throughput};
 use std::error::Error;
