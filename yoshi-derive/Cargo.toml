@@ -1,6 +1,6 @@
 [package]
 name = "yoshi-derive"
-version = "0.1.4"
+version = "0.1.5"
 edition = "2021"
 rust-version = "1.87.0"                                                 # MSRV
 authors = ["Lord Xyn <LordXyn@proton.me>"]
@@ -17,7 +17,7 @@ proc-macro2 = "1.0.95"
 quote = "1.0.40"
 regex = "1.11.1"
 syn = { version = "2.0.101", features = ["full", "extra-traits", "derive"] }
-yoshi-std = { version = "0.1.4", path = "../yoshi-std" }
+yoshi-std = { version = "0.1.5", path = "../yoshi-std" }
 
 [lib]
 proc-macro = true

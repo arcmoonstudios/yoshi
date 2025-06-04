@@ -1,4 +1,5 @@
 /* yoshi-benches\tests\comprehensive_comparison.rs */
+#![allow(unused_mut)]
 #![deny(unsafe_code)]
 #![warn(clippy::all)]
 #![warn(clippy::cargo)]
@@ -663,8 +664,10 @@ pub enum ThiserrorEcosystemError {
     },
 }
 
+#[cfg(feature = "comparison")]
 pub struct ThiserrorEcosystemTester;
 
+#[cfg(feature = "comparison")]
 impl EcosystemFrameworkTester for ThiserrorEcosystemTester {
     fn framework_name(&self) -> &'static str {
         "thiserror"
@@ -769,8 +772,10 @@ impl EcosystemFrameworkTester for ThiserrorEcosystemTester {
 // anyhow Implementation (Flexible but Limited)
 // ============================================================================
 
+#[cfg(feature = "comparison")]
 pub struct AnyhowEcosystemTester;
 
+#[cfg(feature = "comparison")]
 impl EcosystemFrameworkTester for AnyhowEcosystemTester {
     fn framework_name(&self) -> &'static str {
         "anyhow"
@@ -885,8 +890,10 @@ impl EcosystemFrameworkTester for AnyhowEcosystemTester {
 // eyre Implementation (Enhanced anyhow)
 // ============================================================================
 
+#[cfg(feature = "comparison")]
 pub struct EyreEcosystemTester;
 
+#[cfg(feature = "comparison")]
 impl EcosystemFrameworkTester for EyreEcosystemTester {
     fn framework_name(&self) -> &'static str {
         "eyre"
@@ -1043,8 +1050,10 @@ pub enum SnafuEcosystemError {
     },
 }
 
+#[cfg(feature = "comparison")]
 pub struct SnafuEcosystemTester;
 
+#[cfg(feature = "comparison")]
 impl EcosystemFrameworkTester for SnafuEcosystemTester {
     fn framework_name(&self) -> &'static str {
         "snafu"
@@ -1152,7 +1161,7 @@ impl EcosystemFrameworkTester for SnafuEcosystemTester {
 /// Comprehensive ecosystem comparison engine with advanced analytics
 pub struct EcosystemComparisonEngine {
     /// Registered framework testers
-    testers: Vec<Box<dyn EcosystemFrameworkTester>>,
+    testers: Vec<Box<dyn EcosystemFrameworkTester + Send + Sync>>,
     /// Test scenarios to execute
     pub scenarios: Vec<EcosystemTestScenario>,
 }
@@ -1161,14 +1170,13 @@ impl EcosystemComparisonEngine {
     /// Create a new ecosystem comparison engine with all frameworks
     #[must_use]
     pub fn new() -> Self {
-        let mut testers: Vec<Box<dyn EcosystemFrameworkTester>> = vec![
-            Box::new(YoshiTester),
-            Box::new(AnyhowEcosystemTester),
-            Box::new(EyreEcosystemTester),
-        ];
+        let mut testers: Vec<Box<dyn EcosystemFrameworkTester + Send + Sync>> =
+            vec![Box::new(YoshiTester)];
 
         #[cfg(feature = "comparison")]
         {
+            testers.push(Box::new(AnyhowEcosystemTester));
+            testers.push(Box::new(EyreEcosystemTester));
             testers.push(Box::new(ThiserrorEcosystemTester));
             testers.push(Box::new(SnafuEcosystemTester));
         }
@@ -2435,12 +2443,17 @@ mod tests {
         let engine = EcosystemComparisonEngine::new();
         let report = engine.execute_comprehensive_ecosystem_comparison();
 
-        // Verify all frameworks were tested
+        // Verify Yoshi was tested
         assert!(report.results.contains_key("Yoshi"));
-        assert!(report.results.contains_key("thiserror"));
-        assert!(report.results.contains_key("anyhow"));
-        assert!(report.results.contains_key("eyre"));
-        assert!(report.results.contains_key("snafu"));
+
+        // Verify comparison frameworks are tested only when feature is enabled
+        #[cfg(feature = "comparison")]
+        {
+            assert!(report.results.contains_key("thiserror"));
+            assert!(report.results.contains_key("anyhow"));
+            assert!(report.results.contains_key("eyre"));
+            assert!(report.results.contains_key("snafu"));
+        }
 
         // Verify all scenarios were executed for each framework
         for results in report.results.values() {

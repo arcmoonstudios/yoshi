@@ -95,11 +95,19 @@ pub fn quick_comparison() -> EcosystemComparisonReport {
 pub fn validate_comparison_integrity() -> bool {
     let report = quick_comparison();
 
-    // Ensure all frameworks were tested
-    let required_frameworks = ["Yoshi", "thiserror", "anyhow", "eyre", "snafu"];
-    for framework in &required_frameworks {
-        if !report.results.contains_key(*framework) {
-            return false;
+    // Ensure Yoshi was tested
+    if !report.results.contains_key("Yoshi") {
+        return false;
+    }
+
+    // Ensure comparison frameworks were tested only when feature is enabled
+    #[cfg(feature = "comparison")]
+    {
+        let required_frameworks = ["thiserror", "anyhow", "eyre", "snafu"];
+        for framework in &required_frameworks {
+            if !report.results.contains_key(*framework) {
+                return false;
+            }
         }
     }
 
@@ -119,29 +127,39 @@ pub fn validate_comparison_integrity() -> bool {
     }
 
     // Validate that derive-based frameworks score higher in derive capabilities
-    let derive_frameworks = ["Yoshi", "thiserror", "snafu"];
-    let non_derive_frameworks = ["anyhow", "eyre"];
+    // Only compare when comparison frameworks are available
+    #[cfg(feature = "comparison")]
+    {
+        let derive_frameworks = ["Yoshi", "thiserror", "snafu"];
+        let non_derive_frameworks = ["anyhow", "eyre"];
 
-    let derive_frameworks_count = u32::try_from(derive_frameworks.len()).unwrap_or(1);
-    let avg_derive_with_support = derive_frameworks
-        .iter()
-        .filter_map(|name| report.results.get(*name))
-        .flat_map(|results| results.iter())
-        .map(|r| f64::from(r.derive_capabilities))
-        .sum::<f64>()
-        / f64::from(derive_frameworks_count * 4); // 4 scenarios per framework
+        let derive_frameworks_count = u32::try_from(derive_frameworks.len()).unwrap_or(1);
+        let avg_derive_with_support = derive_frameworks
+            .iter()
+            .filter_map(|name| report.results.get(*name))
+            .flat_map(|results| results.iter())
+            .map(|r| f64::from(r.derive_capabilities))
+            .sum::<f64>()
+            / f64::from(derive_frameworks_count * 4); // 4 scenarios per framework
 
-    let non_derive_frameworks_count = u32::try_from(non_derive_frameworks.len()).unwrap_or(1);
-    let avg_derive_without_support = non_derive_frameworks
-        .iter()
-        .filter_map(|name| report.results.get(*name))
-        .flat_map(|results| results.iter())
-        .map(|r| f64::from(r.derive_capabilities))
-        .sum::<f64>()
-        / f64::from(non_derive_frameworks_count * 4); // 4 scenarios per framework
+        let non_derive_frameworks_count = u32::try_from(non_derive_frameworks.len()).unwrap_or(1);
+        let avg_derive_without_support = non_derive_frameworks
+            .iter()
+            .filter_map(|name| report.results.get(*name))
+            .flat_map(|results| results.iter())
+            .map(|r| f64::from(r.derive_capabilities))
+            .sum::<f64>()
+            / f64::from(non_derive_frameworks_count * 4); // 4 scenarios per framework
 
-    // Frameworks with derive support should score higher in derive capabilities
-    avg_derive_with_support > avg_derive_without_support
+        // Frameworks with derive support should score higher in derive capabilities
+        avg_derive_with_support > avg_derive_without_support
+    }
+
+    #[cfg(not(feature = "comparison"))]
+    {
+        // In no_std mode without comparison, just validate that results exist and are reasonable
+        true
+    }
 }
 
 #[cfg(test)]
@@ -152,12 +170,17 @@ mod tests {
     fn test_quick_comparison() {
         let report = quick_comparison();
 
-        // Verify all major frameworks are tested
+        // Verify Yoshi is always tested
         assert!(report.results.contains_key("Yoshi"));
-        assert!(report.results.contains_key("thiserror"));
-        assert!(report.results.contains_key("anyhow"));
-        assert!(report.results.contains_key("eyre"));
-        assert!(report.results.contains_key("snafu"));
+
+        // Verify comparison frameworks are tested only when feature is enabled
+        #[cfg(feature = "comparison")]
+        {
+            assert!(report.results.contains_key("thiserror"));
+            assert!(report.results.contains_key("anyhow"));
+            assert!(report.results.contains_key("eyre"));
+            assert!(report.results.contains_key("snafu"));
+        }
 
         // Verify scenarios were executed
         assert!(!report.scenarios.is_empty());
@@ -189,17 +212,30 @@ mod tests {
         let engine = EcosystemComparisonEngine::new();
         let report = engine.execute_comprehensive_ecosystem_comparison();
 
-        // Validate that all frameworks have capabilities reported
-        let required_frameworks = ["Yoshi", "thiserror", "anyhow", "eyre", "snafu"];
-        for framework in &required_frameworks {
-            assert!(
-                report.ecosystem_capabilities.contains_key(*framework),
-                "Framework {framework} should have capabilities reported"
-            );
+        // Validate that Yoshi has capabilities reported
+        assert!(
+            report.ecosystem_capabilities.contains_key("Yoshi"),
+            "Framework Yoshi should have capabilities reported"
+        );
+
+        // Validate comparison frameworks only when feature is enabled
+        #[cfg(feature = "comparison")]
+        {
+            let required_frameworks = ["thiserror", "anyhow", "eyre", "snafu"];
+            for framework in &required_frameworks {
+                assert!(
+                    report.ecosystem_capabilities.contains_key(*framework),
+                    "Framework {framework} should have capabilities reported"
+                );
+            }
         }
 
         // Validate derive-based frameworks report derive support correctly
+        #[cfg(feature = "comparison")]
         let derive_frameworks = ["Yoshi", "thiserror", "snafu"];
+        #[cfg(not(feature = "comparison"))]
+        let derive_frameworks = ["Yoshi"];
+
         for framework in &derive_frameworks {
             if let Some(caps) = report.ecosystem_capabilities.get(*framework) {
                 assert!(
@@ -209,14 +245,17 @@ mod tests {
             }
         }
 
-        // Validate non-derive frameworks report correctly
-        let non_derive_frameworks = ["anyhow", "eyre"];
-        for framework in &non_derive_frameworks {
-            if let Some(caps) = report.ecosystem_capabilities.get(*framework) {
-                assert!(
-                    !caps.derive_macro_support,
-                    "Framework {framework} should not support derive macros"
-                );
+        // Validate non-derive frameworks report correctly (only when comparison feature enabled)
+        #[cfg(feature = "comparison")]
+        {
+            let non_derive_frameworks = ["anyhow", "eyre"];
+            for framework in &non_derive_frameworks {
+                if let Some(caps) = report.ecosystem_capabilities.get(*framework) {
+                    assert!(
+                        !caps.derive_macro_support,
+                        "Framework {framework} should not support derive macros"
+                    );
+                }
             }
         }
 

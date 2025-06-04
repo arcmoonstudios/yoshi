@@ -1,6 +1,6 @@
 [package]
 name = "yoshi-std"
-version = "0.1.4"
+version = "0.1.5"
 edition = "2021"
 rust-version = "1.87.0"                                               # MSRV
 authors = ["Lord Xyn <LordXyn@proton.me>"]
@@ -24,7 +24,6 @@ derive = []                             # pass-through flag
 serde = ["dep:serde", "dep:serde_json"]
 tracing = ["dep:tracing"]
 async = ["dep:tokio"]
-
 # tech-preview toggles (OFF by default)
 unstable-metrics = [
     "serde",
@@ -38,17 +37,10 @@ path = "src/lib.rs"
 
 # docs.rs specific configuration for robust builds
 [package.metadata.docs.rs]
-rustc-args = ["--cap-lints=warn"]
-features = [
-    "default",
-    "std",
-    "serde",
-    "tracing",
-    "async",
-    "unstable-metrics",
-    "unstable-auto-fix",
-    "unstable-smart-diagnostics",
-]
+# Conservative feature set for nightly compatibility
+features = ["std", "serde", "tracing"]
 no-default-features = false
 rustdoc-args = ["--cfg", "docsrs"]
+# Conservative rustc args for nightly compatibility
+rustc-args = ["--cap-lints=warn"]
 targets = ["x86_64-unknown-linux-gnu"]

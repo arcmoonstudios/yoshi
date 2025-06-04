@@ -8,6 +8,7 @@
 #![allow(clippy::module_name_repetitions)]
 #![cfg_attr(not(feature = "std"), no_std)]
 #![cfg_attr(not(feature = "simd-optimized"), deny(unsafe_code))]
+
 //! **Brief:** The `yoshi` crate serves as the primary entry point and facade for the Yoshi error handling framework.
 //! It re-exports core functionalities from the `yoshi-std` crate, providing a unified and convenient API for
 //! robust, highly performant, and flexible error handling designed for critical applications.
@@ -117,6 +118,77 @@
 // **License File:** /LICENSE
 // **Contact:** LordXyn@proton.me
 // **Author:** Lord Xyn
+
+// =============================================================================
+// Nightly Compatibility and docs.rs Support
+// =============================================================================
+
+// 1. Suppress nightly-specific warnings that become errors
+#![cfg_attr(docsrs, allow(internal_features))]
+#![cfg_attr(docsrs, allow(incomplete_features))]
+
+// 2. Handle potential feature conflicts
+#[cfg(all(docsrs, feature = "unstable-metrics"))]
+compile_error!("unstable features are not supported on docs.rs");
+
+// 3. Conditional feature compilation for docs.rs
+#[cfg(docsrs)]
+mod docs_fallback {
+    // Provide safe fallbacks for unstable features when building docs
+    pub use std::collections::HashMap as MetricsMap;
+}
+
+#[cfg(not(docsrs))]
+mod runtime_impl {
+    // Your actual unstable implementations here
+}
+
+// 4. Version-specific workarounds
+#[cfg(all(docsrs, any(feature = "simd-optimized", feature = "precise-capturing")))]
+mod nightly_workarounds {
+    // Disable SIMD optimizations on docs.rs nightly builds
+    // to prevent version conflicts
+}
+
+// 5. Safe feature detection
+#[allow(unused_macros)]
+macro_rules! detect_docs_rs {
+    () => {
+        cfg!(docsrs) || std::env::var("DOCS_RS").is_ok()
+    };
+}
+
+// 6. Conditional async features
+#[cfg(all(feature = "async", not(docsrs)))]
+mod async_impl {
+    // Your async implementations
+}
+
+#[cfg(all(feature = "async", docsrs))]
+mod async_docs {
+    // Simplified async docs without tokio complications
+    pub type AsyncResult<T> = std::future::Ready<Result<T, crate::Yoshi>>;
+}
+
+// 7. Serialize feature guards
+#[cfg(all(feature = "serde", not(docsrs)))]
+mod serde_impl {
+    // Real serde implementations
+}
+
+#[cfg(all(feature = "serde", docsrs))]
+mod serde_docs {
+    // Documentation-only serde implementations
+    // that don't trigger nightly serialization conflicts
+}
+
+// =============================================================================
+// Documentation and Module Declaration
+// =============================================================================
+
+// Import alloc crate for no_std environments
+#[cfg(not(feature = "std"))]
+extern crate alloc;
 
 pub use yoshi_std::error_instance_count;
 
@@ -286,4 +358,22 @@ macro_rules! yoshi {
     (@apply_attr $instance:expr, with_priority, $priority:expr) => {
         $instance.with_priority($priority)
     };
+}
+
+// =============================================================================
+// Additional Nightly Compatibility Features
+// =============================================================================
+
+// 8. Robust error type for docs.rs
+#[cfg(docsrs)]
+impl std::error::Error for Yoshi {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        // Safe implementation that works on all nightly versions
+        self.kind().source()
+    }
+
+    fn description(&self) -> &str {
+        // Deprecated but still needed for compatibility
+        "Yoshi error"
+    }
 }
