@@ -2564,6 +2564,18 @@ class ArcMoonSystemGUI:
             ttk.Button(ssh_frame, text="List SSH Keys",
                       command=lambda: self._execute_github_async(self.github_ops.list_ssh_keys)).pack(pady=5)
 
+            ssh_setup_frame = ttk.Frame(ssh_frame)
+            ssh_setup_frame.pack(fill='x', padx=5, pady=5)
+
+            ttk.Button(ssh_setup_frame, text="🔧 Setup SSH Authentication",
+                      command=self._setup_ssh_authentication).pack(side='left', padx=5)
+
+            ttk.Button(ssh_setup_frame, text="⚡ Quick SSH Fix",
+                      command=self._fix_ssh_authentication).pack(side='left', padx=5)
+
+            ttk.Button(ssh_setup_frame, text="🔍 Test SSH Connection",
+                      command=self._test_github_connection).pack(side='left', padx=5)
+
             ssh_add_frame = ttk.Frame(ssh_frame)
             ssh_add_frame.pack(fill='x', padx=5, pady=5)
 
@@ -3647,19 +3659,114 @@ expect {{
         except Exception as e:
             return 1, "", f"HTTPS auth fallback error: {str(e)}"
 
-    def _test_ssh_with_password(self) -> None:
-        """Test SSH connection with password authentication option"""
+    def _setup_ssh_authentication(self) -> None:
+        """Complete SSH authentication setup for GitHub"""
         try:
-            # First try key-based authentication
-            result = self.github_ops.git_push(self.workspace_path)
-            if result[0] == 0:
-                self._append_output_queued("✅ SSH connection successful with key authentication\n")
+            self._append_output_queued("\n🔐 Setting up SSH authentication for GitHub...\n")
+
+            # Step 1: Check if SSH keys exist
+            ssh_dir = Path.home() / ".ssh"
+            key_files = ["id_ed25519", "id_rsa"]
+            existing_key = None
+
+            for key_file in key_files:
+                private_key = ssh_dir / key_file
+                public_key = ssh_dir / f"{key_file}.pub"
+                if private_key.exists() and public_key.exists():
+                    existing_key = str(public_key)
+                    self._append_output_queued(f"✅ Found existing SSH key: {key_file}\n")
+                    break
+
+            if not existing_key:
+                self._append_output_queued("🔑 No SSH keys found. Generating new Ed25519 key...\n")
+                email = self.config.github_username + "@users.noreply.github.com" if self.config.github_username else "your-email@example.com"
+
+                # Generate SSH key
+                result = self.command_executor.execute_command(
+                    f'ssh-keygen -t ed25519 -C "{email}" -f {ssh_dir / "id_ed25519"} -N ""'
+                )
+
+                if result[0] == 0:
+                    existing_key = str(ssh_dir / "id_ed25519.pub")
+                    self._append_output_queued("✅ SSH key generated successfully\n")
+                else:
+                    self._append_output_queued("❌ Failed to generate SSH key\n")
+                    return
+
+            # Step 2: Add key to SSH agent
+            self._append_output_queued("🔄 Adding key to SSH agent...\n")
+            private_key_path = existing_key.replace(".pub", "")
+
+            # Start SSH agent and add key
+            agent_result = self.command_executor.execute_command("ssh-add -l")
+            if agent_result[0] != 0:
+                self._append_output_queued("🚀 Starting SSH agent...\n")
+                self.command_executor.execute_command("ssh-agent -s")
+
+            add_result = self.command_executor.execute_command(f'ssh-add "{private_key_path}"')
+            if add_result[0] == 0:
+                self._append_output_queued("✅ SSH key added to agent\n")
             else:
-                self._append_output_queued("🔐 Key authentication failed, testing with password option available...\n")
-                # The SSH manager will prompt for password if needed during actual operations
+                self._append_output_queued("⚠️ SSH key might need passphrase (will prompt when needed)\n")
+
+            # Step 3: Add public key to GitHub
+            self._append_output_queued("📤 Adding SSH key to GitHub...\n")
+            gh_result = self.command_executor.execute_command(f'gh ssh-key add "{existing_key}" --title "ArcMoon-{platform.system()}-{datetime.now().strftime("%Y%m%d")}"')
+
+            if gh_result[0] == 0:
+                self._append_output_queued("✅ SSH key added to GitHub successfully\n")
+            else:
+                self._append_output_queued("⚠️ SSH key might already exist on GitHub (or manual add needed)\n")
+
+            # Step 4: Configure GitHub CLI to use SSH
+            self._append_output_queued("🔧 Configuring GitHub CLI to use SSH protocol...\n")
+            config_result = self.command_executor.execute_command("gh config set git_protocol ssh")
+
+            if config_result[0] == 0:
+                self._append_output_queued("✅ GitHub CLI configured for SSH\n")
+            else:
+                self._append_output_queued("⚠️ Failed to configure GitHub CLI for SSH\n")
+
+            # Step 5: Test SSH connection
+            self._append_output_queued("🔍 Testing SSH connection to GitHub...\n")
+            test_result = self.command_executor.execute_command("ssh -T git@github.com")
+
+            if "successfully authenticated" in test_result[1]:
+                self._append_output_queued("🎉 SSH authentication successful!\n")
+
+                # Step 6: Convert current repo to SSH if needed
+                self._append_output_queued("🔄 Converting current repository to use SSH...\n")
+                self._execute_github_async(self.github_ops.convert_remote_to_ssh, self.workspace_path)
+
+            else:
+                self._append_output_queued("❌ SSH test failed. You may need to manually accept GitHub's host key.\n")
+                self._append_output_queued("💡 Try running: ssh -T git@github.com\n")
+
         except Exception as e:
-            logger.error(f"Error testing SSH with password: {e}")
-            self._append_output_queued(f"\n❌ Error testing SSH: {str(e)}\n")
+            logger.error(f"Error setting up SSH: {e}")
+            self._append_output_queued(f"\n❌ Error setting up SSH: {str(e)}\n")
+
+    def _fix_ssh_authentication(self) -> None:
+        """Quick fix for SSH authentication issues"""
+        try:
+            self._append_output_queued("\n🔧 Quick SSH authentication fix...\n")
+
+            # Check current git protocol
+            auth_result = self.command_executor.execute_command("gh auth status")
+            self._append_output_queued("Current GitHub CLI status:\n")
+            self._append_output_queued(auth_result[1] + "\n")
+
+            # Set SSH protocol
+            self._append_output_queued("🔄 Setting GitHub CLI to use SSH protocol...\n")
+            self.command_executor.execute_command("gh config set git_protocol ssh")
+
+            # Convert current repo remote to SSH
+            self._append_output_queued("🔄 Converting repository remote to SSH...\n")
+            self._execute_github_async(self.github_ops.convert_remote_to_ssh, self.workspace_path)
+
+        except Exception as e:
+            logger.error(f"Error fixing SSH: {e}")
+            self._append_output_queued(f"\n❌ Error fixing SSH: {str(e)}\n")
 
     def _open_settings(self) -> None:
         """Open settings dialog"""

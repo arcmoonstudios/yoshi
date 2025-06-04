@@ -38,9 +38,6 @@
 # **License Terms:** Full open source freedom; dual licensing allows choice between MIT and Apache 2.0
 # **Effective Date:** 2025-05-30 | **Open Source Release**
 # **Contact:** LordXyn@proton.me
-# **Quality Certification:** Elite Level (≥99.99% composite score)
-# **Agent Mode:** Enhanced with mathematical optimization
-# **Last Validation:** 2025-06-02
 
 set -euo pipefail  # Enhanced error handling
 

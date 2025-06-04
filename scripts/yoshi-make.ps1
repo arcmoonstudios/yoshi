@@ -35,9 +35,6 @@
 # **License:** MIT OR Apache-2.0
 # **License File:** /LICENSE
 # **Contact:** LordXyn@proton.me
-# **Quality Certification:** Elite Level (≥99.99% composite score)
-# **Agent Mode:** Enhanced with mathematical optimization
-# **Last Validation:** 2025-05-29
 
 [CmdletBinding()]
 param(
