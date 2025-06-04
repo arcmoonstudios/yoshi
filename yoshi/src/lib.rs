@@ -127,20 +127,19 @@
 #![cfg_attr(docsrs, allow(internal_features))]
 #![cfg_attr(docsrs, allow(incomplete_features))]
 
-// 2. Handle potential feature conflicts
-#[cfg(all(docsrs, feature = "unstable-metrics"))]
-compile_error!("unstable features are not supported on docs.rs");
+// 2. Handle potential feature conflicts - no longer needed with stable features
+// All features are now stable and compatible with docs.rs
 
 // 3. Conditional feature compilation for docs.rs
 #[cfg(docsrs)]
 mod docs_fallback {
-    // Provide safe fallbacks for unstable features when building docs
+    // Provide safe fallbacks for advanced features when building docs
     pub use std::collections::HashMap as MetricsMap;
 }
 
 #[cfg(not(docsrs))]
 mod runtime_impl {
-    // Your actual unstable implementations here
+    // Your actual implementations here
 }
 
 // 4. Version-specific workarounds
@@ -215,11 +214,8 @@ pub use yoshi_std::async_error_handling;
 #[cfg(all(feature = "std", feature = "serde"))]
 pub use yoshi_std::process_communication;
 
-#[cfg(all(feature = "unstable-metrics", target_arch = "x86_64"))]
+#[cfg(all(feature = "simd-optimized", target_arch = "x86_64"))]
 pub use yoshi_std::simd_optimization;
-
-#[cfg(feature = "unstable-metrics")]
-pub use yoshi_std::cross_process_metrics;
 
 // Re-export from yoshi-derive if the 'derive' feature is enabled
 #[cfg(feature = "derive")]

@@ -61,11 +61,11 @@ The Yoshi error framework is designed with security and robustness in mind, part
 * **`Arc` for Costly Clones:** `Yoshi` and `YoContext` use `Arc` for fields like `message`, `metadata` values, and `payloads`. Cloning a `Yoshi` error or `YoContext` creates shallow copies of these `Arc`s, significantly reducing memory and CPU overhead compared to deep cloning.
 * **Conditional Backtrace Capture**: Backtraces are only captured when enabled by environment variables, preventing performance overhead in production by default.
 * **`OptimizedFormatBuffer`**: The internal formatting logic uses a pre-allocated and intelligently growing `OptimizedFormatBuffer` to minimize reallocations during error display.
-* **Memory Usage Statistics (`memory::get_memory_stats`):** If `unstable-metrics` is enabled, you can query global statistics on string interning hits/misses and estimated memory savings, helping to identify and address allocation hotspots.
+* **Memory Usage Statistics (`memory::get_memory_stats`):** You can query global statistics on string interning hits/misses and estimated memory savings, helping to identify and address allocation hotspots.
 
 **Best Practices:**
 
-* **Monitor Error Rates**: Use `yoshi_std::error_instance_count()` and potentially `cross_process_metrics` (if `unstable-metrics` is enabled) to monitor the rate of error creation in your application. High rates might indicate underlying issues (e.g., retry loops, misconfigured external services).
+* **Monitor Error Rates**: Use `yoshi_std::error_instance_count()` to monitor the rate of error creation in your application. High rates might indicate underlying issues (e.g., retry loops, misconfigured external services).
 * **Limit Context Depth (Implicitly)**: While Yoshi protects against recursion, avoid excessively deep manual context chains if not strictly necessary, as they still increase overall memory footprint per error instance.
 * **Consider Clearing Intern Pool (Long-running applications)**: For extremely long-running services where unique strings might accumulate, consider occasionally calling `yoshi_std::memory::cleanup_intern_pool()` if `std` feature is enabled. This can help prevent memory leaks from unused interned strings, though it might introduce a brief performance hiccup.
 

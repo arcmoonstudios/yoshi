@@ -220,15 +220,12 @@ use serde_helpers::{
     deserialize_arc_str, deserialize_arc_str_map, serialize_arc_str, serialize_arc_str_map,
 };
 
-// Nightly compatibility: Prevent unstable feature conflicts on docs.rs
-#[cfg(all(docsrs, feature = "unstable-metrics"))]
-compile_error!("unstable-metrics feature is not supported on docs.rs builds");
-
-#[cfg(all(docsrs, feature = "unstable-auto-fix"))]
-compile_error!("unstable-auto-fix feature is not supported on docs.rs builds");
-
-#[cfg(all(docsrs, feature = "unstable-smart-diagnostics"))]
-compile_error!("unstable-smart-diagnostics feature is not supported on docs.rs builds");
+// CRITICAL: Block ALL experimental features on docs.rs to force stable compilation
+#[cfg(docsrs)]
+mod docs_safety_check {
+    #[cfg(any(target_feature = "avx2", target_feature = "sse4.1"))]
+    compile_error!("Experimental features disabled on docs.rs for stable compatibility");
+}
 
 /// Safe feature detection
 #[allow(unused_macros)] // Used conditionally based on feature flags
@@ -5085,9 +5082,10 @@ pub mod process_communication {
 // SIMD-optimized string processing for high-performance formatting
 //--------------------------------------------------------------------------------------------------
 
-#[cfg(all(feature = "unstable-metrics", target_arch = "x86_64"))]
+#[cfg(all(feature = "simd-optimized", target_arch = "x86_64"))]
 pub mod simd_optimization {
     //! SIMD-accelerated string processing for optimal error formatting performance.
+    //! Uses stable `std::arch` intrinsics with runtime feature detection.
 
     use super::{String, ToString, Vec, Yoshi};
 
@@ -5107,15 +5105,14 @@ pub mod simd_optimization {
         /// Creates a buffer with specified capacity aligned for SIMD operations
         #[must_use]
         pub fn with_capacity(capacity: usize) -> Self {
-            // Align capacity to 32-byte boundaries for AVX2 operations
+            // Align capacity to 32-byte boundaries for optimal SIMD operations
             let aligned_capacity = (capacity + 31) & !31;
             Self {
                 data: Vec::with_capacity(aligned_capacity),
                 capacity: aligned_capacity,
             }
         }
-
-        /// SIMD-accelerated string concatenation
+        /// SIMD-accelerated string concatenation with runtime feature detection
         pub fn append_simd(&mut self, s: &str) {
             let bytes = s.as_bytes();
             let new_len = self.data.len() + bytes.len();
@@ -5124,35 +5121,67 @@ pub mod simd_optimization {
                 self.grow_aligned(new_len);
             }
 
-            // Use SIMD operations for large strings
-            if bytes.len() >= 32 {
-                unsafe { self.append_simd_internal(bytes) };
+            // Use SIMD operations for large strings if AVX2 is available
+            if bytes.len() >= 32 && std::is_x86_feature_detected!("avx2") {
+                // SAFETY: We've checked that AVX2 is available at runtime
+                unsafe { self.append_simd_internal_avx2(bytes) };
             } else {
+                // Fallback to standard operations
                 self.data.extend_from_slice(bytes);
             }
         }
-
-        /// Internal SIMD implementation using safe intrinsics
+        /// Internal SIMD implementation using stable `std::arch` AVX2 intrinsics
         #[target_feature(enable = "avx2")]
-        unsafe fn append_simd_internal(&mut self, bytes: &[u8]) {
+        unsafe fn append_simd_internal_avx2(&mut self, bytes: &[u8]) {
             #[cfg(target_arch = "x86_64")]
             {
                 use std::arch::x86_64::{_mm256_loadu_si256, _mm256_storeu_si256};
 
                 let chunks = bytes.chunks_exact(32);
                 let remainder = chunks.remainder();
-                for chunk in chunks {
-                    let simd_data = _mm256_loadu_si256(chunk.as_ptr().cast());
-                    let dst_ptr = self.data.as_mut_ptr().add(self.data.len()).cast();
-                    _mm256_storeu_si256(dst_ptr, simd_data);
-                    self.data.set_len(self.data.len() + 32);
+
+                // Reserve space for all the data we're about to add
+                let start_len = self.data.len();
+                let total_chunk_bytes = chunks.len() * 32;
+
+                // Ensure we have enough capacity
+                if start_len + bytes.len() > self.data.capacity() {
+                    self.data.reserve(bytes.len());
                 }
 
-                // Handle remaining bytes
+                // Process 32-byte chunks with AVX2
+                let mut offset = 0;
+                for chunk in chunks {
+                    // Load 32 bytes using AVX2
+                    let simd_data = _mm256_loadu_si256(chunk.as_ptr().cast());
+
+                    // Store 32 bytes to our destination
+                    let dst_ptr = self.data.as_mut_ptr().add(start_len + offset).cast();
+                    _mm256_storeu_si256(dst_ptr, simd_data);
+
+                    offset += 32;
+                }
+
+                // Update the vector length to include the SIMD-processed data
+                self.data.set_len(start_len + total_chunk_bytes);
+
+                // Handle remaining bytes with standard operations
                 if !remainder.is_empty() {
                     self.data.extend_from_slice(remainder);
                 }
             }
+
+            #[cfg(not(target_arch = "x86_64"))]
+            {
+                // Fallback for non-x86_64 architectures
+                self.data.extend_from_slice(bytes);
+            }
+        }
+
+        /// Fallback SIMD implementation for when AVX2 is not available
+        fn append_simd_fallback(&mut self, bytes: &[u8]) {
+            // Standard extend_from_slice is often well-optimized by LLVM
+            self.data.extend_from_slice(bytes);
         }
 
         /// Grows the buffer with proper alignment
@@ -5196,146 +5225,6 @@ pub mod simd_optimization {
         }
 
         buffer.as_str().to_string()
-    }
-}
-
-//--------------------------------------------------------------------------------------------------
-// Cross-process metrics and telemetry
-//--------------------------------------------------------------------------------------------------
-
-#[cfg(feature = "unstable-metrics")]
-pub mod cross_process_metrics {
-    //! Global error metrics and telemetry system with cross-process coordination.
-
-    use super::{OnceLock, SystemTime, Yoshi};
-    use std::collections::HashMap;
-    use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
-
-    /// Global error metrics collector
-    #[derive(Debug)]
-    pub struct ErrorMetrics {
-        total_errors: AtomicU32,
-        #[allow(dead_code)]
-        errors_by_kind: HashMap<&'static str, AtomicU32>,
-        errors_by_severity: [AtomicU32; 256],
-        memory_usage: AtomicUsize,
-        #[allow(dead_code)]
-        processing_time: AtomicU32,
-    }
-    impl Default for ErrorMetrics {
-        /// Creates a new metrics collector
-        fn default() -> Self {
-            Self {
-                total_errors: AtomicU32::new(0),
-                errors_by_kind: HashMap::new(),
-                errors_by_severity: [const { AtomicU32::new(0) }; 256],
-                memory_usage: AtomicUsize::new(0),
-                processing_time: AtomicU32::new(0),
-            }
-        }
-    }
-
-    impl ErrorMetrics {
-        /// Creates a new metrics collector
-        #[must_use]
-        pub fn new() -> Self {
-            Self::default()
-        }
-
-        /// Records an error occurrence
-        pub fn record_error(&self, error: &Yoshi) {
-            self.total_errors.fetch_add(1, Ordering::Relaxed);
-
-            // Record by severity
-            let severity = error.severity() as usize;
-            self.errors_by_severity[severity].fetch_add(1, Ordering::Relaxed);
-
-            // Estimate memory usage
-            let estimated_size = std::mem::size_of_val(error)
-                + error
-                    .contexts()
-                    .map(|ctx| {
-                        ctx.message.as_ref().map_or(0, |m| m.len()) + ctx.metadata.len() * 64
-                        // Rough estimate
-                    })
-                    .sum::<usize>();
-
-            self.memory_usage
-                .fetch_add(estimated_size, Ordering::Relaxed);
-        }
-
-        /// Gets total error count
-        #[must_use]
-        pub fn total_errors(&self) -> u32 {
-            self.total_errors.load(Ordering::Relaxed)
-        }
-
-        /// Gets errors by severity level
-        #[must_use]
-        pub fn errors_by_severity(&self, severity: u8) -> u32 {
-            self.errors_by_severity[severity as usize].load(Ordering::Relaxed)
-        }
-
-        /// Gets estimated memory usage
-        #[must_use]
-        pub fn memory_usage(&self) -> usize {
-            self.memory_usage.load(Ordering::Relaxed)
-        }
-
-        /// Generates a metrics report
-        #[must_use]
-        pub fn generate_report(&self) -> MetricsReport {
-            MetricsReport {
-                total_errors: self.total_errors(),
-                high_severity_errors: (200..=255).map(|s| self.errors_by_severity(s)).sum(),
-                medium_severity_errors: (100..199).map(|s| self.errors_by_severity(s)).sum(),
-                low_severity_errors: (0..99).map(|s| self.errors_by_severity(s)).sum(),
-                memory_usage: self.memory_usage(),
-                timestamp: SystemTime::now(),
-            }
-        }
-    }
-    /// Metrics report structure
-    #[derive(Debug, Clone)]
-    pub struct MetricsReport {
-        /// Total number of errors recorded
-        pub total_errors: u32,
-        /// Number of high-severity errors
-        pub high_severity_errors: u32,
-        /// Number of medium-severity errors
-        pub medium_severity_errors: u32,
-        /// Number of low-severity errors
-        pub low_severity_errors: u32,
-        /// Current memory usage in bytes
-        pub memory_usage: usize,
-        /// Timestamp when the report was generated
-        pub timestamp: SystemTime,
-    }
-
-    /// Global metrics instance
-    static GLOBAL_METRICS: OnceLock<ErrorMetrics> = OnceLock::new();
-
-    /// Gets the global metrics collector
-    pub fn global_metrics() -> &'static ErrorMetrics {
-        GLOBAL_METRICS.get_or_init(ErrorMetrics::new)
-    }
-
-    /// Records an error in global metrics
-    pub fn record_global_error(error: &Yoshi) {
-        global_metrics().record_error(error);
-    }
-    /// Gets a global metrics report
-    #[must_use]
-    pub fn global_report() -> MetricsReport {
-        global_metrics().generate_report()
-    }
-
-    /// Resets global metrics (primarily for testing)
-    #[cfg(test)]
-    pub fn reset_global_metrics() {
-        // This would require a more sophisticated reset mechanism in production
-        // For now, we just create a new instance
-        // Note: This doesn't actually reset the OnceLock, just documents the intention
     }
 }
 

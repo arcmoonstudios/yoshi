@@ -16,7 +16,6 @@ Before diving into specific issues, consider these general steps:
     * `derive`: To use the `#[derive(YoshiError)]` procedural macro.
     * `serde`: For `serde::Serialize` and `serde::Deserialize` implementations on `YoContext`.
     * `tracing`: For integration with the `tracing` crate.
-    * `unstable-metrics`: For advanced performance metrics collection (may require nightly Rust or specific target architectures).
     * `simd-optimized`: For SIMD-accelerated string processing (requires `x86_64` target and appropriate Rust compilation flags).
 
 2.**Check Yoshi Version**: Make sure your `yoshi`, `yoshi-std`, and `yoshi-derive` crate versions are compatible and up-to-date.
@@ -196,7 +195,7 @@ println!("User ID: {:?}", user_id);
 *   **Manage `RUST_BACKTRACE`**: Always ensure `RUST_BACKTRACE` is unset or `0` in performance-sensitive environments.
 *   **Optimize strings**: For highly repetitive string data in contexts/kinds, ensure you're leveraging Yoshi's `intern_string()` utility directly where applicable, or relying on `Arc<str>` conversions.
 *   **Limit context depth**: While Yoshi has cycle detection, extremely deep context chains are inherently more expensive to traverse and format. Design your error propagation to keep context chains concise.
-*   **Disable unstable features**: If `unstable-metrics` or `simd-optimized` are not actively beneficial for your specific performance goals, consider disabling them to reduce potential overheads from their generated code paths.
+*   **Disable unnecessary features**: If `simd-optimized` is not actively beneficial for your specific performance goals, consider disabling it to reduce potential overheads from generated code paths.
 
 ### 4. `YoshiKind` mapping logic in `yoshi-derive` not as expected
 

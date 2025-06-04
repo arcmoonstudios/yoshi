@@ -2,22 +2,46 @@
 name = "yoshi-derive"
 version = "0.1.5"
 edition = "2021"
-rust-version = "1.87.0"                                                 # MSRV
+rust-version = "1.87.0" # MSRV
 authors = ["Lord Xyn <LordXyn@proton.me>"]
 repository = "https://github.com/arcmoonstudios/yoshi"
 license = "MIT OR Apache-2.0"
-description = "Procedural-macro helpers for deriving Yoshi errors."
-keywords = ["proc-macro", "error", "derive", "error-handling", "yoshi"]
-categories = ["development-tools", "rust-patterns"]
+description = "Complete LSP-integrated error handling framework with AI-powered auto-fix suggestions and rust-analyzer integration."
+keywords = ["proc-macro", "error", "derive", "lsp", "rust-analyzer"]
+categories = [
+    "development-tools",
+    "development-tools::debugging",
+    "development-tools::procedural-macro-helpers",
+]
 
 [dependencies]
+# Core proc-macro dependencies
 darling = "0.20.11"
-once_cell = "1.21.3"
 proc-macro2 = "1.0.95"
 quote = "1.0.40"
-regex = "1.11.1"
 syn = { version = "2.0.101", features = ["full", "extra-traits", "derive"] }
+
+# Pattern matching and serialization
+regex = "1.11.1"
+serde = { version = "1.0.219", features = ["derive"] }
+serde_json = "1.0.135"
+
+# Async runtime and LSP server
+tokio = { version = "1.45.1", features = ["full"] }
+tower-lsp = "0.20.0"
+
+# Utilities
+chrono = { version = "0.4.40", features = ["serde"] }
 yoshi-std = { version = "0.1.5", path = "../yoshi-std" }
+
+[dev-dependencies]
+tokio-test = "0.4.4"
+tempfile = "3.14.0"
+
+[features]
+default = ["lsp-integration"]
+lsp-integration = []
+analysis-integration = []
 
 [lib]
 proc-macro = true
@@ -25,7 +49,7 @@ proc-macro = true
 # docs.rs specific configuration for robust builds
 [package.metadata.docs.rs]
 rustc-args = ["--cap-lints=warn"]
-features = []                          # proc-macro crate with no features
+features = ["lsp-integration", "analysis-integration"]
 no-default-features = false
 rustdoc-args = ["--cfg", "docsrs"]
 targets = ["x86_64-unknown-linux-gnu"]

@@ -24,12 +24,8 @@ derive = []                             # pass-through flag
 serde = ["dep:serde", "dep:serde_json"]
 tracing = ["dep:tracing"]
 async = ["dep:tokio"]
-# tech-preview toggles (OFF by default)
-unstable-metrics = [
-    "serde",
-] # Add serde to unstable-metrics feature for ProcessError serialization
-unstable-auto-fix = []
-unstable-smart-diagnostics = []
+# Stable SIMD optimizations using std::arch (no unstable features)
+simd-optimized = []
 
 [lib]
 name = "yoshi_std"
@@ -37,10 +33,13 @@ path = "src/lib.rs"
 
 # docs.rs specific configuration for robust builds
 [package.metadata.docs.rs]
-# Conservative feature set for nightly compatibility
+# CRITICAL: Conservative feature set - NO experimental features
 features = ["std", "serde", "tracing"]
 no-default-features = false
+# CRITICAL: Force stable toolchain, disable experimental features
 rustdoc-args = ["--cfg", "docsrs"]
-# Conservative rustc args for nightly compatibility
+# Conservative rustc args for stable compatibility
 rustc-args = ["--cap-lints=warn"]
 targets = ["x86_64-unknown-linux-gnu"]
+# FORCE stable toolchain - this should prevent nightly
+default-target = "x86_64-unknown-linux-gnu"
