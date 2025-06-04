@@ -13,6 +13,7 @@
 #![allow(clippy::ignored_unit_patterns)]
 #![allow(clippy::uninlined_format_args)]
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
+#![allow(dead_code)]
 //! **Brief:** The Yoshi error handling framework was designed as an all-in-one solution
 //! for handling errors in any kind of application, taking the developers' sanity as a
 //! first-class citizen. It's designed to be both efficient and user-friendly, ensuring that
@@ -180,8 +181,11 @@ use syn::{
     parse_macro_input, spanned::Spanned, Attribute, Data, DeriveInput, Error, Generics, Ident,
     ItemFn, Result, ReturnType, Type, Visibility,
 };
+#[cfg(feature = "lsp-integration")]
 use tokio::sync::mpsc;
+#[cfg(feature = "lsp-integration")]
 use tower_lsp::jsonrpc::Result as LspResult;
+#[cfg(feature = "lsp-integration")]
 use tower_lsp::lsp_types::{
     CodeAction, CodeActionKind, CodeActionOrCommand, CodeActionParams,
     CodeActionProviderCapability, CodeActionResponse, CompletionItem, CompletionItemKind,
@@ -195,7 +199,33 @@ use tower_lsp::lsp_types::{
     TextDocumentSyncCapability, TextDocumentSyncKind, TextEdit, Url, WorkDoneProgressOptions,
     WorkspaceEdit, WorkspaceFoldersServerCapabilities, WorkspaceServerCapabilities,
 };
+#[cfg(feature = "lsp-integration")]
 use tower_lsp::{Client, LanguageServer, LspService, Server};
+
+#[cfg(not(feature = "lsp-integration"))]
+type LspResult<T> = std::result::Result<T, ()>;
+
+#[cfg(not(feature = "lsp-integration"))]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+struct Range;
+
+#[cfg(not(feature = "lsp-integration"))]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct CodeActionKind;
+
+#[cfg(not(feature = "lsp-integration"))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+enum DiagnosticSeverity {
+    ERROR,
+    WARNING,
+    INFORMATION,
+}
+
+#[cfg(not(feature = "lsp-integration"))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+enum DiagnosticTag {
+    UNNECESSARY,
+}
 
 //--------------------------------------------------------------------------------------------------
 // Enhanced Data Structures with Complete LSP Integration
