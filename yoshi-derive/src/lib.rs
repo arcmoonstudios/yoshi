@@ -13,6 +13,7 @@
 #![allow(clippy::ignored_unit_patterns)]
 #![allow(clippy::uninlined_format_args)]
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
+#![allow(dead_code)]
 //! **Brief:** The Yoshi error handling framework was designed as an all-in-one solution
 //! for handling errors in any kind of application, taking the developers' sanity as a
 //! first-class citizen. It's designed to be both efficient and user-friendly, ensuring that
