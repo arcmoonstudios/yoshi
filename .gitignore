@@ -22,7 +22,7 @@
 *.lib
 
 # Rust build artifacts
-/target/
+target/
 **/target/
 Cargo.lock
 
