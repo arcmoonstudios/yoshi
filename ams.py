@@ -117,27 +117,29 @@ class SSHPasswordManager:
         """Get cached password for hostname"""
         return self._cached_passwords.get(hostname)
 
-    def cache_password(self, hostname: str, username: str, password: str) -> None:
+    def cache_password(self, hostname: str, username: Optional[str], password: Optional[str]) -> None:
         """Cache password for hostname"""
-        self._cached_passwords[hostname] = password
-        self._ssh_usernames[hostname] = username
+        if password is not None:
+            self._cached_passwords[hostname] = password
+        if username is not None:
+            self._ssh_usernames[hostname] = username
 
     def get_cached_username(self, hostname: str) -> Optional[str]:
         """Get cached username for hostname"""
-        return self._ssh_usernames.get(hostname)
+        return self._ssh_usernames.get(hostname, None)
 
     def clear_cache(self) -> None:
         """Clear all cached passwords"""
         self._cached_passwords.clear()
         self._ssh_usernames.clear()
 
-    def prompt_for_credentials(self, hostname: str, parent_window=None) -> Optional[Tuple[str, str]]:
-        """Prompt user for SSH credentials"""
+    def prompt_for_ssh_passphrase(self, key_path: str, parent_window=None) -> Optional[str]:
+        """Prompt user for SSH key passphrase"""
         try:
-            # Create credential dialog
+            # Create passphrase dialog
             dialog = tk.Toplevel(parent_window) if parent_window else tk.Tk()
-            dialog.title(f"SSH Authentication - {hostname}")
-            dialog.geometry("400x200")
+            dialog.title("SSH Key Passphrase")
+            dialog.geometry("450x180")
             dialog.configure(bg=ArcMoonTheme.DARK_BG)
             dialog.transient(parent_window)
             dialog.grab_set()
@@ -145,11 +147,11 @@ class SSHPasswordManager:
 
             # Center the dialog
             dialog.update_idletasks()
-            x = (dialog.winfo_screenwidth() // 2) - (400 // 2)
-            y = (dialog.winfo_screenheight() // 2) - (200 // 2)
-            dialog.geometry(f"400x200+{x}+{y}")
+            x = (dialog.winfo_screenwidth() // 2) - (450 // 2)
+            y = (dialog.winfo_screenheight() // 2) - (180 // 2)
+            dialog.geometry(f"450x180+{x}+{y}")
 
-            result = {"username": "", "password": "", "cancelled": True}
+            result = {"passphrase": "", "cancelled": True}
 
             # Main frame
             main_frame = tk.Frame(dialog, bg=ArcMoonTheme.DARK_BG)
@@ -157,52 +159,42 @@ class SSHPasswordManager:
 
             # Title
             title_label = tk.Label(main_frame,
-                                 text=f"SSH Authentication Required",
+                                 text="🔐 SSH Key Passphrase Required",
                                  bg=ArcMoonTheme.DARK_BG,
                                  fg=ArcMoonTheme.TEXT_PRIMARY,
                                  font=('Segoe UI', 12, 'bold'))
             title_label.pack(pady=(0, 10))
 
-            host_label = tk.Label(main_frame,
-                                text=f"Host: {hostname}",
+            key_label = tk.Label(main_frame,
+                                text=f"Key: {key_path}",
                                 bg=ArcMoonTheme.DARK_BG,
                                 fg=ArcMoonTheme.TEXT_SECONDARY,
-                                font=('Segoe UI', 10))
-            host_label.pack(pady=(0, 15))
+                                font=('Segoe UI', 9))
+            key_label.pack(pady=(0, 15))
 
-            # Username field
-            tk.Label(main_frame, text="Username:",
+            # Passphrase field
+            tk.Label(main_frame, text="Passphrase:",
                     bg=ArcMoonTheme.DARK_BG,
                     fg=ArcMoonTheme.TEXT_PRIMARY).pack(anchor='w')
 
-            username_var = tk.StringVar(value=self.get_cached_username(hostname) or "")
-            username_entry = tk.Entry(main_frame, textvariable=username_var,
-                                    bg=ArcMoonTheme.DARK_TERTIARY,
-                                    fg=ArcMoonTheme.TEXT_PRIMARY,
-                                    insertbackground=ArcMoonTheme.LIGHT_BLUE_MOON,
-                                    relief='flat', bd=5, width=30)
-            username_entry.pack(fill='x', pady=(2, 10))
-
-            # Password field
-            tk.Label(main_frame, text="Password:",
-                    bg=ArcMoonTheme.DARK_BG,
-                    fg=ArcMoonTheme.TEXT_PRIMARY).pack(anchor='w')
-
-            password_var = tk.StringVar()
-            password_entry = tk.Entry(main_frame, textvariable=password_var, show="*",
-                                    bg=ArcMoonTheme.DARK_TERTIARY,
-                                    fg=ArcMoonTheme.TEXT_PRIMARY,
-                                    insertbackground=ArcMoonTheme.LIGHT_BLUE_MOON,
-                                    relief='flat', bd=5, width=30)
-            password_entry.pack(fill='x', pady=(2, 15))
+            passphrase_var = tk.StringVar()
+            passphrase_entry = tk.Entry(main_frame,
+                                      textvariable=passphrase_var,
+                                      show="*",
+                                      bg=ArcMoonTheme.DARK_TERTIARY,
+                                      fg=ArcMoonTheme.TEXT_PRIMARY,
+                                      insertbackground=ArcMoonTheme.LIGHT_BLUE_MOON,
+                                      relief='flat',
+                                      bd=5,
+                                      width=40)
+            passphrase_entry.pack(fill='x', pady=(2, 15))
 
             # Buttons
             button_frame = tk.Frame(main_frame, bg=ArcMoonTheme.DARK_BG)
             button_frame.pack(fill='x')
 
             def on_ok():
-                result["username"] = username_var.get()
-                result["password"] = password_var.get()
+                result["passphrase"] = passphrase_var.get()
                 result["cancelled"] = False
                 dialog.destroy()
 
@@ -210,53 +202,30 @@ class SSHPasswordManager:
                 result["cancelled"] = True
                 dialog.destroy()
 
-            ok_btn = tk.Button(button_frame, text="Connect",
+            ok_btn = tk.Button(button_frame, text="Unlock",
                              bg=ArcMoonTheme.BUTTON_SUCCESS,
                              fg=ArcMoonTheme.OFF_BLACK,
-                             relief='flat', font=('Segoe UI', 10, 'bold'),
                              command=on_ok)
-            ok_btn.pack(side='right', padx=(5, 0))
+            ok_btn.pack(side='left', padx=5)
 
             cancel_btn = tk.Button(button_frame, text="Cancel",
                                  bg=ArcMoonTheme.BUTTON_DANGER,
                                  fg=ArcMoonTheme.OFF_BLACK,
-                                 relief='flat', font=('Segoe UI', 10, 'bold'),
                                  command=on_cancel)
-            cancel_btn.pack(side='right')
+            cancel_btn.pack(side='right', padx=5)
 
             # Bind Enter key
-            def on_enter(event):
-                on_ok()
+            passphrase_entry.bind('<Return>', lambda e: on_ok())
+            passphrase_entry.focus()
 
-            password_entry.bind('<Return>', on_enter)
-            username_entry.bind('<Return>', lambda e: password_entry.focus())
-
-            # Focus on appropriate field
-            if username_var.get():
-                password_entry.focus()
-            else:
-                username_entry.focus()
-
-            # Wait for dialog to close
+            # Wait for dialog completion
             dialog.wait_window()
 
-            if result["cancelled"]:
-                return None
-
-            return (result["username"], result["password"])
+            return None if result["cancelled"] else result["passphrase"]
 
         except Exception as e:
-            logger.error(f"Error in SSH credential dialog: {e}")
+            logger.error(f"Error creating passphrase dialog: {e}")
             return None
-
-    def save(self) -> None:
-        """Save configuration to file"""
-        config_path = Path.home() / ".ams_config.json"
-        try:
-            with open(config_path, 'w') as f:
-                json.dump(asdict(self), f, indent=2)
-        except Exception as e:
-            logger.error(f"Error saving config: {e}")
 
 class Colors:
     """Color codes for terminal output (converted to GUI colors using new palette)"""
@@ -1367,71 +1336,18 @@ class GitHubOperations:
     def __init__(self, executor):
         self.executor = executor
         self.ssh_manager: Optional[SSHPasswordManager] = None  # Will be set by the main GUI class
+        self.command_executor = executor
+        self.root: Optional[tk.Tk] = None  # Will be set by the main GUI class
 
     def _execute_git_with_ssh_auth(self, cmd: str, cwd: Optional[str] = None) -> Tuple[int, str, str]:
         """Execute git command with SSH authentication support"""
         try:
-            # First try normal execution
-            result = self.executor.execute_command(cmd, cwd)
-
-            # If it fails with permission denied, provide helpful guidance
-            if result[0] != 0 and "Permission denied" in result[2]:
-                error_msg = """SSH Permission Denied - GitHub requires SSH keys, not passwords.
-
-To fix this, you have two options:
-
-1. Set up SSH keys:
-   - Generate: ssh-keygen -t ed25519 -C "your_email@example.com"
-   - Add to GitHub: gh ssh-key add ~/.ssh/id_ed25519.pub
-   - Test: ssh -T git@github.com
-
-2. Use HTTPS instead:
-   - Change remote: git remote set-url origin https://github.com/username/repo.git
-   - GitHub will prompt for username/token
-
-Current error: Permission denied (publickey)"""
-
-                return result[0], result[1], error_msg
-
-            return result
-
+            # Try SSH command with GUI passphrase handling
+            return self._execute_ssh_with_gui_passphrase(cmd, cwd)
         except Exception as e:
             return 1, "", f"Git command error: {str(e)}"
 
-    def _convert_to_https_auth(self, cmd: str, cwd: Optional[str] = None) -> Tuple[int, str, str]:
-        """Convert SSH git command to HTTPS with token authentication"""
-        try:
-            # Check if we can get a GitHub token
-            token_result = self.executor.execute_command("gh auth token", cwd)
-            if token_result[0] != 0:
-                return 1, "", "GitHub CLI not authenticated. Run 'gh auth login' first."
-
-            token = token_result[1].strip()
-
-            # Convert SSH URL to HTTPS with token
-            if "git@github.com:" in cmd:
-                modified_cmd = cmd.replace("git@github.com:", f"https://oauth2:{token}@github.com/")
-                return self.executor.execute_command(modified_cmd, cwd)
-            else:
-                return self.executor.execute_command(cmd, cwd)
-
-        except Exception as e:
-            return 1, "", f"HTTPS authentication conversion failed: {str(e)}"
-
     # Repository Operations
-    def clone_repo(self, repo_url: str, destination: str = "") -> Tuple[int, str, str]:
-        """Clone a repository with authentication support"""
-        cmd = f"git clone {repo_url}"
-        if destination:
-            cmd += f" {destination}"
-
-        # Try SSH first, fall back to HTTPS if SSH fails
-        result = self._execute_git_with_ssh_auth(cmd)
-        if result[0] != 0 and "Permission denied" in result[2]:
-            # Try converting to HTTPS
-            return self._convert_to_https_auth(cmd)
-        return result
-
     def create_repo(self, name: str, private: bool = False, description: str = "") -> Tuple[int, str, str]:
         """Create a new repository"""
         cmd = f"gh repo create {name}"
@@ -1561,6 +1477,77 @@ Current error: Permission denied (publickey)"""
             cmd += f" --title '{title}'"
         return self.executor.execute_command(cmd)
 
+    def clone_repo(self, repo_url: str, destination: str = "") -> Tuple[int, str, str]:
+        """Clone a repository using SSH"""
+        # Convert HTTPS URL to SSH if needed
+        ssh_url = self._convert_to_ssh_url(repo_url)
+        cmd = f"git clone {ssh_url}"
+        if destination:
+            cmd += f" {destination}"
+        return self._execute_git_with_ssh_auth(cmd)
+
+    def _convert_to_ssh_url(self, url: str) -> str:
+        """Convert HTTPS GitHub URL to SSH format"""
+        if url.startswith("https://github.com/"):
+            # Convert https://github.com/user/repo.git to git@github.com:user/repo.git
+            path = url.replace("https://github.com/", "")
+            if not path.endswith(".git"):
+                path += ".git"
+            return f"git@github.com:{path}"
+        elif url.startswith("http://github.com/"):
+            # Convert http://github.com/user/repo.git to git@github.com:user/repo.git
+            path = url.replace("http://github.com/", "")
+            if not path.endswith(".git"):
+                path += ".git"
+            return f"git@github.com:{path}"
+        else:
+            # Already SSH or other format, return as-is
+            return url
+
+    def _ensure_ssh_remote(self, cwd: Optional[str] = None) -> Tuple[int, str, str]:
+        """Ensure git remote origin is using SSH instead of HTTPS"""
+        try:
+            # Get current remote URL
+            result = subprocess.run(
+                ["git", "remote", "get-url", "origin"],
+                cwd=cwd,
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+
+            if result.returncode == 0:
+                current_url = result.stdout.strip()
+
+                # If it's HTTPS, convert to SSH
+                if current_url.startswith("https://github.com/") or current_url.startswith("http://github.com/"):
+                    ssh_url = self._convert_to_ssh_url(current_url)
+
+                    # Set the new SSH URL
+                    set_result = subprocess.run(
+                        ["git", "remote", "set-url", "origin", ssh_url],
+                        cwd=cwd,
+                        capture_output=True,
+                        text=True,
+                        timeout=10
+                    )
+
+                    if set_result.returncode == 0:
+                        return 0, f"Converted remote URL to SSH: {ssh_url}", ""
+                    else:
+                        return set_result.returncode, set_result.stdout, set_result.stderr
+                else:
+                    return 0, f"Remote already using SSH: {current_url}", ""
+            else:
+                return result.returncode, result.stdout, result.stderr
+
+        except Exception as e:
+            return 1, "", f"Error ensuring SSH remote: {str(e)}"
+
+    def convert_remote_to_ssh(self, cwd: Optional[str] = None) -> Tuple[int, str, str]:
+        """Manually convert git remote from HTTPS to SSH"""
+        return self._ensure_ssh_remote(cwd)
+
     # Git Operations
     def git_status(self, cwd: Optional[str] = None) -> Tuple[int, str, str]:
         """Get git status"""
@@ -1577,27 +1564,20 @@ Current error: Permission denied (publickey)"""
         cmd = f'git commit -m "{message}"'
         return self.executor.execute_command(cmd, cwd)
 
-    def git_push(self, cwd: Optional[str] = None) -> Tuple[int, str, str]:
-        """Push changes to remote with authentication support"""
-        cmd = "git push"
-
-        # Try SSH first, fall back to HTTPS if SSH fails
-        result = self._execute_git_with_ssh_auth(cmd, cwd)
-        if result[0] != 0 and "Permission denied" in result[2]:
-            # Try converting to HTTPS
-            return self._convert_to_https_auth(cmd, cwd)
-        return result
-
     def git_pull(self, cwd: Optional[str] = None) -> Tuple[int, str, str]:
-        """Pull changes from remote with authentication support"""
+        """Pull changes from remote with SSH authentication support"""
+        # Ensure SSH remote before pulling
+        self._ensure_ssh_remote(cwd)
         cmd = "git pull"
+        return self._execute_git_with_ssh_auth(cmd, cwd)
 
-        # Try SSH first, fall back to HTTPS if SSH fails
-        result = self._execute_git_with_ssh_auth(cmd, cwd)
-        if result[0] != 0 and "Permission denied" in result[2]:
-            # Try converting to HTTPS
-            return self._convert_to_https_auth(cmd, cwd)
-        return result
+    def git_push(self, cwd: Optional[str] = None) -> Tuple[int, str, str]:
+        """Push changes to remote with SSH authentication support"""
+        # Ensure SSH remote before pushing
+        self._ensure_ssh_remote(cwd)
+        cmd = "git push"
+        return self._execute_git_with_ssh_auth(cmd, cwd)
+
 
     def git_commit_and_push(self, message: str, cwd: Optional[str] = None) -> Tuple[int, str, str]:
         """Add all, commit, and push in one operation"""
@@ -1629,6 +1609,157 @@ Current error: Permission denied (publickey)"""
         """Logout from GitHub"""
         cmd = "gh auth logout"
         return self.executor.execute_command(cmd)
+
+    def _execute_ssh_with_gui_passphrase(self, cmd: str, cwd: Optional[str] = None) -> Tuple[int, str, str]:
+        """Execute SSH command with GUI passphrase prompt support"""
+        try:
+            import tempfile
+            import stat
+            import re
+
+            # Create expect script that will handle passphrase prompts
+            expect_script = f'''#!/usr/bin/expect -f
+set timeout 30
+spawn {cmd}
+expect {{
+    "Enter passphrase for key*:" {{
+        puts "PASSPHRASE_PROMPT:[lindex $expect_out(0,string) end-1]"
+        interact
+    }}
+    "Permission denied*" {{
+        puts "PERMISSION_DENIED"
+        exit 1
+    }}
+    "Hi*" {{
+        puts $expect_out(buffer)
+        expect eof
+        exit 0
+    }}
+    timeout {{
+        puts "TIMEOUT"
+        exit 1
+    }}
+    eof {{
+        exit 0
+    }}
+}}
+'''
+
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.exp', delete=False) as f:
+                f.write(expect_script)
+                script_path = f.name
+
+            os.chmod(script_path, stat.S_IRWXU)
+
+            try:
+                # First try without interaction to see if passphrase is needed
+                result = subprocess.run(
+                    ["expect", script_path],
+                    cwd=cwd,
+                    capture_output=True,
+                    text=True,
+                    timeout=60,
+                    input="\n"  # Send enter to trigger any prompts
+                )
+
+                output = result.stdout + result.stderr
+
+                # Check if passphrase was requested
+                if "Enter passphrase for key" in output:
+                    # Extract key path from the output
+                    match = re.search(r"Enter passphrase for key '([^']+)':", output)
+                    key_path = match.group(1) if match else "SSH key"
+
+                    # Show GUI passphrase dialog on main thread
+                    if self.ssh_manager is None or self.root is None:
+                        return 1, "", "SSH manager or GUI root not available"
+
+                    passphrase_result: Dict[str, Optional[str]] = {"passphrase": None}
+                    def prompt_passphrase():
+                        if self.ssh_manager is not None and self.root is not None:
+                            result: Optional[str] = self.ssh_manager.prompt_for_ssh_passphrase(key_path, self.root)
+                            if result is not None:
+                                passphrase_result["passphrase"] = result
+
+                    while passphrase_result.get("passphrase") is None:
+                        time.sleep(0.1)
+
+                    passphrase = passphrase_result.get("passphrase")
+                    if passphrase is None:
+                        return 1, "", "Passphrase entry cancelled"
+
+                    # Create new expect script with the passphrase
+                    expect_with_passphrase = f'''#!/usr/bin/expect -f
+set timeout 30
+spawn {cmd}
+expect {{
+    "Enter passphrase for key*:" {{
+        send "{passphrase}\\r"
+        exp_continue
+    }}
+    "Permission denied*" {{
+        exit 1
+    }}
+    "Hi*" {{
+        puts $expect_out(buffer)
+        expect eof
+        exit 0
+    }}
+    timeout {{
+        exit 1
+    }}
+    eof {{
+        exit 0
+    }}
+}}
+'''
+
+                    with tempfile.NamedTemporaryFile(mode='w', suffix='.exp', delete=False) as f2:
+                        f2.write(expect_with_passphrase)
+                        script_path_2 = f2.name
+
+                    os.chmod(script_path_2, stat.S_IRWXU)
+
+                    # Execute with passphrase
+                    final_result = subprocess.run(
+                        ["expect", script_path_2],
+                        cwd=cwd,
+                        capture_output=True,
+                        text=True,
+                        timeout=60
+                    )
+
+                    os.unlink(script_path_2)
+                    os.unlink(script_path)
+
+                    return final_result.returncode, final_result.stdout, final_result.stderr
+
+                else:
+                    # No passphrase needed, return original result
+                    os.unlink(script_path)
+                    return result.returncode, result.stdout, result.stderr
+
+            except subprocess.TimeoutExpired:
+                return 1, "", "SSH command timed out"
+            except FileNotFoundError:
+                # expect not available, fall back to basic execution
+                return self.command_executor.execute_command(cmd, cwd)
+            finally:
+                try:
+                    os.unlink(script_path)
+                except:
+                    pass
+
+        except Exception as e:
+            return 1, "", f"SSH command error: {str(e)}"
+
+    def _convert_to_https_auth(self, cmd: str, cwd: Optional[str] = None) -> Tuple[int, str, str]:
+        """Convert SSH command to HTTPS authentication as fallback"""
+        try:
+            # Simple fallback to basic git command execution
+            return self.command_executor.execute_command(cmd, cwd)
+        except Exception as e:
+            return 1, "", f"HTTPS auth fallback error: {str(e)}"
 
 class CommandExecutor:
     """Enterprise-grade command execution with real-time output streaming."""
@@ -2011,9 +2142,10 @@ class ArcMoonSystemGUI:
             self.command_executor = CommandExecutor(self._append_output_queued)
             self.github_ops = GitHubOperations(self.command_executor)
 
-            # Set up SSH manager reference
+            # Set up SSH manager and root references
             if hasattr(self, 'ssh_manager'):
                 self.github_ops.ssh_manager = self.ssh_manager
+                self.github_ops.root = self.root
 
             self.current_status = "Ready"
             self.overlay: Optional[RetractableOverlay] = None
@@ -2295,6 +2427,9 @@ class ArcMoonSystemGUI:
 
             ttk.Button(git_status_frame, text="⬇️ Pull",
                       command=lambda: self._execute_github_async(self.github_ops.git_pull, self.workspace_path)).pack(side='left', padx=5)
+
+            ttk.Button(git_status_frame, text="🔐 Use SSH",
+                      command=lambda: self._execute_github_async(self.github_ops.convert_remote_to_ssh, self.workspace_path)).pack(side='left', padx=5)
 
             # Commit section
             commit_section = ttk.Frame(git_frame)
@@ -3323,27 +3458,194 @@ Features: Integrated CrateCheck • GitHub CLI Integration"""
             self._append_output_queued(f"\n❌ Error generating SSH key: {str(e)}\n")
 
     def _test_github_connection(self) -> None:
-        """Test GitHub connection"""
+        """Test GitHub connection with GUI passphrase support"""
         try:
-            self._execute_async_general(lambda: self.command_executor.execute_command("ssh -T git@github.com"))
+            self._append_output_queued("\n🔑 Testing GitHub SSH connection...\n")
+
+            def test_connection():
+                try:
+                    # Try SSH connection with GUI passphrase handling
+                    result = self._execute_ssh_with_gui_passphrase("ssh -T git@github.com")
+
+                    if result[0] == 0:
+                        self.root.after(0, lambda: self._append_output_queued("✅ GitHub SSH connection successful!\n"))
+                        # Parse the response to show username
+                        if "successfully authenticated" in result[1]:
+                            username_line = [line for line in result[1].split('\n') if 'Hi ' in line]
+                            if username_line:
+                                self.root.after(0, lambda: self._append_output_queued(f"🐙 {username_line[0]}\n"))
+                    else:
+                        self.root.after(0, lambda: self._append_output_queued(f"❌ GitHub SSH connection failed\n"))
+                        self.root.after(0, lambda: self._append_output_queued(f"Error: {result[2]}\n"))
+
+                        # Provide helpful guidance
+                        guidance = """
+💡 To fix SSH connection issues:
+1. Ensure SSH key is added to GitHub: gh ssh-key add ~/.ssh/id_ed25519.pub
+2. Test SSH agent: ssh-add -l
+3. Add key to agent: ssh-add ~/.ssh/id_ed25519
+4. Check GitHub settings: https://github.com/settings/keys
+"""
+                        self.root.after(0, lambda: self._append_output_queued(guidance))
+
+                    self.root.after(0, lambda: self._update_status("Ready"))
+
+                except Exception as e:
+                    self.root.after(0, lambda: self._append_output_queued(f"❌ Error testing connection: {str(e)}\n"))
+                    self.root.after(0, lambda: self._update_status("Error"))
+
+            self.root.after(0, lambda: self._update_status("Testing GitHub connection..."))
+            thread = threading.Thread(target=test_connection, daemon=True)
+            thread.start()
+
         except Exception as e:
             logger.error(f"Error testing GitHub connection: {e}")
             self._append_output_queued(f"\n❌ Error testing connection: {str(e)}\n")
 
-    def _clear_ssh_password_cache(self) -> None:
-        """Clear cached SSH passwords"""
+    def _execute_ssh_with_gui_passphrase(self, cmd: str, cwd: Optional[str] = None) -> Tuple[int, str, str]:
+        """Execute SSH command with GUI passphrase prompt support"""
         try:
-            if hasattr(self, 'ssh_manager') and self.ssh_manager:
-                self.ssh_manager.clear_cache()
-                self._append_output_queued("🔐 SSH password cache cleared\n")
-            elif self.github_ops.ssh_manager:
-                self.github_ops.ssh_manager.clear_cache()
-                self._append_output_queued("🔐 SSH password cache cleared\n")
-            else:
-                self._append_output_queued("⚠️ SSH manager not initialized\n")
+            import tempfile
+            import stat
+            import re
+
+            # Create expect script that will handle passphrase prompts
+            expect_script = f'''#!/usr/bin/expect -f
+set timeout 30
+spawn {cmd}
+expect {{
+    "Enter passphrase for key*:" {{
+        puts "PASSPHRASE_PROMPT:[lindex $expect_out(0,string) end-1]"
+        interact
+    }}
+    "Permission denied*" {{
+        puts "PERMISSION_DENIED"
+        exit 1
+    }}
+    "Hi*" {{
+        puts $expect_out(buffer)
+        expect eof
+        exit 0
+    }}
+    timeout {{
+        puts "TIMEOUT"
+        exit 1
+    }}
+    eof {{
+        exit 0
+    }}
+}}
+'''
+
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.exp', delete=False) as f:
+                f.write(expect_script)
+                script_path = f.name
+
+            os.chmod(script_path, stat.S_IRWXU)
+
+            try:
+                # First try without interaction to see if passphrase is needed
+                result = subprocess.run(
+                    ["expect", script_path],
+                    cwd=cwd,
+                    capture_output=True,
+                    text=True,
+                    timeout=60,
+                    input="\n"  # Send enter to trigger any prompts
+                )
+
+                output = result.stdout + result.stderr
+
+                # Check if passphrase was requested
+                if "Enter passphrase for key" in output:
+                    # Extract key path from the output
+                    match = re.search(r"Enter passphrase for key '([^']+)':", output)
+                    key_path = match.group(1) if match else "SSH key"# Show GUI passphrase dialog on main thread
+                    passphrase_result: Dict[str, Optional[str]] = {"passphrase": None}  # Initialize with None
+                    def prompt_passphrase():
+                        result: Optional[str] = self.ssh_manager.prompt_for_ssh_passphrase(key_path, self.root)
+                        if result is not None:
+                            passphrase_result["passphrase"] = result
+
+                    while passphrase_result.get("passphrase") is None:
+                        time.sleep(0.1)
+
+                    passphrase = passphrase_result.get("passphrase")
+                    if passphrase is None:
+                        return 1, "", "Passphrase entry cancelled"
+
+                    # Create new expect script with the passphrase
+                    expect_with_passphrase = f'''#!/usr/bin/expect -f
+set timeout 30
+spawn {cmd}
+expect {{
+    "Enter passphrase for key*:" {{
+        send "{passphrase}\\r"
+        exp_continue
+    }}
+    "Permission denied*" {{
+        exit 1
+    }}
+    "Hi*" {{
+        puts $expect_out(buffer)
+        expect eof
+        exit 0
+    }}
+    timeout {{
+        exit 1
+    }}
+    eof {{
+        exit 0
+    }}
+}}
+'''
+
+                    with tempfile.NamedTemporaryFile(mode='w', suffix='.exp', delete=False) as f2:
+                        f2.write(expect_with_passphrase)
+                        script_path_2 = f2.name
+
+                    os.chmod(script_path_2, stat.S_IRWXU)
+
+                    # Execute with passphrase
+                    final_result = subprocess.run(
+                        ["expect", script_path_2],
+                        cwd=cwd,
+                        capture_output=True,
+                        text=True,
+                        timeout=60
+                    )
+
+                    os.unlink(script_path_2)
+                    os.unlink(script_path)
+
+                    return final_result.returncode, final_result.stdout, final_result.stderr
+
+                else:
+                    # No passphrase needed, return original result
+                    os.unlink(script_path)
+                    return result.returncode, result.stdout, result.stderr
+
+            except subprocess.TimeoutExpired:
+                return 1, "", "SSH command timed out"
+            except FileNotFoundError:
+                # expect not available, fall back to basic execution
+                return self.command_executor.execute_command(cmd, cwd)
+            finally:
+                try:
+                    os.unlink(script_path)
+                except:
+                    pass
+
         except Exception as e:
-            logger.error(f"Error clearing SSH cache: {e}")
-            self._append_output_queued(f"\n❌ Error clearing cache: {str(e)}\n")
+            return 1, "", f"SSH command error: {str(e)}"
+
+    def _convert_to_https_auth(self, cmd: str, cwd: Optional[str] = None) -> Tuple[int, str, str]:
+        """Convert SSH command to HTTPS authentication as fallback"""
+        try:
+            # Simple fallback to basic git command execution
+            return self.command_executor.execute_command(cmd, cwd)
+        except Exception as e:
+            return 1, "", f"HTTPS auth fallback error: {str(e)}"
 
     def _test_ssh_with_password(self) -> None:
         """Test SSH connection with password authentication option"""
@@ -3372,7 +3674,7 @@ Features: Integrated CrateCheck • GitHub CLI Integration"""
 
             # GitHub username
             ttk.Label(settings_window, text="GitHub Username:", style='ArcMoon.TLabel').pack(anchor=tk.W, padx=10, pady=5)
-            username_var = tk.StringVar(value=self.config.github_username)
+            username_var = tk.StringVar(value=self.config.github_username or "")
             username_entry = tk.Entry(settings_window, textvariable=username_var,
                                      bg=ArcMoonTheme.DARK_TERTIARY,
                                      fg=ArcMoonTheme.TEXT_PRIMARY,
