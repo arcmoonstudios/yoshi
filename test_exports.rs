@@ -1,6 +1,6 @@
 // Test file to verify all required exports are available
 
-use yoshi::{yoshi, yoshi_af, YoshiError, Oops};
+use yoshi::{yoshi, yoshi_af, Oops, YoshiError};
 
 fn main() {
     // Test that all exports are accessible
