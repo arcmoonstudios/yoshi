@@ -15,13 +15,13 @@ use yoshi_std::Yoshi;
 
 /// Showcase all YoshiError derive macro features with 2025 enhancements
 #[derive(Debug, YoshiError)]
-#[yoshi(error_code_prefix = "APP")]
+#[yoshi(error_code_base = 1000)]
 #[yoshi(default_severity = 75)]
 pub enum ShowcaseError {
     /// Network error with comprehensive attributes
     #[yoshi(display = "Network operation failed: {message}")]
     #[yoshi(kind = "Network")]
-    #[yoshi(error_code = 1001)]
+    #[yoshi(code = 1001)]
     #[yoshi(severity = 90)]
     #[yoshi(suggestion = "Check network connectivity and retry")]
     NetworkFailure {
@@ -33,7 +33,7 @@ pub enum ShowcaseError {
     /// Timeout with auto-inference
     #[yoshi(display = "Operation timed out: {operation}")]
     #[yoshi(kind = "Timeout")]
-    #[yoshi(error_code = 1002)]
+    #[yoshi(code = 1002)]
     #[yoshi(transient = true)]
     OperationTimeout {
         operation: String,
@@ -43,8 +43,8 @@ pub enum ShowcaseError {
     /// Database error with comprehensive attributes
     #[yoshi(display = "Database operation failed: {operation}")]
     #[yoshi(kind = "Internal")]
-    #[yoshi(error_code = 2001)]
-    #[yoshi(severity = 120)]
+    #[yoshi(code = 2001)]
+    #[yoshi(severity = 85)]
     #[yoshi(suggestion = "Check database connectivity and retry")]
     DatabaseError {
         operation: String,
@@ -59,20 +59,20 @@ pub enum ShowcaseError {
     /// Business logic error with auto-inference
     #[yoshi(display = "Business rule violated: {rule}")]
     #[yoshi(kind = "Validation")]
-    #[yoshi(error_code = 3001)]
-    #[yoshi(severity = 100)]
+    #[yoshi(code = 3001)]
+    #[yoshi(severity = 75)]
+    #[yoshi(suggestion = "Review business rules and retry")]
     BusinessRuleViolation {
         rule: String,
         #[yoshi(context = "violation_context")]
         details: String,
-        #[yoshi(suggestion = "Review business rules and retry")]
         recovery_action: Option<String>,
     },
 
     /// Simple I/O error with source chaining
     #[yoshi(kind = "Io")]
     #[yoshi(display = "I/O operation failed: {message}")]
-    #[yoshi(error_code = 5001)]
+    #[yoshi(code = 5001)]
     #[yoshi(severity = 60)]
     IoError {
         message: String,
@@ -83,7 +83,7 @@ pub enum ShowcaseError {
     /// Validation error with comprehensive context
     #[yoshi(display = "Validation failed for field '{field}': {message}")]
     #[yoshi(kind = "Validation")]
-    #[yoshi(error_code = 4001)]
+    #[yoshi(code = 4001)]
     #[yoshi(severity = 50)]
     ValidationFailed {
         field: String,

@@ -1,55 +1,47 @@
 [package]
 name = "yoshi-derive"
-version = "0.1.5"
+version = "0.1.6"
 edition = "2021"
-rust-version = "1.87.0" # MSRV
+rust-version = "1.75.0"
 authors = ["Lord Xyn <LordXyn@proton.me>"]
 repository = "https://github.com/arcmoonstudios/yoshi"
 license = "MIT OR Apache-2.0"
-description = "Complete LSP-integrated error handling framework with AI-powered auto-fix suggestions and rust-analyzer integration."
-keywords = ["proc-macro", "error", "derive", "lsp", "rust-analyzer"]
-categories = [
-    "development-tools",
-    "development-tools::debugging",
-    "development-tools::procedural-macro-helpers",
-]
+description = "Sophisticated procedural macro for deriving Yoshi error types with intelligent auto-inference and LSP integration."
+keywords = ["proc-macro", "error", "derive", "error-handling", "yoshi"]
+categories = ["development-tools", "rust-patterns"]
+readme = "README.md"
 
 [dependencies]
 # Core proc-macro dependencies
 darling = "0.20.11"
 proc-macro2 = "1.0.95"
 quote = "1.0.40"
+
+# Additional proc-macro dependencies
 syn = { version = "2.0.101", features = ["full", "extra-traits", "derive"] }
 
-# Pattern matching and serialization
-regex = "1.11.1"
-serde = { version = "1.0.219", features = ["derive"] }
-serde_json = "1.0.135"
-
-# Async runtime and LSP server
-tokio = { version = "1.45.1", features = ["full"] }
-tower-lsp = "0.20.0"
-
-# Utilities
-chrono = { version = "0.4.40", features = ["serde"] }
-yoshi-std = { version = "0.1.5", path = "../yoshi-std" }
-
-[dev-dependencies]
-tokio-test = "0.4.4"
-tempfile = "3.14.0"
+# Integration with yoshi-std for conversion implementations
+yoshi-std = { version = "0.1.6", path = "../yoshi-std" }
 
 [features]
-default = ["lsp-integration"]
-lsp-integration = []
-analysis-integration = []
+default = ["std"]
+
+# Standard library support (enabled by default)
+std = []
+
+# Enable performance optimizations for large enums
+optimize-large = []
 
 [lib]
 proc-macro = true
 
-# docs.rs specific configuration for robust builds
+# docs.rs configuration
 [package.metadata.docs.rs]
 rustc-args = ["--cap-lints=warn"]
-features = ["lsp-integration", "analysis-integration"]
-no-default-features = false
 rustdoc-args = ["--cfg", "docsrs"]
 targets = ["x86_64-unknown-linux-gnu"]
+
+[dev-dependencies]
+# Proc-macro testing framework
+trybuild = "1.0.105"
+pretty_assertions = "1.4.1"

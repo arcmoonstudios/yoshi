@@ -4,6 +4,7 @@ members = [
     "yoshi",         # facade
     "yoshi-std",     # core engine
     "yoshi-derive",  # procedural macros
+    "yoshi-deluxe",  # deluxe features
     "yoshi-benches", # comprehensive benchmarks
 ]
 # Exclude benchmarks from packaging operations

@@ -1,6 +1,6 @@
 [package]
 name = "yoshi-std"
-version = "0.1.5"
+version = "0.1.6"
 edition = "2021"
 rust-version = "1.87.0"                                               # MSRV
 authors = ["Lord Xyn <LordXyn@proton.me>"]
@@ -26,6 +26,8 @@ tracing = ["dep:tracing"]
 async = ["dep:tokio"]
 # Stable SIMD optimizations using std::arch (no unstable features)
 simd-optimized = []
+# LSP integration support (placeholder for compatibility)
+lsp-integration = []
 
 [lib]
 name = "yoshi_std"

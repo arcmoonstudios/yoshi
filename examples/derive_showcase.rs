@@ -179,7 +179,7 @@ pub enum AppError {
     #[yoshi(display = "Multiple system failures occurred")]
     #[yoshi(kind = "Multiple")]
     #[yoshi(error_code = 1009)]
-    #[yoshi(severity = 200)]
+    #[yoshi(severity = 95)]
     MultipleFailures {
         #[yoshi(shell)]
         errors: Vec<Box<dyn std::error::Error + Send + Sync>>,

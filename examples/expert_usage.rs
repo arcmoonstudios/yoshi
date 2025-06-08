@@ -24,7 +24,7 @@
 
 use std::time::Duration;
 use yoshi_std::{
-    error_instance_count, memory, yum, Hatch, HatchExt, Hatchable, LayContext, YoContext, Yoshi,
+    error_instance_count, memory, yum, Hatch, HatchExt, Hatchable, LayText, YoContext, Yoshi,
     YoshiKind, YoshiLocation,
 };
 

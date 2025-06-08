@@ -1,6 +1,6 @@
 [package]
 name = "yoshi"
-version = "0.1.5"
+version = "0.1.6"
 edition = "2021"
 rust-version = "1.87.0"                                               # MSRV
 authors = ["Lord Xyn <LordXyn@proton.me>"]
@@ -11,8 +11,9 @@ keywords = ["error", "error-handling", "result", "yoshi", "std-only"]
 categories = ["development-tools", "rust-patterns", "api-bindings"]
 
 [dependencies]
-yoshi-std = { version = "0.1.5", path = "../yoshi-std", default-features = false }
-yoshi-derive = { version = "0.1.5", path = "../yoshi-derive", optional = true }
+yoshi-std = { version = "0.1.6", path = "../yoshi-std", default-features = false }
+yoshi-derive = { version = "0.1.6", path = "../yoshi-derive", optional = true }
+yoshi-deluxe = { version = "0.1.6", path = "../yoshi-deluxe", optional = true }
 serde = { version = "1.0.219", optional = true, features = ["derive"] }
 tokio = { version = "1.42.0", optional = true, features = ["full"] }
 serde_json = { version = "1.0.140", optional = true }
@@ -38,6 +39,8 @@ pipe = ["rust-1-87"]
 cross-process = ["pipe", "serde"]
 performance-monitoring = ["rust-1-87"]
 cli = ["std"]
+# LSP integration support (pass-through to yoshi-deluxe)
+lsp-integration = ["yoshi-deluxe/lsp-integration"]
 
 # docs.rs specific configuration for robust builds
 [package.metadata.docs.rs]

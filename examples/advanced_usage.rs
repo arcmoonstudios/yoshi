@@ -23,7 +23,7 @@
 // **Author:** Lord Xyn
 
 use std::time::Duration;
-use yoshi_std::{yum, Hatch, HatchExt, Hatchable, LayContext, YoContext, Yoshi, YoshiKind};
+use yoshi_std::{yum, Hatch, HatchExt, Hatchable, LayText, YoContext, Yoshi, YoshiKind};
 
 /// Custom struct to use as a shell.
 #[derive(Debug, PartialEq, Clone)]

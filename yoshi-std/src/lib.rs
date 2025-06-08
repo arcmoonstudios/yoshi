@@ -199,7 +199,6 @@ mod serde_helpers {
             .collect();
         string_map.serialize(serializer)
     }
-
     /// Deserialize `HashMap<String, String>` as `HashMap<Arc<str>, Arc<str>>`
     pub fn deserialize_arc_str_map<'de, D>(
         deserializer: D,
@@ -213,11 +212,66 @@ mod serde_helpers {
             .map(|(k, v)| (Arc::from(k.as_str()), Arc::from(v.as_str())))
             .collect())
     }
+
+    /// Serialize `Arc<str>` as `String` for description field
+    pub fn serialize_arc_str_desc<S>(value: &Arc<str>, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        value.as_ref().serialize(serializer)
+    }
+
+    /// Deserialize `String` as `Arc<str>` for description field
+    pub fn deserialize_arc_str_desc<'de, D>(deserializer: D) -> Result<Arc<str>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let string: String = String::deserialize(deserializer)?;
+        Ok(Arc::from(string.as_str()))
+    }
+    /// Serialize `Arc<str>` as `String` for `fix_code` field
+    pub fn serialize_arc_str_fix<S>(value: &Arc<str>, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        value.as_ref().serialize(serializer)
+    }
+    /// Deserialize `String` as `Arc<str>` for `fix_code` field
+    pub fn deserialize_arc_str_fix<'de, D>(deserializer: D) -> Result<Arc<str>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let string: String = String::deserialize(deserializer)?;
+        Ok(Arc::from(string.as_str()))
+    }
+
+    /// Serialize `Vec<Arc<str>>` as `Vec<String>`
+    pub fn serialize_arc_str_vec<S>(value: &[Arc<str>], serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let string_vec: Vec<&str> = value.iter().map(std::convert::AsRef::as_ref).collect();
+        string_vec.serialize(serializer)
+    }
+
+    /// Deserialize `Vec<String>` as `Vec<Arc<str>>`
+    pub fn deserialize_arc_str_vec<'de, D>(deserializer: D) -> Result<Vec<Arc<str>>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let string_vec: Vec<String> = Vec::deserialize(deserializer)?;
+        Ok(string_vec
+            .into_iter()
+            .map(|s| Arc::from(s.as_str()))
+            .collect())
+    }
 }
 
 #[cfg(feature = "serde")]
 use serde_helpers::{
-    deserialize_arc_str, deserialize_arc_str_map, serialize_arc_str, serialize_arc_str_map,
+    deserialize_arc_str, deserialize_arc_str_desc, deserialize_arc_str_fix,
+    deserialize_arc_str_map, deserialize_arc_str_vec, serialize_arc_str, serialize_arc_str_desc,
+    serialize_arc_str_fix, serialize_arc_str_map, serialize_arc_str_vec,
 };
 
 // CRITICAL: Block ALL experimental features on docs.rs to force stable compilation
@@ -417,6 +471,22 @@ impl core::fmt::Display for ThreadId {
     }
 }
 
+/// Safety classification for auto-fixes
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum AutoFixSafetyLevel {
+    /// Can be automatically applied without risk
+    Safe,
+    /// Low risk changes that need minimal review
+    LowRisk,
+    /// Medium risk changes that need review
+    MediumRisk,
+    /// High risk changes that need careful review
+    HighRisk,
+    /// Should never be automatically applied
+    Manual,
+}
+
 // OnceLock is std-only, so it's only imported under std
 #[cfg(not(feature = "std"))]
 use core::cell::UnsafeCell;
@@ -489,6 +559,94 @@ impl<T> OnceLock<T> {
             None
         }
     }
+}
+
+/// Represents a position in source code (line and character)
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct Position {
+    /// Line number (0-based)
+    pub line: u32,
+    /// Character position within the line (0-based)
+    pub character: u32,
+}
+
+impl Position {
+    /// Creates a new position
+    #[must_use]
+    pub const fn new(line: u32, character: u32) -> Self {
+        Self { line, character }
+    }
+}
+
+/// Represents a range in source code (start and end positions)
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct Range {
+    /// Start position of the range
+    pub start: Position,
+    /// End position of the range
+    pub end: Position,
+}
+
+impl Range {
+    /// Creates a new range
+    #[must_use]
+    pub const fn new(start: Position, end: Position) -> Self {
+        Self { start, end }
+    }
+    /// Creates a new range from line and character coordinates
+    #[must_use]
+    pub const fn from_coords(
+        start_line: u32,
+        start_char: u32,
+        end_line: u32,
+        end_char: u32,
+    ) -> Self {
+        Self {
+            start: Position::new(start_line, start_char),
+            end: Position::new(end_line, end_char),
+        }
+    }
+}
+
+/// Represents a potential automatic fix for an error
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct YoshiAutoFix {
+    /// Human-readable description of the fix
+    #[cfg_attr(
+        feature = "serde",
+        serde(
+            serialize_with = "serialize_arc_str_desc",
+            deserialize_with = "deserialize_arc_str_desc"
+        )
+    )]
+    pub description: Arc<str>,
+    /// Code to apply the fix
+    #[cfg_attr(
+        feature = "serde",
+        serde(
+            serialize_with = "serialize_arc_str_fix",
+            deserialize_with = "deserialize_arc_str_fix"
+        )
+    )]
+    pub fix_code: Arc<str>,
+    /// Confidence level (0.0-1.0)
+    pub confidence: f32,
+    /// Safety level for automatic application
+    pub safety_level: AutoFixSafetyLevel,
+    /// Target file path if known
+    #[cfg_attr(
+        feature = "serde",
+        serde(
+            serialize_with = "serialize_arc_str",
+            deserialize_with = "deserialize_arc_str"
+        )
+    )]
+    pub target_file: Option<Arc<str>>,
+    /// Range information for precise application
+    pub range: Option<Range>,
 }
 
 /// Enhanced wrapper for foreign errors with better context preservation
@@ -990,107 +1148,77 @@ impl StringInternPool {
 
         #[cfg(not(feature = "std"))]
         {
-            // High-performance lock-free string interning using separate chaining with explicit capacity management
+            // A simple, bounded, lock-free cache that prevents the memory leaks
+            // of the original implementation. This version uses single-item slots
+            // and correctly handles collisions by falling back to non-interned strings,
+            // which is safe and memory-sound without requiring a garbage collector.
             use core::ptr;
             use core::sync::atomic::AtomicPtr;
 
-            // Fixed-size lock-free cache with atomic slots (larger for fewer collisions)
-            const CACHE_SLOTS: usize = 256; // Power of 2 for efficient modulo
-            static CACHE: [AtomicPtr<CacheEntry>; CACHE_SLOTS] =
-                [const { AtomicPtr::new(ptr::null_mut()) }; CACHE_SLOTS];
+            const CACHE_SIZE: usize = 256;
+            // The cache stores tuples of (hash, string_arc) to handle collisions.
+            static CACHE: [AtomicPtr<(u64, Arc<str>)>; CACHE_SIZE] =
+                [const { AtomicPtr::new(ptr::null_mut()) }; CACHE_SIZE];
 
-            // Global maximum number of interned strings to prevent unbounded memory growth in no_std
-            const MAX_GLOBAL_CACHE_SIZE: usize = 512;
-
-            #[repr(C)]
-            struct CacheEntry {
-                hash: u64,
-                arc_str: Arc<str>,
-                next: AtomicPtr<CacheEntry>,
-            }
-
-            // Fast hash function for cache slot selection (FNV-1a)
-            #[inline(always)] // Ensure inlining for performance-critical path
+            #[inline(always)]
             fn fast_hash(s: &str) -> u64 {
-                let mut hash = 0xcbf29ce484222325u64; // FNV-1a offset basis
+                let mut hash = 0xcbf29ce484222325u64;
                 for byte in s.bytes() {
                     hash ^= byte as u64;
-                    hash = hash.wrapping_mul(0x100000001b3u64); // FNV-1a prime
+                    hash = hash.wrapping_mul(0x100000001b3u64);
                 }
                 hash
             }
+
             let hash = fast_hash(&string);
-            let slot_index = (hash as usize) & (CACHE_SLOTS - 1); // Efficient modulo for power of 2
+            let index = (hash as usize) & (CACHE_SIZE - 1);
 
-            // Lock-free search in the cache slot's linked list
-            let mut current = CACHE[slot_index].load(Ordering::Acquire);
-            while !current.is_null() {
-                unsafe {
-                    let entry = &*current;
-                    if entry.hash == hash && entry.arc_str.as_ref() == string {
-                        self.hits.fetch_add(1, Ordering::Relaxed);
-                        return entry.arc_str.clone();
-                    }
-                    current = entry.next.load(Ordering::Acquire);
+            let ptr = CACHE[index].load(Ordering::Acquire);
+
+            // Fast path: Check if the slot is occupied and if it's a match.
+            if !ptr.is_null() {
+                let entry = unsafe { &*ptr };
+                // Check hash first for a cheap negative check.
+                if entry.0 == hash && entry.1.as_ref() == string {
+                    self.hits.fetch_add(1, Ordering::Relaxed);
+                    return entry.1.clone();
                 }
-            }
-
-            // Cache miss: attempt to increment global cache size *before* allocation
-            let new_cache_size = self.cache_size.fetch_add(1, Ordering::Relaxed) + 1;
-            if new_cache_size > MAX_GLOBAL_CACHE_SIZE {
-                // If over capacity, decrement counter (to prevent false overflow) and return original string
-                self.cache_size.fetch_sub(1, Ordering::Relaxed); // Correct the increment
+                // Collision: The slot is taken by another string. Fallback.
                 self.misses.fetch_add(1, Ordering::Relaxed);
-                return string.into(); // Return uninterned string
+                return string.into();
             }
 
-            // Save string content before moving into Arc
-            let string_for_comparison = string.clone();
-            let arc_str: Arc<str> = string.into(); // Allocate string
-            let new_entry = Box::into_raw(Box::new(CacheEntry {
-                hash,
-                arc_str: arc_str.clone(),
-                next: AtomicPtr::new(ptr::null_mut()),
-            }));
+            // Slow path: The slot is empty, try to insert.
+            let arc_str: Arc<str> = string.into();
+            let new_entry = Box::new((hash, arc_str.clone()));
+            let new_ptr = Box::into_raw(new_entry);
 
-            // Atomic compare-and-swap insertion at head of linked list
-            let mut head = CACHE[slot_index].load(Ordering::Acquire);
-            loop {
-                unsafe {
-                    (*new_entry).next.store(head, Ordering::Relaxed);
+            // Attempt to claim the slot using compare-and-swap.
+            match CACHE[index].compare_exchange(
+                ptr::null_mut(),
+                new_ptr,
+                Ordering::AcqRel,
+                Ordering::Acquire,
+            ) {
+                Ok(_) => {
+                    // We successfully inserted the new string.
+                    self.misses.fetch_add(1, Ordering::Relaxed);
+                    arc_str
                 }
+                Err(current_ptr) => {
+                    // Another thread beat us to it. We must clean up our allocation to prevent a leak.
+                    let _ = unsafe { Box::from_raw(new_ptr) };
 
-                match CACHE[slot_index].compare_exchange_weak(
-                    head,
-                    new_entry,
-                    Ordering::Release,
-                    Ordering::Acquire,
-                ) {
-                    Ok(_) => {
-                        // Successfully inserted new entry
+                    // Now check what the other thread inserted.
+                    let entry = unsafe { &*current_ptr };
+                    if entry.0 == hash && entry.1.as_ref() == arc_str.as_ref() {
+                        // They inserted the same string. It's a hit for us.
+                        self.hits.fetch_add(1, Ordering::Relaxed);
+                        entry.1.clone()
+                    } else {
+                        // They inserted a different string (collision). Fallback.
                         self.misses.fetch_add(1, Ordering::Relaxed);
-                        return arc_str;
-                    }
-                    Err(current_head) => {
-                        // Another thread modified the head, retry with new head
-                        head = current_head; // Double-check if another thread inserted our string
-                        let mut search_current = head;
-                        while !search_current.is_null() {
-                            unsafe {
-                                let entry = &*search_current;
-                                if entry.hash == hash
-                                    && entry.arc_str.as_ref() == string_for_comparison
-                                {
-                                    // Another thread inserted our string, clean up and return
-                                    let _ = Box::from_raw(new_entry); // Clean up unused entry
-                                    self.hits.fetch_add(1, Ordering::Relaxed);
-                                    self.cache_size.fetch_sub(1, Ordering::Relaxed); // Correct the size
-                                    return entry.arc_str.clone();
-                                }
-                                search_current = entry.next.load(Ordering::Acquire);
-                            }
-                        }
-                        // Continue loop to retry insertion
+                        arc_str // Return the Arc we already created.
                     }
                 }
             }
@@ -1533,6 +1661,24 @@ pub enum YoshiKind {
         /// Optional percentage of resource usage at the time of error.
         usage_percentage: Option<f64>,
     },
+    /// Security-related error with enhanced threat classification.
+    ///
+    /// This variant represents security violations, authentication failures,
+    /// authorization denials, and other security-related issues that require
+    /// special handling and potential security response.
+    ///
+    /// Fields:
+    /// - `message`: A human-readable description of the security error.
+    /// - `source`: An optional nested `Yoshi` error that caused this security issue.
+    /// - `security_level`: Classification of the security threat level.
+    Security {
+        /// A human-readable description of the security error.
+        message: Arc<str>,
+        /// An optional nested [`Yoshi`] error that caused this security issue.
+        source: Option<Box<Yoshi>>,
+        /// Classification of the security threat level.
+        security_level: Arc<str>,
+    },
     /// Foreign error wrapper with enhanced type information.
     ///
     /// This variant allows wrapping any type that implements `std::error::Error`,
@@ -1632,6 +1778,7 @@ impl YoshiKind {
             Self::NotFound { .. } => 25,
             Self::Timeout { .. } => 45,
             Self::ResourceExhausted { .. } => 70,
+            Self::Security { .. } => 220,
             Self::Foreign { .. } => 60,
             Self::Multiple { .. } => 65,
         }
@@ -1670,10 +1817,25 @@ impl YoshiKind {
     pub const fn is_transient(&self) -> bool {
         matches!(
             self,
-            Self::Network { .. } | Self::Timeout { .. } | Self::ResourceExhausted { .. }
+            Self::Network { .. }
+                | Self::Timeout { .. }
+                | Self::ResourceExhausted { .. }
+                | Self::Io(_)
         )
     }
 }
+
+/// A wrapper for a cloned error that preserves the Display message.
+#[derive(Debug)]
+struct ClonedError(String);
+
+impl Display for ClonedError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl Error for ClonedError {}
 
 impl Clone for YoshiKind {
     fn clone(&self) -> Self {
@@ -1752,15 +1914,23 @@ impl Clone for YoshiKind {
                 current: current.clone(),
                 usage_percentage: *usage_percentage,
             },
+            Self::Security {
+                message,
+                source,
+                security_level,
+            } => Self::Security {
+                message: message.clone(),
+                source: source.clone(),
+                security_level: security_level.clone(),
+            },
             Self::Foreign {
                 error,
                 error_type_name,
             } => {
-                // Foreign errors can't be cloned directly, create a new one with same message
-                Self::Internal {
-                    message: format!("Cloned foreign error: {error}").into(),
-                    source: None,
-                    component: Some(format!("Originally: {error_type_name}").into()),
+                // Preserve the error message and Foreign classification upon cloning.
+                Self::Foreign {
+                    error: Box::new(ClonedError(error.to_string())),
+                    error_type_name: format!("cloned from {error_type_name}").into(),
                 }
             }
             Self::Multiple {
@@ -1869,6 +2039,13 @@ impl Display for YoshiKind {
                 }
                 Ok(())
             }
+            Self::Security {
+                message,
+                security_level,
+                ..
+            } => {
+                write!(f, "Security error [{security_level}]: {message}")
+            }
             Self::Foreign {
                 error,
                 error_type_name,
@@ -1931,6 +2108,9 @@ impl YoshiKind {
                 source: Some(s), ..
             }
             | Self::Internal {
+                source: Some(s), ..
+            }
+            | Self::Security {
                 source: Some(s), ..
             } => Some(s.as_ref()),
             Self::Foreign { error, .. } => Some(error.as_ref()),
@@ -2049,6 +2229,7 @@ pub struct YoContext {
     /// Context creation timestamp for debugging.
     ///
     /// An optional `SystemTime` indicating when this context was created.
+    #[cfg_attr(feature = "serde", serde(skip))]
     pub created_at: Option<SystemTime>,
     /// Context priority for error handling (0-255, higher is more important).
     ///
@@ -2470,8 +2651,7 @@ macro_rules! yoshi_location {
     };
 }
 
-/// Debug macro that "eats" an error and prints it to stderr with full trace visibility.
-///
+/// Debug macro that "eats" an error and prints it to stderr with full trace visibility.///
 /// This macro provides enhanced debug output for `Yoshi` errors, displaying complete
 /// error information including context chains, metadata, and source traces. The name
 /// `yum!` reflects Yoshi's characteristic eating behavior while providing memorable,
@@ -2514,7 +2694,7 @@ macro_rules! yoshi_location {
 /// # Development Workflow Integration
 ///
 /// ```rust
-/// use yoshi_std::{yum, Hatch, LayContext};
+/// use crate::{yum, Hatch, LayText};
 ///
 /// fn complex_operation() -> Hatch<String> {
 ///     // ... operation logic
@@ -2918,16 +3098,16 @@ where
     ///
     /// # Returns
     ///
-    /// A `Result<T, Yoshi>` with the added context on error.
+    /// A `Hatch<T>` with the added context on error.
     ///
     /// # Examples
     ///
     /// ```
-    /// use yoshi_std::{Yoshi, HatchExt};
+    /// use yoshi_std::{Yoshi, HatchExt, Hatch};
     /// # use std::io;
     /// # use std::io::ErrorKind;
     ///
-    /// fn read_file(path: &str) -> Result<String, Yoshi> {
+    /// fn read_file(path: &str) -> Hatch<String> {
     ///     std::fs::read_to_string(path)
     ///         .map_err(Yoshi::from)
     ///         .context(format!("Failed to read file: {}", path))
@@ -2946,7 +3126,7 @@ where
     ///
     /// Returns a `Yoshi` error with added context if the result is an error.
     #[track_caller]
-    fn context(self, msg: impl Into<String>) -> Result<T>;
+    fn context(self, msg: impl Into<String>) -> Hatch<T>;
 
     /// Adds a suggestion to the error's primary context.
     ///
@@ -2960,16 +3140,16 @@ where
     ///
     /// # Returns
     ///
-    /// A `Result<T, Yoshi>` with the added suggestion on error.
+    /// A `Hatch<T>` with the added suggestion on error.
     ///
     /// # Examples
     ///
     /// ```
-    /// use yoshi_std::{Yoshi, HatchExt};
+    /// use yoshi_std::{Yoshi, HatchExt, Hatch};
     /// # use std::io;
     /// # use std::io::ErrorKind;
     ///
-    /// fn connect_db() -> Result<(), Yoshi> {
+    /// fn connect_db() -> Hatch<()> {
     ///     // Simulate a connection error
     ///     Err(io::Error::new(ErrorKind::ConnectionRefused, "db connection refused"))
     ///         .map_err(Yoshi::from)
@@ -2987,8 +3167,10 @@ where
     /// # Errors
     ///
     /// Returns a `Yoshi` error with added suggestion if the result is an error.
+    /// The error conversion is performed via the `Into<Yoshi>` trait implementation
+    /// for the original error type.
     #[track_caller]
-    fn with_suggestion(self, s: impl Into<String>) -> Result<T>;
+    fn with_suggestion(self, s: impl Into<String>) -> Hatch<T>;
 
     /// Attaches a typed shell to the error's primary context.
     ///
@@ -3002,11 +3184,11 @@ where
     ///
     /// # Returns
     ///
-    /// A `Result<T, Yoshi>` with the added shell on error.
+    /// A `Hatch<T>` with the added shell on error.
     ///    /// # Examples
     ///
     /// ```
-    /// use yoshi_std::{Yoshi, YoshiKind, HatchExt};
+    /// use yoshi_std::{Yoshi, YoshiKind, HatchExt, Hatch};
     /// # use std::io;
     /// # use std::io::ErrorKind;
     ///
@@ -3016,7 +3198,7 @@ where
     ///     user_agent: String,
     /// }
     ///
-    /// fn process_request(id: &str, ua: &str) -> Result<(), Yoshi> {
+    /// fn process_request(id: &str, ua: &str) -> Hatch<()> {
     ///     // Simulate an internal error
     ///     Err(Yoshi::new(YoshiKind::Internal {
     ///         message: "Processing failed".into(),
@@ -3041,7 +3223,7 @@ where
     ///
     /// Returns a `Yoshi` error with added shell if the result is an error.
     #[track_caller]
-    fn with_shell(self, p: impl Any + Send + Sync + 'static) -> Result<T>;
+    fn with_shell(self, p: impl Any + Send + Sync + 'static) -> Hatch<T>;
 
     /// Sets the priority for the error's primary context.
     ///
@@ -3055,14 +3237,14 @@ where
     ///
     /// # Returns
     ///
-    /// A `Result<T, Yoshi>` with the updated priority on error.
+    /// A `Hatch<T>` with the updated priority on error.
     ///
     /// # Examples
     ///
     /// ```
-    /// use yoshi_std::{Yoshi, YoshiKind, HatchExt};
+    /// use yoshi_std::{Yoshi, YoshiKind, HatchExt, Hatch};
     ///
-    /// fn perform_critical_op() -> Result<(), Yoshi> {
+    /// fn perform_critical_op() -> Hatch<()> {
     ///     // Simulate a critical error
     ///     Err(Yoshi::new(YoshiKind::Internal {
     ///         message: "Critical operation failed".into(),
@@ -3084,23 +3266,59 @@ where
     ///
     /// Returns a `Yoshi` error with updated priority if the result is an error.
     #[track_caller]
-    fn with_priority(self, priority: u8) -> Result<T>;
+    fn with_priority(self, priority: u8) -> Hatch<T>;
     /// Short alias for `context`.
     ///
     /// # Errors
     ///
     /// Returns a `Yoshi` error with added context if the result is an error.
     #[track_caller]
-    fn ctx(self, msg: impl Into<String>) -> Result<T>;
-
+    fn ctx(self, msg: impl Into<String>) -> Hatch<T>;
     /// Short alias for `with_suggestion`.
     ///
     /// # Errors
     ///
     /// Returns a `Yoshi` error with added suggestion if the result is an error.
     #[track_caller]
-    fn help(self, s: impl Into<String>) -> Result<T>;
+    fn help(self, s: impl Into<String>) -> Hatch<T>;
 
+    /// Attaches an auto-fix suggestion to the error.
+    ///
+    /// If `self` is `Ok`, it is returned unchanged. If `self` is `Err`, its error
+    /// is converted to a `Yoshi` error if it isn't already, and a `YoshiAutoFix`
+    /// is added to it.
+    ///
+    /// # Arguments
+    ///
+    /// * `fix` - The auto-fix to attach.
+    ///
+    /// # Returns
+    ///
+    /// A `Hatch<T>` with the added auto-fix on error.
+    ///    /// # Examples
+    ///
+    /// ```
+    /// use yoshi_std::{Hatch, HatchExt, YoshiAutoFix, AutoFixSafetyLevel, Hatchable};
+    /// use std::str::FromStr;
+    ///
+    /// let result = "not_a_number".parse::<i32>()
+    ///     .map_err(|e| e.to_string())
+    ///     .hatch()
+    ///     .with_auto_fix(YoshiAutoFix {
+    ///         description: "Replace with a valid number".into(),
+    ///         fix_code: "42".into(),
+    ///         confidence: 0.9,
+    ///         safety_level: AutoFixSafetyLevel::Safe,
+    ///         target_file: None,
+    ///         range: None,
+    ///     });
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// Returns a `Yoshi` error with added auto-fix if the result is an error.
+    #[track_caller]
+    fn with_auto_fix(self, fix: YoshiAutoFix) -> Hatch<T>;
     /// Adds metadata to the error's primary context.
     ///
     /// This is a convenience method that delegates to `Yoshi::with_metadata`.
@@ -3112,14 +3330,13 @@ where
     ///
     /// # Returns
     ///
-    /// A `Result<T, Yoshi>` with the added metadata on error.
-    ///
+    /// A `Hatch<T>` with the added metadata on error.
     /// # Examples
     ///
     /// ```
-    /// use yoshi_std::{Yoshi, YoshiKind, HatchExt, Arc};
+    /// use yoshi_std::{Yoshi, YoshiKind, HatchExt, Arc, Hatch};
     ///
-    /// fn fetch_user_data() -> Result<String, Yoshi> {
+    /// fn fetch_user_data() -> Hatch<String> {
     ///     // Simulate an error during user data fetch
     ///     Err(Yoshi::new(YoshiKind::NotFound {
     ///         resource_type: "User".into(),
@@ -3143,7 +3360,7 @@ where
     ///
     /// Returns a `Yoshi` error with added metadata if the result is an error.
     #[track_caller]
-    fn meta(self, k: impl Into<String>, v: impl Into<String>) -> Result<T>;
+    fn meta(self, k: impl Into<String>, v: impl Into<String>) -> Hatch<T>;
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -3652,7 +3869,9 @@ impl Yoshi {
     ///
     /// # Panics
     ///
-    /// This method may panic if the shell storage fails, though this is extremely unlikely.
+    /// This method may panic if the `expect` call fails when accessing the last context,
+    /// though this is prevented by the preceding check that ensures at least one context exists.
+    /// May also panic if shell storage allocation fails, though this is extremely unlikely in practice.
     #[inline]
     #[track_caller]
     #[must_use]
@@ -3699,8 +3918,9 @@ impl Yoshi {
     ///
     /// # Panics
     ///
-    /// This method ensures that there is at least one context before updating priority.
-    /// If no contexts exist, it creates one automatically, so this method should not panic.
+    /// This method may panic if the internal `expect` call fails on an empty contexts vector,
+    /// though this is prevented by the preceding check that ensures at least one context exists.
+    /// The panic would only occur if there's a programming error in the context management logic.
     #[inline]
     #[must_use]
     #[track_caller]
@@ -4058,6 +4278,100 @@ impl Yoshi {
         None
     }
 
+    /// Attaches an auto-fix suggestion to the error.
+    ///
+    /// This method adds a `YoshiAutoFix` object to the error, which contains
+    /// information about how to automatically fix the issue. These auto-fixes
+    /// can be used by IDEs, language servers, or other tools to provide
+    /// quick-fix suggestions to the user.
+    ///
+    /// # Arguments
+    ///
+    /// * `fix` - The auto-fix suggestion to attach.
+    ///
+    /// # Returns
+    ///
+    /// The `Yoshi` error instance with the auto-fix attached.
+    ///    /// # Examples
+    ///
+    /// ```
+    /// use yoshi_std::{Yoshi, YoshiKind, YoshiAutoFix, AutoFixSafetyLevel};
+    ///
+    /// let err = Yoshi::new(YoshiKind::Validation {
+    ///     field: "email".into(),
+    ///     message: "Invalid email format".into(),
+    ///     expected: Some("user@example.com".into()),
+    ///     actual: Some("invalid-email".into()),
+    /// })
+    /// .with_auto_fix(YoshiAutoFix {
+    ///     description: "Add missing @ symbol".into(),
+    ///     fix_code: "invalid-email@example.com".into(),
+    ///     confidence: 0.8,
+    ///     safety_level: AutoFixSafetyLevel::LowRisk,
+    ///     target_file: None,
+    ///     range: None,
+    /// });
+    /// ```
+    ///
+    /// # Panics
+    ///
+    /// This method may panic if the context storage fails, though this is extremely unlikely.
+    #[must_use]
+    #[inline]
+    pub fn with_auto_fix(mut self, fix: YoshiAutoFix) -> Self {
+        // Ensure there's at least one context to attach to
+        if self.contexts.is_empty() {
+            self.contexts
+                .push(YoContext::new("Error occurred").with_location(yoshi_location!()));
+        }
+        // Store the auto-fix in the context
+        self.contexts.last_mut().unwrap().add_shell_in_place(fix);
+        self
+    }
+
+    /// Gets all auto-fix suggestions for this error.
+    ///
+    /// This method searches through all contexts attached to the error and
+    /// collects any `YoshiAutoFix` objects that have been added.
+    ///
+    /// # Returns
+    ///
+    /// A vector of references to `YoshiAutoFix` objects.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use yoshi_std::{Yoshi, YoshiKind, YoshiAutoFix, AutoFixSafetyLevel};
+    ///
+    /// let err = Yoshi::new(YoshiKind::Internal {
+    ///     message: "test".into(),
+    ///     source: None,
+    ///     component: None,
+    /// })
+    /// .with_auto_fix(YoshiAutoFix {
+    ///     description: "Fix the issue".into(),
+    ///     fix_code: "corrected_code();".into(),
+    ///     confidence: 0.9,
+    ///     safety_level: AutoFixSafetyLevel::Safe,
+    ///     target_file: None,
+    ///     range: None,
+    /// });
+    ///
+    /// let fixes = err.auto_fixes();
+    /// assert_eq!(fixes.len(), 1);
+    /// assert_eq!(fixes[0].description.as_ref(), "Fix the issue");
+    /// ```
+    pub fn auto_fixes(&self) -> Vec<&YoshiAutoFix> {
+        self.contexts
+            .iter()
+            .flat_map(|ctx| {
+                ctx.payloads
+                    .iter()
+                    .filter_map(|p| p.as_ref().downcast_ref::<YoshiAutoFix>())
+            })
+            .collect()
+    }
+
     /// The nested error, equivalent to `source()`, but more thematically expressive.
     ///
     /// This method provides thematic access to the underlying error source while
@@ -4210,140 +4524,50 @@ impl Yoshi {
 }
 
 impl Display for Yoshi {
-    /// Formats the `Yoshi` error for display with optimized O(n) error chain traversal.
+    /// Formats the `Yoshi` error for display, conforming to standard Error trait practices.
     ///
-    /// This implementation provides a comprehensive, human-readable representation
-    /// of the error, designed for debugging and logging. It uses an optimized
-    /// iterative approach to traverse error chains, eliminating the O(n²) performance
-    /// bottleneck present in recursive formatting. The formatter collects the entire
-    /// error chain first, then renders all information in a single linear pass.
+    /// This implementation provides a human-readable representation of the error,
+    /// focusing on the immediate error `kind` and its direct `contexts`. It does **not**
+    /// recursively print the `source` chain, as this is the responsibility of the
+    /// top-level error reporting utility (e.g., a logger or a main function's error handler).
+    /// This design prevents O(n²) formatting complexity and ensures `Yoshi` integrates
+    /// cleanly with the broader Rust error handling ecosystem.
     ///
-    /// # Performance Characteristics
+    /// # Formatting Details
     ///
-    /// - **Time Complexity**: O(n) where n is the total depth of the error chain
-    /// - **Space Complexity**: O(n) for temporary chain storage
-    /// - **Memory Allocation**: Minimized through `OptimizedFormatBuffer` usage
-    /// - **Scaling**: Linear performance even for deep error chains (100+ levels)
+    /// - The output starts with the `Display` form of the `YoshiKind`.
+    /// - Each attached `YoContext` is then listed, providing a clear chain of operations.
     ///
-    /// # Arguments
+    /// # Performance
     ///
-    /// * `f` - The formatter to write into.
-    ///
-    /// # Returns
-    ///
-    /// A `fmt::Result` indicating success or failure of the formatting.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use yoshi_std::{Yoshi, YoshiKind};
-    /// let error = Yoshi::new(YoshiKind::Internal {
-    ///     message: "Operation failed".into(),
-    ///     source: None,
-    ///     component: None,
-    /// })
-    /// .context("While processing request");
-    ///
-    /// println!("{}", error); // Efficient O(n) formatting
-    /// ```
+    /// - **Time Complexity**: O(c) where c is the number of contexts on this specific error instance.
+    /// - **Allocation**: Minimized, as it writes directly to the formatter.
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        // Use optimized buffer for efficient string building
-        let mut buffer = OptimizedFormatBuffer::new();
+        // The main display should be concise. For verbose output including instance_id
+        // and backtraces, users should use a dedicated logging format or `yum!`.
+        write!(f, "{}", self.kind)?;
 
-        // Write primary error information
-        buffer.append_optimized(&format!("{}: {}", self.instance_id, self.kind));
-        buffer.append_optimized("\n");
-
-        // Print contexts from oldest to newest (excluding auto-generated ones)
-        for (i, ctx) in self.contexts.iter().enumerate() {
-            if i == 0
-                && ctx.message.as_deref() == Some("Error occurred")
-                && ctx.metadata.is_empty()
+        // Append the chain of contexts attached to *this* Yoshi instance.
+        // The source() chain should be iterated by the final display formatter, not here.
+        for ctx in &self.contexts {
+            // Skip auto-generated, empty contexts to keep the output clean.
+            if ctx.message.is_none()
                 && ctx.suggestion.is_none()
+                && ctx.metadata.is_empty()
                 && ctx.payloads.is_empty()
             {
-                // Skip auto-generated default context if it provides no actual info
                 continue;
             }
 
             if let Some(msg) = ctx.message.as_deref() {
-                buffer.append_optimized("Caused by: ");
-                buffer.append_optimized(msg);
-                buffer.append_optimized("\n");
-            }
+                write!(f, "\n  - Caused by: {msg}")?;
 
-            if !ctx.metadata.is_empty() {
-                buffer.append_optimized("Metadata:\n");
-                for (k, v) in &ctx.metadata {
-                    buffer.append_optimized("  ");
-                    buffer.append_optimized(k.as_ref());
-                    buffer.append_optimized(": ");
-                    buffer.append_optimized(v.as_ref());
-                    buffer.append_optimized("\n");
+                if let Some(loc) = ctx.location {
+                    write!(f, " (at {loc})")?;
                 }
             }
-
-            if let Some(suggestion) = ctx.suggestion.as_deref() {
-                buffer.append_optimized("Suggestion: ");
-                buffer.append_optimized(suggestion);
-                buffer.append_optimized("\n");
-            }
-
-            if let Some(location) = ctx.location {
-                buffer.append_optimized("Location: ");
-                buffer.append_optimized(&location.to_string());
-                buffer.append_optimized("\n");
-            }
-        } // Collect complete error chain iteratively (O(n) instead of O(n²))
-        let mut error_chain: Vec<String> = Vec::new();
-        let mut yoshi_contexts: Vec<String> = Vec::new();
-
-        // Start with the source from this error's kind
-        let mut current_error = self.kind.source();
-
-        while let Some(source_error) = current_error {
-            // Check if it's a Yoshi error to extract contexts
-            if let Some(yoshi_source) = source_error.downcast_ref::<Yoshi>() {
-                // Add the Yoshi error's kind to the chain
-                error_chain.push(format!("Caused by: {}", yoshi_source.kind));
-
-                // Collect contexts from this Yoshi error
-                for ctx in &yoshi_source.contexts {
-                    if let Some(msg) = ctx.message.as_deref() {
-                        yoshi_contexts.push(format!("Caused by: {msg}"));
-                    }
-                }
-
-                // Move to the next error in the chain
-                current_error = yoshi_source.kind.source();
-            } else {
-                // For non-Yoshi sources, add directly to chain and stop
-                error_chain.push(format!("Caused by: {source_error}"));
-                current_error = source_error.source();
-            }
         }
-
-        // Append all collected error chain information
-        for error_msg in error_chain {
-            buffer.append_optimized(&error_msg);
-            buffer.append_optimized("\n");
-        }
-
-        // Append all collected Yoshi contexts
-        for ctx_msg in yoshi_contexts {
-            buffer.append_optimized(&ctx_msg);
-            buffer.append_optimized("\n");
-        }
-
-        // Add backtrace if available
-        #[cfg(feature = "std")]
-        if let Some(bt) = &self.backtrace {
-            buffer.append_optimized("\nBacktrace:\n");
-            buffer.append_optimized(&bt.to_string());
-        }
-
-        // Write the complete formatted output
-        write!(f, "{}", buffer.as_str().trim_end())
+        Ok(())
     }
 }
 
@@ -4486,63 +4710,54 @@ where
 {
     #[track_caller]
     #[inline]
-    fn context(self, msg: impl Into<String>) -> Result<T> {
+    fn context(self, msg: impl Into<String>) -> Hatch<T> {
         self.map_err(|e| e.into().context(msg))
     }
 
     #[track_caller]
     #[inline]
-    fn with_suggestion(self, s: impl Into<String>) -> Result<T> {
+    fn with_suggestion(self, s: impl Into<String>) -> Hatch<T> {
         self.map_err(|e| e.into().with_suggestion(s))
     }
+
     #[track_caller]
     #[inline]
-    fn with_shell(self, p: impl Any + Send + Sync + 'static) -> Result<T> {
-        self.map_err(|e| {
-            let mut yoshi_err = e.into();
-            // Ensure we have a context to attach the shell to with standard priority
-            if yoshi_err.contexts.is_empty() {
-                yoshi_err
-                    .contexts
-                    .push(YoContext::default().with_priority(128));
-            }
-            yoshi_err.with_shell(p)
-        })
+    fn with_shell(self, p: impl Any + Send + Sync + 'static) -> Hatch<T> {
+        // The redundant context creation is removed. `Yoshi::with_shell`
+        // is responsible for creating a context if one does not exist.
+        self.map_err(|e| e.into().with_shell(p))
     }
 
-    /// Sets the priority for the error's primary context.
     #[track_caller]
     #[inline]
-    fn with_priority(self, priority: u8) -> Result<T> {
+    fn with_priority(self, priority: u8) -> Hatch<T> {
         self.map_err(|e| e.into().with_priority(priority))
     }
 
-    // NEW: Short aliases - just delegate to the full methods
     #[track_caller]
     #[inline]
-    fn ctx(self, msg: impl Into<String>) -> Result<T> {
+    fn ctx(self, msg: impl Into<String>) -> Hatch<T> {
         self.context(msg)
     }
 
     #[track_caller]
     #[inline]
-    fn help(self, s: impl Into<String>) -> Result<T> {
+    fn help(self, s: impl Into<String>) -> Hatch<T> {
         self.with_suggestion(s)
     }
 
     #[track_caller]
     #[inline]
-    fn meta(self, k: impl Into<String>, v: impl Into<String>) -> Result<T> {
-        self.map_err(|e| {
-            let mut yoshi_err = e.into();
-            // Ensure we have a context to attach metadata to with proper priority
-            if yoshi_err.contexts.is_empty() {
-                yoshi_err
-                    .contexts
-                    .push(YoContext::default().with_priority(128));
-            }
-            yoshi_err.with_metadata(k, v)
-        })
+    fn meta(self, k: impl Into<String>, v: impl Into<String>) -> Hatch<T> {
+        // The redundant context creation is removed. `Yoshi::with_metadata`
+        // is responsible for creating a context if one does not exist.
+        self.map_err(|e| e.into().with_metadata(k, v))
+    }
+
+    #[track_caller]
+    #[inline]
+    fn with_auto_fix(self, fix: YoshiAutoFix) -> Hatch<T> {
+        self.map_err(|e| e.into().with_auto_fix(fix))
     }
 }
 
@@ -4561,7 +4776,7 @@ where
 /// # Examples
 ///
 /// ```rust
-/// use yoshi_std::{Hatch, LayContext, Yoshi, YoshiKind};
+/// use yoshi_std::{Hatch, LayText, Yoshi, YoshiKind};
 ///
 /// fn database_operation() -> Hatch<String> {
 ///     Err(Yoshi::new(YoshiKind::Internal {
@@ -4572,7 +4787,7 @@ where
 ///     .lay("While establishing database connection")
 /// }
 /// ```
-pub trait LayContext<T> {
+pub trait LayText<T> {
     /// Adds a contextual message to the error chain, like laying an egg with metadata.
     ///
     /// This method enriches error information by attaching descriptive context
@@ -4596,7 +4811,7 @@ pub trait LayContext<T> {
     /// # Examples
     ///
     /// ```rust
-    /// use yoshi_std::{Hatch, LayContext, Yoshi, YoshiKind};
+    /// use yoshi_std::{Hatch, LayText, Yoshi, YoshiKind};
     ///
     /// let result: Hatch<()> = Err(Yoshi::new(YoshiKind::Internal {
     ///     message: "operation failed".into(),
@@ -4617,7 +4832,7 @@ pub trait LayContext<T> {
     fn lay(self, message: impl Into<String>) -> Hatch<T>;
 }
 
-impl<T> LayContext<T> for Hatch<T> {
+impl<T> LayText<T> for Hatch<T> {
     #[track_caller]
     fn lay(self, message: impl Into<String>) -> Hatch<T> {
         self.map_err(|e| e.lay(message))
@@ -4648,7 +4863,7 @@ impl<T> LayContext<T> for Hatch<T> {
 /// # Examples
 ///
 /// ```rust
-/// use yoshi_std::{Hatch, Hatchable, LayContext};
+/// use yoshi_std::{Hatch, Hatchable, LayText};
 /// # use std::io;
 ///
 /// fn file_operation() -> Hatch<String> {
@@ -4721,6 +4936,439 @@ impl<T, E: Into<Yoshi>> Hatchable<T, E> for Result<T, E> {
     }
 }
 
+/// Trait for LSP autofix integration - defines interface for error autofix suggestions
+///
+/// This trait provides comprehensive autofix capabilities for LSP integration with
+/// compile-time optimization and runtime introspection capabilities.
+///
+/// # Core Capabilities
+///
+/// - Static autofix suggestion lookup with O(1) amortized access
+/// - Runtime variant introspection without reflection overhead
+/// - LSP diagnostic payload generation for IDE integration
+/// - Contextual autofix resolution with variant-aware suggestions
+///
+/// # Implementation Requirements
+///
+/// Implementors must provide:
+/// - `autofix_suggestions()`: Static lookup table of variant → suggestion mappings
+/// - `variant_name()`: Runtime variant name extraction without reflection
+///
+/// # Performance Characteristics
+///
+/// - **Time Complexity**: O(1) for suggestion lookup, O(n) for variant matching
+/// - **Space Complexity**: O(1) per suggestion with compile-time storage
+/// - **Memory Layout**: Static string tables with zero runtime allocation
+///
+/// # Examples
+///
+/// ```rust
+/// use yoshi_std::YoshiAutoFixable;
+///
+/// // Generated by yoshi_af! macro
+/// impl YoshiAutoFixable for MyError {
+///     fn autofix_suggestions() -> &'static [(&'static str, &'static str)] {
+///         &[("NetworkTimeout", "Increase connection timeout")]
+///     }
+///
+///     fn variant_name(&self) -> &'static str {
+///         match self {
+///             Self::NetworkTimeout { .. } => "NetworkTimeout",
+///         }
+///     }
+/// }
+/// ```
+pub trait YoshiAutoFixable {
+    /// Returns all available autofix suggestions for this error type
+    ///
+    /// Provides a static lookup table mapping variant names to suggestion strings.
+    /// This method is optimized for compile-time generation and zero runtime allocation.
+    ///
+    /// # Performance
+    ///
+    /// - **Time Complexity**: O(1) - Direct static array access
+    /// - **Space Complexity**: O(1) - Compile-time string storage
+    /// - **Memory Impact**: Zero heap allocation, stack-only references
+    ///
+    /// # Returns
+    ///
+    /// Static slice of (`variant_name`, suggestion) tuples ordered by declaration
+    fn autofix_suggestions() -> &'static [(&'static str, &'static str)];
+
+    /// Returns the specific autofix suggestion for this error variant instance
+    ///
+    /// Performs runtime variant name resolution followed by static suggestion lookup.
+    /// Optimized with linear search and compile-time branch prediction hints.
+    ///
+    /// # Performance
+    ///
+    /// - **Time Complexity**: O(n) where n = number of variants with autofix
+    /// - **Space Complexity**: O(1) - No additional allocation
+    /// - **Optimization**: Linear search with early termination on match
+    ///
+    /// # Returns
+    ///
+    /// - `Some(suggestion)`: Autofix suggestion available for this variant
+    /// - `None`: No autofix suggestion configured for this variant
+    fn variant_autofix(&self) -> Option<&'static str> {
+        let variant_name = self.variant_name();
+        Self::autofix_suggestions()
+            .iter()
+            .find(|(name, _)| *name == variant_name)
+            .map(|(_, suggestion)| *suggestion)
+    }
+
+    /// Enhanced LSP integration: Get autofix suggestion with variant context
+    ///
+    /// Provides complete context tuple for LSP diagnostic payload generation.
+    /// Enables IDEs to display both variant identification and suggestion text.
+    ///
+    /// # Performance
+    ///
+    /// - **Time Complexity**: O(n) - Same as `variant_autofix()` with tuple return
+    /// - **Space Complexity**: O(1) - Static string tuple references
+    /// - **LSP Integration**: Direct payload compatibility for diagnostic messages
+    ///
+    /// # Returns
+    ///
+    /// - `Some((variant_name, suggestion))`: Complete autofix context
+    /// - `None`: No autofix suggestion available for this variant
+    ///
+    /// # LSP Usage
+    ///
+    /// ```rust
+    /// if let Some((variant, suggestion)) = error.contextual_autofix() {
+    ///     let diagnostic = Diagnostic {
+    ///         message: format!("Error in {}: {}", variant, error),
+    ///         code_action: CodeAction::new(suggestion),
+    ///         // ... other LSP fields
+    ///     };
+    /// }
+    /// ```
+    fn contextual_autofix(&self) -> Option<(&'static str, &'static str)> {
+        let variant_name = self.variant_name();
+        Self::autofix_suggestions()
+            .iter()
+            .find(|(name, _)| *name == variant_name)
+            .copied()
+    }
+
+    /// Auto-generated variant name extraction for LSP autofix integration
+    ///
+    /// Provides runtime variant introspection without reflection overhead.
+    /// Generated by proc macros using compile-time pattern matching for optimal performance.
+    ///
+    /// # Implementation Note
+    ///
+    /// This method is automatically implemented by the `yoshi_af!` macro using
+    /// compile-time match arm generation. Manual implementation should follow
+    /// the same pattern for consistency.
+    ///
+    /// # Performance
+    ///
+    /// - **Time Complexity**: O(1) - Direct pattern match with jump table optimization
+    /// - **Space Complexity**: O(1) - Static string references via `stringify!`
+    /// - **Optimization**: Branch predictor friendly with compile-time string generation
+    ///
+    /// # Returns
+    ///
+    /// Static string slice containing the exact variant name as declared
+    fn variant_name(&self) -> &'static str;
+}
+
+/// LSP diagnostic payload for comprehensive IDE integration
+///
+/// Complete diagnostic data structure optimized for LSP server communication
+/// and IDE code action generation. Provides all necessary context for
+/// intelligent autofix suggestions with precise positioning information.
+///
+/// # LSP Integration Features
+///
+/// - **Diagnostic Severity**: Configurable severity levels for IDE highlighting
+/// - **Code Action Generation**: Direct JSON payload compatibility
+/// - **Auto-Application**: IDE automation flags for suggestion application
+/// - **Pattern Matching**: Error pattern correlation for diagnostic triggers
+///
+/// # Performance Characteristics
+///
+/// - **Memory Layout**: Optimized struct with static string references
+/// - **Serialization**: Zero-copy serialization with serde integration
+/// - **Network Transfer**: Minimal payload size for LSP communication
+///
+/// # Examples
+///
+/// ```rust
+/// use yoshi_std::LspDiagnosticPayload;
+///
+/// let payload = LspDiagnosticPayload {
+///     variant_name: "NetworkTimeout",
+///     suggestion: "Increase connection timeout",
+///     pattern: "timeout",
+///     severity: "Warning",
+///     auto_apply: true,
+///     error_message: "Connection timeout after 5000ms".to_string(),
+/// };
+/// ```
+/// Autofix entry for LSP integration with comprehensive metadata
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct AutofixEntry {
+    /// Error variant name for diagnostic correlation
+    #[cfg_attr(
+        feature = "serde",
+        serde(
+            serialize_with = "serialize_arc_str_desc",
+            deserialize_with = "deserialize_arc_str_desc"
+        )
+    )]
+    pub variant_name: Arc<str>,
+    /// Autofix suggestion text for IDE code actions
+    #[cfg_attr(
+        feature = "serde",
+        serde(
+            serialize_with = "serialize_arc_str_desc",
+            deserialize_with = "deserialize_arc_str_desc"
+        )
+    )]
+    pub suggestion: Arc<str>,
+    /// Category for error classification
+    #[cfg_attr(
+        feature = "serde",
+        serde(
+            serialize_with = "serialize_arc_str_desc",
+            deserialize_with = "deserialize_arc_str_desc"
+        )
+    )]
+    pub category: Arc<str>,
+    /// Diagnostic severity level for IDE highlighting
+    #[cfg_attr(
+        feature = "serde",
+        serde(
+            serialize_with = "serialize_arc_str_desc",
+            deserialize_with = "deserialize_arc_str_desc"
+        )
+    )]
+    pub severity: Arc<str>,
+    /// Confidence level (0.0-1.0)
+    pub confidence: f64,
+}
+
+/// Contextual autofix information with enhanced error correlation
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct ContextualAutofix {
+    /// The base autofix entry
+    pub entry: AutofixEntry,
+    /// Error context for enhanced diagnostics
+    #[cfg_attr(
+        feature = "serde",
+        serde(
+            serialize_with = "serialize_arc_str_map",
+            deserialize_with = "deserialize_arc_str_map"
+        )
+    )]
+    pub context: HashMap<Arc<str>, Arc<str>>,
+    /// Related error information
+    #[cfg_attr(
+        feature = "serde",
+        serde(
+            serialize_with = "serialize_arc_str_vec",
+            deserialize_with = "deserialize_arc_str_vec"
+        )
+    )]
+    pub related_errors: Vec<Arc<str>>,
+}
+
+/// Diagnostic information for LSP integration
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct DiagnosticInfo {
+    /// Error type name
+    pub error_type: &'static str,
+    /// Specific variant name
+    pub variant: &'static str,
+    /// Whether autofix is available
+    pub autofix_available: bool,
+    /// Number of quick fixes available
+    pub quick_fix_count: usize,
+    /// Number of metadata entries
+    pub metadata_count: usize,
+}
+
+/// LSP diagnostic payload for comprehensive IDE integration
+///
+/// Complete diagnostic data structure optimized for LSP server communication
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct LspDiagnosticPayload {
+    /// Error variant name for diagnostic correlation
+    ///
+    /// Exact variant identifier as declared in error enum for precise
+    /// diagnostic matching and LSP server correlation.
+    pub variant_name: &'static str,
+
+    /// Autofix suggestion text for IDE code actions
+    ///
+    /// Human-readable suggestion text displayed in IDE quick-fix menus
+    /// and code action panels. Should be concise and actionable.
+    pub suggestion: &'static str,
+
+    /// Error pattern for diagnostic matching
+    ///
+    /// Pattern string used by LSP diagnostics to correlate error messages
+    /// with appropriate autofix suggestions. Empty string if no pattern matching.
+    pub pattern: &'static str,
+
+    /// Diagnostic severity level for IDE highlighting
+    ///
+    /// Standard LSP severity levels: "Error", "Warning", "Information", "Hint"
+    /// Controls IDE highlighting and notification behavior.
+    pub severity: &'static str,
+
+    /// Whether autofix can be applied automatically
+    ///
+    /// IDE automation flag indicating if suggestion can be applied without
+    /// user confirmation. Conservative default should be `false`.
+    pub auto_apply: bool,
+
+    /// Complete error message for diagnostic display
+    ///
+    /// Full formatted error message including context and field values
+    /// for comprehensive diagnostic information.
+    pub error_message: String,
+}
+
+//--------------------------------------------------------------------------------------------------
+// Unified Oops Error Abstraction - Context-Aware Error Handling
+//--------------------------------------------------------------------------------------------------
+
+/// Type alias for a dynamic error trait object, for use with `Oops`.
+pub type OopsError = dyn Error + Send + Sync + 'static;
+/// Type alias for a dynamic `core::error::Error` trait object.
+pub type OopsCoreError = dyn core::error::Error + Send + Sync + 'static;
+/// Type alias for a dynamic `Any` trait object.
+pub type OopsAny = dyn Any + Send + Sync + 'static;
+
+/// `std::io::ErrorKind` when `std` feature is enabled.
+#[cfg(feature = "std")]
+pub type OopsIoKind = std::io::ErrorKind;
+/// `NoStdIoKind` when `std` feature is not enabled.
+#[cfg(not(feature = "std"))]
+pub type OopsIoKind = NoStdIoKind;
+
+/// Unified error abstraction that wraps the core `Yoshi` error type.
+///
+/// `Oops` serves as a thematic, expressive wrapper around `Yoshi`, intended to be
+/// used as the error type in `Result` for a more declarative error handling style.
+/// It directly wraps a `Yoshi` error, ensuring type and lifetime soundness while
+/// providing a distinct, thematic API.
+///
+/// # Performance Characteristics
+///
+/// - **Zero-cost abstraction**: Compiles down to the underlying `Yoshi` type.
+/// - **Thread-safe**: All operations are safe across thread boundaries.
+///
+/// # Examples
+///
+/// ```rust
+/// use yoshi_std::{Oops, OopsResult, YoshiKind};
+///
+/// // As a Result error type
+/// fn might_fail() -> OopsResult<String> {
+///     Err(Oops::new(YoshiKind::Internal {
+///         message: "operation failed".into(),
+///         source: None,
+///         component: None,
+///     }))
+/// }
+///
+/// let err = might_fail().unwrap_err();
+/// println!("Oops! {}", err);
+/// ```
+#[derive(Debug, Clone)]
+pub struct Oops {
+    /// The underlying Yoshi error.
+    yoshi: Yoshi,
+}
+
+impl Oops {
+    /// Creates a new `Oops` by wrapping any type that can be converted into `Yoshi`.
+    pub fn new(input: impl Into<Yoshi>) -> Self {
+        Self {
+            yoshi: input.into(),
+        }
+    }
+
+    /// Provides direct access to the underlying `Yoshi` error.
+    #[inline]
+    pub const fn as_yoshi(&self) -> &Yoshi {
+        &self.yoshi
+    }
+
+    /// Gets the unique identifier for this error by delegating to the inner `Yoshi`.
+    #[inline]
+    pub const fn id(&self) -> u32 {
+        self.yoshi.instance_id()
+    }
+}
+
+impl Display for Oops {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        // The display for Oops is the same as for Yoshi.
+        write!(f, "{}", self.yoshi)
+    }
+}
+
+impl Error for Oops {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        self.yoshi.source()
+    }
+}
+
+impl From<Yoshi> for Oops {
+    fn from(yoshi: Yoshi) -> Self {
+        Self { yoshi }
+    }
+}
+
+impl From<YoshiKind> for Oops {
+    fn from(kind: YoshiKind) -> Self {
+        Self::new(Yoshi::new(kind))
+    }
+}
+
+impl From<String> for Oops {
+    fn from(s: String) -> Self {
+        Self::new(Yoshi::from(s))
+    }
+}
+
+impl From<&str> for Oops {
+    fn from(s: &str) -> Self {
+        Self::new(Yoshi::from(s))
+    }
+}
+
+#[cfg(feature = "std")]
+impl From<std::io::Error> for Oops {
+    fn from(e: std::io::Error) -> Self {
+        Self::new(Yoshi::from(e))
+    }
+}
+
+#[cfg(not(feature = "std"))]
+impl From<NoStdIo> for Oops {
+    fn from(e: NoStdIo) -> Self {
+        Self::new(Yoshi::from(e))
+    }
+}
+
+/// Result type using Oops as the error.
+pub type OopsResult<T> = Result<T, Oops>;
+
+/// Boxed error trait object equivalent for Oops.
+pub type BoxedOops = Box<Oops>;
+
 //--------------------------------------------------------------------------------------------------
 // Enhanced backtrace capture with performance monitoring
 //--------------------------------------------------------------------------------------------------
@@ -4761,6 +5409,322 @@ fn capture_bt() -> Option<YoshiBacktrace> {
 }
 
 /// Enhanced memory management utilities
+pub mod auto_fix {
+    use super::{Arc, Hatch, String, Yoshi, YoshiAutoFix, YoshiKind};
+
+    /// Applies an auto-fix to source code
+    ///
+    /// # Arguments
+    ///
+    /// * `source` - The original source code
+    /// * `fix` - The auto-fix to apply
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing the fixed source code or an error if application failed
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the fix cannot be applied to the source code, such as when
+    /// the range is outside source code bounds or no range information is provided.
+    pub fn apply_fix(source: &str, fix: &YoshiAutoFix) -> Hatch<String> {
+        // Simple implementation that just replaces the entire content
+        // A more sophisticated implementation would use the range information
+        // to apply the fix only to the specific section of code
+        if let Some(range) = &fix.range {
+            // Split the source into lines
+            let lines: Vec<&str> = source.lines().collect();
+
+            // Ensure the range is valid
+            if range.start.line as usize >= lines.len() || range.end.line as usize >= lines.len() {
+                return Err(Yoshi::new(YoshiKind::Validation {
+                    field: "range".into(),
+                    message: "Range is outside source code bounds".into(),
+                    expected: Some("Valid line range".into()),
+                    actual: Some(
+                        format!("start={}, end={}", range.start.line, range.end.line).into(),
+                    ),
+                }));
+            }
+
+            // Collect the lines before the range
+            let mut result = String::new();
+            for line in lines.iter().take(range.start.line as usize) {
+                result.push_str(line);
+                result.push('\n');
+            }
+
+            // Add the fix code
+            result.push_str(&fix.fix_code);
+
+            // Add a newline if the fix code doesn't end with one
+            if !fix.fix_code.ends_with('\n') {
+                result.push('\n');
+            }
+
+            // Collect the lines after the range
+            for line in lines.iter().skip(range.end.line as usize + 1) {
+                result.push_str(line);
+                result.push('\n');
+            }
+
+            Ok(result)
+        } else {
+            // Without range information, we can't apply the fix
+            Err(Yoshi::new(YoshiKind::Validation {
+                field: "range".into(),
+                message: "No range information provided for fix application".into(),
+                expected: Some("Range information".into()),
+                actual: Some("None".into()),
+            }))
+        }
+    }
+
+    /// Evaluates the safety of applying an auto-fix
+    ///
+    /// # Arguments
+    ///
+    /// * `fix` - The auto-fix to evaluate
+    ///
+    /// # Returns
+    ///
+    /// A `SafetyAnalysis` object containing the safety assessment
+    #[must_use]
+    pub fn evaluate_fix_safety(fix: &YoshiAutoFix) -> SafetyAnalysis {
+        let confidence_factor = fix.confidence.clamp(0.0, 1.0);
+
+        // Base risk on safety level and confidence
+        let risk_level = match fix.safety_level {
+            super::AutoFixSafetyLevel::Safe => 0.1,
+            super::AutoFixSafetyLevel::LowRisk => 0.3,
+            super::AutoFixSafetyLevel::MediumRisk => 0.5,
+            super::AutoFixSafetyLevel::HighRisk => 0.8,
+            super::AutoFixSafetyLevel::Manual => 1.0,
+        };
+
+        // Adjust risk based on confidence
+        let adjusted_risk = risk_level * (1.0 - confidence_factor);
+
+        // Analyze code complexity
+        let complexity_factor = analyze_code_complexity(&fix.fix_code);
+
+        SafetyAnalysis {
+            risk_score: adjusted_risk + (complexity_factor * 0.2),
+            automatic_application_recommended: adjusted_risk < 0.4 && complexity_factor < 0.5,
+            requires_review: adjusted_risk > 0.3 || complexity_factor > 0.4,
+            analysis_notes: format!(
+                "Fix has {} safety level with {:.0}% confidence",
+                format!("{:?}", fix.safety_level).to_lowercase(),
+                fix.confidence * 100.0
+            )
+            .into(),
+        }
+    }
+
+    /// Analyzes the complexity of a code snippet
+    ///
+    /// Returns a factor between 0.0 (simple) and 1.0 (complex)
+    fn analyze_code_complexity(code: &str) -> f32 {
+        // This is a simplified implementation that uses basic heuristics
+        // A more sophisticated implementation would use AST analysis
+
+        // Count semicolons as a proxy for statements
+        let statement_count = code.chars().filter(|c| *c == ';').count();
+
+        // Count braces as a proxy for blocks
+        let open_braces = code.chars().filter(|c| *c == '{').count();
+        let close_braces = code.chars().filter(|c| *c == '}').count();
+        let block_count = open_braces.min(close_braces);
+
+        // Count lines as a proxy for code size
+        let line_count = code.lines().count();
+
+        // Normalize and combine factors
+        #[allow(clippy::cast_precision_loss)]
+        let statement_factor = (statement_count as f32 / 10.0).min(1.0);
+        #[allow(clippy::cast_precision_loss)]
+        let block_factor = (block_count as f32 / 5.0).min(1.0);
+        #[allow(clippy::cast_precision_loss)]
+        let size_factor = (line_count as f32 / 20.0).min(1.0);
+
+        // Weighted combination
+        0.4 * statement_factor + 0.4 * block_factor + 0.2 * size_factor
+    }
+
+    /// Safety analysis for auto-fixes
+    #[derive(Debug, Clone)]
+    pub struct SafetyAnalysis {
+        /// Risk score between 0.0 (safe) and 1.0 (risky)
+        pub risk_score: f32,
+        /// Whether automatic application is recommended
+        pub automatic_application_recommended: bool,
+        /// Whether human review is recommended
+        pub requires_review: bool,
+        /// Analysis notes
+        pub analysis_notes: Arc<str>,
+    }
+}
+
+impl LspDiagnosticPayload {
+    /// Generate LSP JSON Code Action payload from diagnostic context
+    ///
+    /// Creates a complete LSP-compatible JSON payload for IDE code action integration.
+    /// Optimized for direct LSP server communication with minimal serialization overhead.
+    ///
+    /// # Parameters
+    ///
+    /// - `uri`: Document URI for the code action target
+    /// - `line`: Zero-based line number for the diagnostic range
+    /// - `character`: Zero-based character offset for the diagnostic range
+    ///
+    /// # Performance
+    ///
+    /// - **Time Complexity**: O(1) - Direct string formatting with static templates
+    /// - **Memory Allocation**: Single heap allocation for result string
+    /// - **Network Efficiency**: Minimal JSON payload optimized for LSP protocol
+    ///
+    /// # Returns
+    ///
+    /// Complete LSP `CodeAction` JSON string ready for server transmission
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// let payload = LspDiagnosticPayload {
+    ///     variant_name: "NetworkTimeout",
+    ///     suggestion: "Increase connection timeout",
+    ///     pattern: "timeout",
+    ///     severity: "Warning",
+    ///     auto_apply: true,
+    ///     error_message: "Connection timeout after 5000ms".to_string(),
+    /// };
+    ///    /// let json = payload.code_action_json("file:///path/to/file.rs", 42, 10);
+    /// // Produces complete LSP CodeAction JSON ready for transmission
+    /// ```
+    #[must_use]
+    pub fn code_action_json(&self, uri: &str, line: u32, character: u32) -> String {
+        format!(
+            r#"{{
+                "title": "{}",
+                "kind": "quickfix",
+                "isPreferred": {},
+                "edit": {{
+                    "changes": {{
+                        "{}": [{{
+                            "range": {{
+                                "start": {{"line": {}, "character": {}}},
+                                "end": {{"line": {}, "character": {}}}
+                            }},
+                            "newText": "{}"
+                        }}]
+                    }}
+                }}
+            }}"#,
+            self.suggestion,
+            self.auto_apply,
+            uri,
+            line,
+            character,
+            line,
+            character + 10, // Approximate range for autofix
+            self.suggestion.replace('"', r#"\""#)
+        )
+    }
+
+    /// Create a new LSP diagnostic payload with validation
+    ///
+    /// Factory constructor with input validation and default value assignment
+    /// for robust diagnostic payload creation with error prevention.
+    ///
+    /// # Parameters
+    ///
+    /// - `variant_name`: Error variant identifier (required, non-empty)
+    /// - `suggestion`: Autofix suggestion text (required, non-empty)
+    /// - `error_message`: Complete formatted error message
+    ///
+    /// # Returns
+    ///
+    /// - `Some(payload)`: Valid diagnostic payload ready for LSP integration
+    /// - `None`: Invalid input parameters detected
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// let payload = LspDiagnosticPayload::new(
+    ///     "NetworkTimeout",
+    ///     "Increase connection timeout",    ///     "Connection timeout after 5000ms".to_string()
+    /// ).expect("Valid diagnostic payload");
+    /// ```
+    #[must_use]
+    pub fn new(
+        variant_name: &'static str,
+        suggestion: &'static str,
+        error_message: String,
+    ) -> Option<Self> {
+        if variant_name.is_empty() || suggestion.is_empty() {
+            return None;
+        }
+
+        Some(Self {
+            variant_name,
+            suggestion,
+            pattern: "",
+            severity: "Warning",
+            auto_apply: false,
+            error_message,
+        })
+    }
+
+    /// Create a diagnostic payload with comprehensive configuration
+    ///
+    /// Advanced factory constructor for complete diagnostic customization
+    /// with pattern matching, severity configuration, and auto-application settings.
+    ///
+    /// # Parameters
+    ///
+    /// - `variant_name`: Error variant identifier
+    /// - `suggestion`: Autofix suggestion text
+    /// - `pattern`: Error pattern for diagnostic matching
+    /// - `severity`: LSP diagnostic severity level
+    /// - `auto_apply`: Whether autofix can be applied automatically
+    /// - `error_message`: Complete formatted error message
+    ///
+    /// # Returns
+    ///
+    /// Fully configured diagnostic payload with all LSP integration capabilities
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// let payload = LspDiagnosticPayload::with_config(
+    ///     "NetworkTimeout",
+    ///     "Increase connection timeout",
+    ///     "timeout",
+    ///     "Error",
+    ///     true,    ///     "Connection timeout after 5000ms".to_string()
+    /// );
+    /// ```
+    #[must_use]
+    pub fn with_config(
+        variant_name: &'static str,
+        suggestion: &'static str,
+        pattern: &'static str,
+        severity: &'static str,
+        auto_apply: bool,
+        error_message: String,
+    ) -> Self {
+        Self {
+            variant_name,
+            suggestion,
+            pattern,
+            severity,
+            auto_apply,
+            error_message,
+        }
+    }
+}
+
+/// Enhanced memory management utilities for error handling optimization.
 pub mod memory {
     use super::{error_instance_count, intern_string, Arc, String, STRING_INTERN_POOL};
     /// Memory usage statistics for error handling
@@ -4834,7 +5798,7 @@ mod async_docs {
 pub mod async_error_handling {
     //! Advanced async error processing utilities with precise capturing and performance optimization.
 
-    use super::{Result, String, Vec, Yoshi, YoshiKind};
+    use super::{String, Vec, Yoshi, YoshiKind};
     use std::future::Future;
     use std::time::Duration;
 
@@ -4847,6 +5811,8 @@ pub mod async_error_handling {
     /// # Errors
     ///
     /// Returns a `Yoshi` error if the future resolves to an error, with additional context added.
+    /// The error is converted to `Yoshi` via the `Into<Yoshi>` trait implementation and enriched
+    /// with the provided context message.
     pub async fn propagate_async<T, E>(
         future: impl Future<Output = Result<T, E>>,
         context: impl Into<String>,
@@ -5079,6 +6045,37 @@ pub mod process_communication {
 }
 
 //--------------------------------------------------------------------------------------------------
+// Common error patterns for auto-fix detection
+//--------------------------------------------------------------------------------------------------
+
+/// Common error patterns for auto-fixes
+pub mod patterns {
+    /// Regex pattern for type mismatch errors
+    pub const TYPE_MISMATCH: &str = r"mismatched types.*expected ([^,]+), found ([^,]+)";
+
+    /// Regex pattern for borrowing errors
+    pub const BORROW_ERROR: &str = r"borrow of moved value: ([^`]+)";
+
+    /// Regex pattern for lifetime errors
+    pub const LIFETIME_ERROR: &str = r"lifetime mismatch";
+
+    /// Regex pattern for missing trait implementation errors
+    pub const TRAIT_NOT_IMPLEMENTED: &str = r"the trait `([^`]+)` is not implemented for `([^`]+)`";
+
+    /// Regex pattern for unused variable warnings
+    pub const UNUSED_VARIABLE: &str = r"unused variable: `([^`]+)`";
+
+    /// Regex pattern for dead code warnings
+    pub const DEAD_CODE: &str = r"function `([^`]+)` is never used";
+
+    /// Regex pattern for missing fields in struct initialization
+    pub const MISSING_FIELDS: &str = r"missing fields: ([^`]+)";
+
+    /// Regex pattern for private field access errors
+    pub const PRIVATE_FIELD: &str = r"field `([^`]+)` of struct `([^`]+)` is private";
+}
+
+//--------------------------------------------------------------------------------------------------
 // SIMD-optimized string processing for high-performance formatting
 //--------------------------------------------------------------------------------------------------
 
@@ -5225,6 +6222,21 @@ pub mod simd_optimization {
         }
 
         buffer.as_str().to_string()
+    }
+}
+
+//--------------------------------------------------------------------------------------------------
+// LSP integration for IDE support
+//--------------------------------------------------------------------------------------------------
+
+#[cfg(feature = "lsp-integration")]
+pub mod lsp {
+    //! LSP integration placeholder - actual implementation is in yoshi-deluxe
+    //! This module exists only for API compatibility when lsp-integration feature is enabled    /// LSP integration is implemented in yoshi-deluxe crate
+    /// Enable the lsp-integration feature in yoshi-deluxe for full functionality
+    #[must_use]
+    pub fn lsp_integration_available() -> bool {
+        false
     }
 }
 
