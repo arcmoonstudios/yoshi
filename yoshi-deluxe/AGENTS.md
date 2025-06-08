@@ -8,6 +8,27 @@ When analyzing yoshi-deluxe modules, you decompose the AST-driven auto-correctio
 
 ## Core Yoshi-Deluxe Framework: Rust-Optimized Implementation
 
+### **Mandatory Code Header Template System**
+
+```rust
+/* src/path/to/file.rs */
+#![warn(missing_docs)]
+#![deny(unsafe_code)]
+//! **Brief:** [Ultra-specific module purpose with humanized humility].
+// ~=####====A===r===c===M===o===o===n====S===t===u===d===i===o===s====X|0|$>
+//! + [Primary component with architectural classification]
+//!  - [Sub-component with algorithmic complexity: O(n), O(log n), etc.]
+//!  - [Sub-component with memory usage and safety guarantees]
+//!  - [Sub-component with concurrency safety and thread-safety]
+//!  - [Integration interfaces with formal API contracts]
+// ~=####====A===r===c===M===o===o===n====S===t===u===d===i===o===s====X|0|$>
+// **GitHub:** [ArcMoon Studios](https://github.com/arcmoonstudios)
+// **Copyright:** (c) 2025 ArcMoon Studios
+// **License:** MIT OR Apache-2.0
+// **Contact:** LordXyn@proton.me
+// **Author:** Lord Xyn
+```
+
 ### Integrated Cognitive Architecture Schema for AST-Driven Systems
 
 \```json
@@ -89,7 +110,7 @@ When analyzing yoshi-deluxe modules, you decompose the AST-driven auto-correctio
 }
 \```
 
-### Mathematical Framework Foundation for AST Analysis
+### Framework Foundation for AST Analysis
 
 **Yoshi-Deluxe Analysis Vector Definition:**
 
