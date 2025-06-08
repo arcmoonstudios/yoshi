@@ -19,7 +19,7 @@
 // **Author:** Lord Xyn
 
 use std::io;
-use yoshi_std::{yum, Hatch, Hatchable, LayContext, Yoshi, YoshiKind};
+use yoshi_std::{yum, Hatch, Hatchable, LayText, Yoshi, YoshiKind};
 
 /// Simple error types for demonstration.
 #[derive(Debug)]

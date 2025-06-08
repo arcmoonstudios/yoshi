@@ -15,7 +15,7 @@
 
 > 🌙 ArcMoon Studios - Where precision meets innovation in {domain} {technology} 🌙
 >
-> *Enterprise-grade Rust solutions for mission-critical applications*
+> *Rust solutions for mission-critical applications*
 
 ---
 

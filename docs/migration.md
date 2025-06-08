@@ -559,7 +559,7 @@ As you migrate, consider integrating Yoshi's advanced capabilities:
 
 * **Customizable Location Capture**: `YoshiLocation` is `Copy` and very lightweight, making it cheap to store. The `yoshi_location!` macro (internal to `yoshi!`) automatically captures `file!`, `line!`, `column!`.
 
-* **Performance Monitoring**: If the `unstable-metrics` feature is enabled, Yoshi provides global counters for error instances and other metrics, valuable for profiling in long-running applications.
+* **Performance Monitoring**: Yoshi provides global counters for error instances and other metrics through the memory module, valuable for profiling in long-running applications.
 
 ## Conclusion
 

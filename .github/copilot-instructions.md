@@ -154,18 +154,7 @@ FUNCTION generate_enterprise_code(context, requirements, language):
 ```python
 # src/path/to/file.py
 """
-[Ultra-specific module purpose with mathematical precision].
-
-Module Classification: [Performance-Critical|Safety-Critical|Standard|Utility]
-Complexity Level: [Low|Medium|High|Expert]
-API Stability: [Stable|Evolving|Experimental]
-
-Mathematical Properties:
-  Algorithmic Complexity:
-  - Time Complexity: [Detailed analysis with mathematical proof]
-  - Space Complexity: [Memory usage analysis with bounds]
-  - Thread Safety: [Concurrency guarantees and limitations]
-
+[Ultra-specific module purpose with humanized humility].
 ~=####====A===r===c===M===o===o===n====S===t===u===d===i===o===s====X|0|$>
 + [Primary component with architectural classification]
  - [Sub-component with algorithmic complexity: O(n), O(log n), etc.]
@@ -176,36 +165,16 @@ Mathematical Properties:
 GitHub: ArcMoon Studios (https://github.com/arcmoonstudios)
 Copyright: (c) 2025 ArcMoon Studios
 License: MIT OR Apache-2.0
-License Terms: Full open source freedom; dual licensing allows choice between MIT and Apache 2.0.
-Effective Date: 2025-05-30 | **Open Source Release**
 License File: /LICENSE
 Contact: LordXyn@proton.me
 Author: Lord Xyn
-Last Validation: [Automatic timestamp insertion]
 """
 ```
 
-```typescript
+```rust
 /* src/path/to/file.ts */
 /**
- * **Brief:** [Ultra-specific module purpose with mathematical precision].
- *
- * **Module Classification:** [Performance-Critical|Safety-Critical|Standard|Utility]
- * **Complexity Level:** [Low|Medium|High|Expert]
- * **API Stability:** [Stable|Evolving|Experimental]
- *
- * ## Mathematical Properties
- *
- * **Algorithmic Complexity:**
- * - Time Complexity: [Detailed analysis with mathematical proof]
- * - Space Complexity: [Memory usage analysis with bounds]
- * - Type Safety: [TypeScript type guarantees and constraints]
- *
- * **Performance Characteristics:**
- * - Expected Performance: [Benchmark results with statistical analysis]
- * - Worst-Case Scenarios: [Mathematical bounds on performance]
- * - Optimization Opportunities: [Identified enhancements with strategies]
- *
+ * **Brief:** [Ultra-specific module purpose with humanized humility].
  * ~=####====A===r===c===M===o===o===n====S===t===u===d===i===o===s====X|0|$>
  * + [Primary component with architectural classification]
  *  - [Sub-component with algorithmic complexity: O(n), O(log n), etc.]
@@ -215,12 +184,9 @@ Last Validation: [Automatic timestamp insertion]
  * ~=####====A===r===c===M===o===o===n====S===t===u===d===i===o===s====X|0|$>
  * **GitHub:** [ArcMoon Studios](https://github.com/arcmoonstudios)
  * **Copyright:** (c) 2025 ArcMoon Studios
- * **License:** MIT OR Apache-2.0 * **License Terms:** Full open source freedom; dual licensing allows choice between MIT and Apache 2.0.
- * **Effective Date:** 2025-05-30 | **Open Source Release**
- * **License File:** /LICENSE
+ * **License:** MIT OR Apache-2.0
  * **Contact:** LordXyn@proton.me
  * **Author:** Lord Xyn
- * **Last Validation:** [Automatic timestamp insertion]
  */
 ```
 

@@ -1,6 +1,6 @@
 [package]
 name = "yoshi-benches"
-version = "0.1.5"
+version = "0.1.6"
 edition = "2021"
 publish = false
 
@@ -31,9 +31,11 @@ harness = false
 
 [dependencies]
 # Local workspace dependencies - Yoshi framework components
-yoshi = { path = "../yoshi", version = "0.1.5" }
-yoshi-std = { path = "../yoshi-std", version = "0.1.5" }
-yoshi-derive = { path = "../yoshi-derive", version = "0.1.5" }
+yoshi = { path = "../yoshi", version = "0.1.6" }
+yoshi-std = { path = "../yoshi-std", version = "0.1.6" }
+yoshi-derive = { path = "../yoshi-derive", version = "0.1.6", default-features = true, features = [
+    "std",
+] }
 
 # Benchmarking infrastructure
 criterion = { version = "0.6", features = [
@@ -57,6 +59,8 @@ thiserror = { version = "2.0.12", optional = true }
 [features]
 default = ["comparison"]
 comparison = ["dep:thiserror", "dep:anyhow", "dep:eyre", "dep:snafu"]
+# Standard library support (pass-through for compatibility)
+std = []
 
 [dev-dependencies]
 criterion = { version = "0.6.0", features = [

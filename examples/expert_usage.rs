@@ -24,15 +24,12 @@
 
 use std::time::Duration;
 use yoshi_std::{
-    error_instance_count, memory, yum, Hatch, HatchExt, Hatchable, LayContext, YoContext, Yoshi,
+    error_instance_count, memory, yum, Hatch, HatchExt, Hatchable, LayText, YoContext, Yoshi,
     YoshiKind, YoshiLocation,
 };
 
 #[cfg(all(feature = "std", feature = "serde"))]
 use yoshi_std::process_communication;
-
-#[cfg(feature = "unstable-metrics")]
-use yoshi_std::cross_process_metrics;
 
 /// Advanced error state for complex scenarios.
 #[derive(Debug, PartialEq, Clone)]
@@ -297,83 +294,6 @@ mod example_3_cross_process {
 
 /// Example 4: Performance monitoring and metrics.
 ///
-/// This demonstrates advanced performance monitoring and metrics collection
-/// for enterprise-grade error handling.
-#[cfg(feature = "unstable-metrics")]
-mod example_4_performance_monitoring {
-    use super::*;
-
-    /// Creates performance-critical errors for monitoring.
-    pub fn create_performance_critical_errors() -> Vec<Yoshi> {
-        let mut errors = Vec::new();
-
-        // Create errors with varying severities
-        for severity in [50, 100, 150, 200, 250] {
-            let error = Yoshi::new(YoshiKind::Timeout {
-                operation: format!("Performance test operation (severity {})", severity).into(),
-                duration: Duration::from_millis(severity as u64 * 10),
-                expected_max: Some(Duration::from_millis(1000)),
-            })
-            .lay(&format!(
-                "Performance degradation detected at severity {}",
-                severity
-            ))
-            .meta("performance_test", "true")
-            .meta("severity_level", &severity.to_string())
-            .with_priority(severity as u8);
-
-            // Record in global metrics
-            cross_process_metrics::record_global_error(&error);
-            errors.push(error);
-        }
-
-        errors
-    }
-
-    /// Analyzes performance metrics and generates report.
-    pub fn analyze_performance_metrics() -> cross_process_metrics::MetricsReport {
-        println!("=== Performance Metrics Analysis ===");
-
-        // Create test errors
-        let errors = create_performance_critical_errors();
-
-        // Generate comprehensive metrics report
-        let report = cross_process_metrics::global_report();
-
-        println!("Metrics Report:");
-        println!("  Total errors: {}", report.total_errors);
-        println!("  High severity errors: {}", report.high_severity_errors);
-        println!(
-            "  Medium severity errors: {}",
-            report.medium_severity_errors
-        );
-        println!("  Low severity errors: {}", report.low_severity_errors);
-        println!("  Memory usage: {} bytes", report.memory_usage);
-        println!("  Report timestamp: {:?}", report.timestamp);
-
-        // Demonstrate memory stats integration
-        let memory_stats = memory::get_memory_stats();
-        println!("Memory Performance:");
-        println!(
-            "  Total errors created: {}",
-            memory_stats.total_errors_created
-        );
-        println!(
-            "  String intern efficiency: {:.2}%",
-            if memory_stats.string_intern_hits + memory_stats.string_intern_misses > 0 {
-                (memory_stats.string_intern_hits as f64
-                    / (memory_stats.string_intern_hits + memory_stats.string_intern_misses) as f64)
-                    * 100.0
-            } else {
-                0.0
-            }
-        );
-
-        drop(errors); // Cleanup
-        report
-    }
-}
-
 /// Example 5: Enterprise integration and complete ecosystem usage.
 ///
 /// This demonstrates the complete Yoshi ecosystem in an enterprise scenario
@@ -483,14 +403,9 @@ mod example_5_enterprise_integration {
                 // Check for recovery strategies
                 if let Some(strategy) = debug_error.shell::<AdvancedRecoveryStrategy>() {
                     handle_recovery_strategy(strategy, &debug_error);
-                }
-
-                // Report to enterprise systems
+                } // Report to enterprise systems
                 #[cfg(all(feature = "std", feature = "serde"))]
                 process_communication::report_global_error(&debug_error);
-
-                #[cfg(feature = "unstable-metrics")]
-                cross_process_metrics::record_global_error(&debug_error);
             }
         }
     }
@@ -584,20 +499,6 @@ mod tests {
 
         // Test reporting (should not panic)
         let _ = example_3_cross_process::report_distributed_error();
-    }
-
-    #[test]
-    #[cfg(feature = "unstable-metrics")]
-    fn test_example_4_performance_monitoring() {
-        let report = example_4_performance_monitoring::analyze_performance_metrics();
-        assert!(report.total_errors > 0);
-
-        let errors = example_4_performance_monitoring::create_performance_critical_errors();
-        assert_eq!(errors.len(), 5);
-
-        // Verify different severities
-        let severities: Vec<_> = errors.iter().map(|e| e.severity()).collect();
-        assert!(severities.iter().any(|&s| s >= 200)); // High severity present
     }
 
     #[test]

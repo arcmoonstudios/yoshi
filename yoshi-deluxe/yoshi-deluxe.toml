@@ -1,0 +1,24 @@
+[correction]
+max_proposals_per_diagnostic = 3
+min_confidence_threshold = 0.7
+min_safety_level = "safe"
+enable_docs_scraping = true
+enable_parallel_processing = true
+
+[performance]
+max_concurrent_operations = 6
+max_cache_size = 500
+docs_cache_expiry_hours = 1
+http_timeout_seconds = 20
+
+[rules]
+enable_method_corrections = true
+enable_type_conversions = true
+enable_import_suggestions = true
+enable_trait_implementations = false
+enable_borrowing_corrections = true
+
+[lsp]
+auto_apply_safe_corrections = false
+show_confidence_scores = true
+enable_documentation_tooltips = true

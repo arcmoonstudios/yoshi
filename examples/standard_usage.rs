@@ -22,7 +22,7 @@
 // **Author:** Lord Xyn
 
 use std::io::{self, ErrorKind};
-use yoshi_std::{yum, Hatch, HatchExt, Hatchable, LayContext, Yoshi, YoshiKind};
+use yoshi_std::{yum, Hatch, HatchExt, Hatchable, LayText, Yoshi, YoshiKind};
 
 /// Example 1: Creating a basic internal error.
 ///
@@ -139,7 +139,7 @@ mod example_3_io_error_propagation {
 mod example_4_hatch_ecosystem {
     use super::*;
 
-    /// Demonstrates Hatch<T> type alias and LayContext trait.
+    /// Demonstrates Hatch<T> type alias and LayText trait.
     pub fn process_data(input: &str) -> Hatch<u32> {
         if input.is_empty() {
             return Err(Yoshi::new(YoshiKind::Validation {

@@ -1,24 +1,22 @@
 # yoshi-derive
 
-![Yoshi Logo](../assets/YoshiLogo.png)
-
 [![Crates.io](https://img.shields.io/crates/v/yoshi-derive.svg)](https://crates.io/crates/yoshi-derive)
 [![Docs.rs](https://docs.rs/yoshi-derive/badge.svg)](https://docs.rs/yoshi-derive)
-[![Rust Version](https://img.shields.io/badge/rust-1.87%2B-blue.svg)](https://www.rust-lang.org)
+[![Rust Version](https://img.shields.io/badge/rust-1.75%2B-blue.svg)](https://www.rust-lang.org)
 [![License: MIT OR Apache-2.0](https://img.shields.io/badge/License-MIT%20OR%20Apache--2.0-blue.svg)](../LICENSE)
 
-Derive macros for automatically generating Yoshi error types. Because writing error boilerplate is boring.
+A procedural macro for deriving error types that integrate with the Yoshi error handling framework.
 
-## What's this?
+## Overview
 
-Generates `std::error::Error` implementations, `Display`, and conversion to `Yoshi` types automatically.
+This crate provides `#[derive(YoshiError)]` to automatically generate `Display`, `Error`, and Yoshi conversion implementations for your error enums. It includes auto-inference capabilities to reduce boilerplate and enhance developer productivity.
 
 ## Installation
 
 ```toml
 [dependencies]
 yoshi-derive = "0.1"
-yoshi = "0.1"
+yoshi-std = "0.1"
 ```
 
 ## Basic Usage
@@ -27,113 +25,100 @@ yoshi = "0.1"
 use yoshi_derive::YoshiError;
 
 #[derive(Debug, YoshiError)]
-pub enum MyError {
+pub enum AppError {
     #[yoshi(display = "User {user_id} not found")]
-    #[yoshi(kind = "NotFound")]
     UserNotFound { user_id: u32 },
 
-    #[yoshi(display = "Failed to parse config: {source}")]
-    ParseError {
+    #[yoshi(display = "IO operation failed: {source}")]
+    IoError {
         #[yoshi(source)]
         source: std::io::Error,
-        #[yoshi(context = "config_file")]
-        path: String,
     },
 }
 ```
 
-## Attributes
+## Available Attributes
 
-### Container Attributes (`#[yoshi(...)]` on enums)
+### Container-level (`#[yoshi(...)]` on enums)
 
-| Attribute | Description | Example |
-|-----------|-------------|---------|
-| `error_code_prefix` | Prefix for error codes | `#[yoshi(error_code_prefix = "HTTP")]` |
-| `default_severity` | Default severity (0-255) | `#[yoshi(default_severity = 75)]` |
+| Attribute | Description |
+|-----------|-------------|
+| `default_severity` | Default severity level (0-255) |
+| `default_kind` | Default error kind |
+| `auto_inference` | Enable automatic attribute inference |
+| `generate_helpers` | Generate helper methods |
 
-### Variant Attributes (`#[yoshi(...)]` on enum variants)
+### Variant-level (`#[yoshi(...)]` on variants)
 
-| Attribute | Description | Example |
-|-----------|-------------|---------|
-| `display` | Custom display format | `#[yoshi(display = "Error: {message}")]` |
-| `kind` | Map to YoshiKind | `#[yoshi(kind = "Network")]` |
-| `error_code` | Unique error code | `#[yoshi(error_code = 1001)]` |
-| `severity` | Severity level | `#[yoshi(severity = 80)]` |
-| `transient` | Mark as retryable | `#[yoshi(transient = true)]` |
-| `suggestion` | Recovery suggestion | `#[yoshi(suggestion = "Check network")]` |
+| Attribute | Description |
+|-----------|-------------|
+| `display` | Custom display format string |
+| `kind` | Error classification |
+| `severity` | Severity level (0-255) |
+| `suggestion` | User-facing suggestion |
+| `transient` | Mark as retryable |
+| `from` | Generate From implementation |
+| `code` | Unique error code |
 
-### Field Attributes (`#[yoshi(...)]` on struct fields)
+### Field-level (`#[yoshi(...)]` on fields)
 
-| Attribute | Description | Example |
-|-----------|-------------|---------|
-| `source` | Mark as error source | `#[yoshi(source)]` |
-| `context` | Add to context metadata | `#[yoshi(context = "file_path")]` |
-| `shell` | Add as typed shell | `#[yoshi(shell)]` |
-| `skip` | Skip in Display | `#[yoshi(skip)]` |
+| Attribute | Description |
+|-----------|-------------|
+| `source` | Mark as error source |
+| `context` | Include in metadata |
+| `skip` | Skip in display |
+| `sensitive` | Redact in output |
 
-## Advanced Example
+## Example with Inference
 
 ```rust
 use yoshi_derive::YoshiError;
 
 #[derive(Debug, YoshiError)]
-#[yoshi(error_code_prefix = "DB")]
-#[yoshi(default_severity = 75)]
-pub enum DatabaseError {
-    #[yoshi(error_code = 1001)]
-    #[yoshi(display = "Connection to {host}:{port} failed")]
-    #[yoshi(kind = "Network")]
-    #[yoshi(severity = 120)]
-    #[yoshi(transient = true)]
-    ConnectionFailed {
-        host: String,
-        port: u16,
-        #[yoshi(source)]
-        cause: std::io::Error,
-        #[yoshi(context = "connection_timeout")]
-        timeout: std::time::Duration,
-    },
+pub enum NetworkError {
+    // Automatically infers: kind = "Timeout", transient = true
+    ConnectionTimeout,
 
-    #[yoshi(error_code = 2001)]
-    #[yoshi(display = "Query failed: {query}")]
-    #[yoshi(kind = "Internal")]
-    QueryFailed {
-        query: String,
-        #[yoshi(shell)]
-        execution_stats: QueryStats,
-    },
-}
+    // Automatically detects std::io::Error as source
+    IoError(std::io::Error),
 
-#[derive(Debug)]
-struct QueryStats {
-    duration_ms: u64,
-    rows_affected: usize,
+    // Custom attributes override inference
+    #[yoshi(severity = 200, suggestion = "Check API key")]
+    AuthenticationFailed { key: String },
 }
 ```
 
-## Generated Code
+## Auto-inference Features
 
-The derive macro automatically creates:
+When enabled, the macro attempts to infer appropriate attributes based on:
 
-- `std::fmt::Display` implementation
-- `std::error::Error` implementation
-- `From<YourError> for yoshi_std::Yoshi` conversion
-- Error code and severity methods
+- **Variant names**: `timeout` → `transient`, `not_found` → `kind = "NotFound"`
+- **Field types**: `std::io::Error` → `source` field
+- **Context patterns**: Common error patterns get reasonable defaults
 
-## Smart Inference
+## LSP Integration
 
-The macro automatically infers attributes based on naming:
+The `yoshi_af!` macro provides enhanced IDE support:
 
-- `timeout`, `expired` → `kind = "Timeout"`
-- `network`, `connection` → `kind = "Network"`
-- `not_found`, `missing` → `kind = "NotFound"`
-- `std::io::Error` fields → `source = true`
+```rust
+use yoshi_derive::yoshi_af;
 
-## Performance
+yoshi_af! {
+    pub enum MyError {
+        #[autofix(suggestion = "Check network connectivity")]
+        NetworkTimeout,
+    }
+}
+```
 
-- **Compilation**: <100ms for typical enums (<50 variants)
-- **Runtime**: Zero overhead - generates efficient code
-- **Memory**: Uses static strings where possible
+## Generated Implementations
+
+The macro generates:
+
+- `std::fmt::Display` with format string support
+- `std::error::Error` with proper source chaining
+- `From<YourError>` for `yoshi_std::Yoshi` conversion
+- Optional helper methods for variant checking
 
 ## License
 

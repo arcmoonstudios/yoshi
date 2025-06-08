@@ -301,7 +301,6 @@ fn configure_benchmark_suite() {
     std::env::set_var("CRITERION_BENCH", "1");
 
     // Configure memory allocation tracking if available
-    // Note: Feature "unstable-metrics" not available in this crate
     // Future: Add memory allocation tracking when available
 }
 

@@ -2,15 +2,16 @@
 
 ![Yoshi Logo](assets/YoshiLogo.png)
 
+[![Crates.io](https://img.shields.io/crates/v/yoshi.svg)](https://crates.io/crates/yoshi)
+[![Docs.rs](https://docs.rs/yoshi/badge.svg)](https://docs.rs/yoshi)
+[![Rust Version](https://img.shields.io/badge/rust-1.87%2B-blue.svg)](https://www.rust-lang.org)
 [![License: MIT OR Apache-2.0](https://img.shields.io/badge/License-MIT%20OR%20Apache--2.0-blue.svg)](LICENSE)
-[![Rust Version](https://img.shields.io/badge/rust-1.87%2B-orange.svg)](https://forge.rust-lang.org/releases.html)
-[![Build Status](https://img.shields.io/badge/build-passing-green.svg)](https://github.com/arcmoonstudios/yoshi)
 
-A structured error handling framework for Rust that actually tells you what went wrong.
+A structured error handling framework for Rust that tells you what went wrong, where, and how to fix it.
 
-## What's this?
+## What is Yoshi?
 
-Yoshi gives you rich, structured errors with context instead of generic "something broke" messages. Think `anyhow` but with categories, metadata, and suggestions for fixing things.
+Yoshi provides rich, structured errors with context and metadata instead of generic "something broke" messages. It combines the ergonomics of `anyhow` with the type safety of `thiserror`, while adding powerful features like error categorization, suggestions, and metadata.
 
 ## Quick Start
 
@@ -20,80 +21,79 @@ yoshi = "0.1"
 ```
 
 ```rust
-use yoshi::{Yoshi, YoshiKind, Result};
+use yoshi::*;
 
 fn load_config(path: &str) -> Result<String> {
-    std::fs::read_to_string(path)
-        .map_err(|e| Yoshi::new(YoshiKind::Io {
-            message: "Failed to read config".into(),
-            source: Some(Box::new(e)),
-            path: Some(path.into()),
-        }))
-        .context(format!("Loading config from {}", path))
+    std::fs::read_to_string(path).map_err(|e| yoshi!(
+        YoshiKind::Io,
+        "Failed to read config file",
+        path: path,
+        source: e,
+        suggestion: "Check file permissions and path"
+    ))
 }
 
-fn main() {
+fn main() -> Result<()> {
     match load_config("/etc/app/config.toml") {
         Ok(config) => println!("Config: {}", config),
         Err(err) => {
+            // Rich, formatted error output
             eprintln!("Error: {}", err);
-            eprintln!("Context: {:#}", err.context_chain());
+            // With full context chain
+            eprintln!("Context: {:#}", err);
+            return Err(err);
         }
     }
+
+    Ok(())
 }
 ```
 
-## Why Yoshi?
+## Key Features
 
-**Structured errors**: Instead of `"error"`, get `IoError { path: "/etc/config", operation: "read" }`
+- **Powerful Macros** - Create rich errors with one line using `yoshi!`, `bail!`, and `ensure!`
+- **Structured Categories** - Categorize errors with `YoshiKind` for consistent handling
+- **Rich Context** - Capture and chain context as errors bubble up
+- **Metadata & Suggestions** - Attach debugging data and provide fix suggestions
+- **Derive Support** - Generate error types and conversions with `#[derive(YoshiError)]`
+- **No-std Compatible** - Works in embedded environments
 
-**Rich context**: Errors carry metadata, suggestions, and full context chains
-
-**Performance**: Sub-microsecond error creation, minimal allocations
-
-**Derive macros**: Generate error types automatically
+## Concise Error Creation
 
 ```rust
+// Use the expressive yoshi! macro
+let error = yoshi!(
+    YoshiKind::Database,
+    "Failed to connect to database",
+    host: "db.example.com",
+    port: 5432,
+    retry_count: 3,
+    suggestion: "Check database credentials and firewall settings"
+);
+
+// Or derive your own error types
 use yoshi_derive::YoshiError;
 
 #[derive(Debug, YoshiError)]
-pub enum MyError {
-    #[yoshi(display = "User {user_id} not found")]
+pub enum ApiError {
     #[yoshi(kind = "NotFound")]
-    UserNotFound { user_id: u32 },
+    #[yoshi(display = "User {user_id} not found")]
+    UserNotFound { user_id: u64 },
 
-    #[yoshi(display = "Database timeout")]
     #[yoshi(kind = "Timeout")]
-    #[yoshi(transient = true)]
-    DatabaseTimeout,
+    RequestTimeout { seconds: u64 },
 }
 ```
 
-## Features
+## Documentation & Examples
 
-- **Structured error categories** - Know exactly what type of error occurred
-- **Context chaining** - Full error history as problems propagate
-- **Metadata attachment** - Add debugging info to errors
-- **Performance optimized** - <1μs error creation
-- **no_std support** - Works in embedded environments
-- **Derive macros** - Generate error types automatically
-
-## Performance
-
-| Framework | Error Creation | Memory Usage |
-|-----------|---------------|--------------|
-| **Yoshi** | **1201 ns** | **208 bytes** |
-| thiserror | 22 ns | 24 bytes |
-| anyhow | 629 ns | 8 bytes |
-| eyre | 51 ns | 8 bytes |
-
-*Yoshi trades some speed for much richer error information**
-
-## Documentation
-
+- [Introduction & Concepts](https://github.com/arcmoonstudios/yoshi/blob/main/docs/overview.md)
+- [Macro Guide](https://github.com/arcmoonstudios/yoshi/blob/main/docs/macro.md)
+- [Error Context & Metadata](https://github.com/arcmoonstudios/yoshi/blob/main/docs/context.md)
+- [Performance Details](https://github.com/arcmoonstudios/yoshi/blob/main/docs/perf.md)
+- [Migration Guide](https://github.com/arcmoonstudios/yoshi/blob/main/docs/migration.md)
 - [API Docs](https://docs.rs/yoshi)
-- [Examples](examples/)
-- [Migration Guide](docs/migration.md)
+- [Examples](https://github.com/arcmoonstudios/yoshi/tree/main/examples/)
 
 ## License
 

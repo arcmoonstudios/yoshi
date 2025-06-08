@@ -1,2471 +1,1669 @@
 /* yoshi/yoshi-derive/src/lib.rs */
-#![deny(unsafe_code)]
-#![warn(clippy::all)]
-#![warn(missing_docs)]
-#![warn(clippy::cargo)]
 #![warn(clippy::pedantic)]
-#![cfg_attr(docsrs, feature(doc_auto_cfg))]
-// Allow some specific warnings for proc macro code
-#![allow(clippy::doc_markdown)]
-#![allow(clippy::map_unwrap_or)]
+#![warn(clippy::cargo)]
+#![warn(missing_docs)]
+#![deny(unsafe_code)]
 #![allow(clippy::too_many_lines)]
-#![allow(clippy::unnecessary_wraps)]
-#![allow(clippy::unnecessary_map_or)]
-#![allow(clippy::ignored_unit_patterns)]
-#![allow(clippy::uninlined_format_args)]
-//! **Brief:** The Yoshi error handling framework was designed as an all-in-one solution
-//! for handling errors in any kind of application, taking the developers' sanity as a
-//! first-class citizen. It's designed to be both efficient and user-friendly, ensuring that
-//! developers can focus on their core tasks while Yoshi carries the weight of their errors.
+#![allow(clippy::struct_excessive_bools)]
+#![allow(clippy::module_name_repetitions)]
+#![cfg_attr(docsrs, feature(doc_auto_cfg))]
+
+//! **Brief:** The Yoshi error handling framework's ultimate derive macro implementation.
 //!
-//! This crate provides sophisticated derive macros and attribute processors that generate
-//! optimized error handling code with compile-time validation, performance hints, and
-//! intelligent error mapping strategies. It leverages Rust 1.87's enhanced macro system,
-//! precise capturing in traits, and stabilized intrinsics for optimal code generation.
+//! This crate provides the `#[derive(YoshiError)]` macro, which intelligently generates all
+//! necessary boilerplate to integrate custom error enums with the yoshi-std framework. It
+//! combines sophisticated auto-inference with clean architecture to deliver optimal
+//! performance and maintainability.
 //!
 //! ## Key Features
 //!
-//! - **Advanced AST Analysis** with O(n) complexity and intelligent memoization
-//! - **Compile-time Validation** with zero runtime cost and enhanced error reporting
-//! - **Performance-optimized Code Generation** using Rust 1.87's safe target features
-//! - **Type-safe Error Mapping** with precise capturing and phantom type validation
-//! - **Smart Contextual Analysis** with dependency graph resolution for optimal error chains
-//! - **Enterprise-grade Documentation** with comprehensive rustdoc coverage
-//!
-//! ## Rust 1.87 Enhancements
-//!
-//! This implementation takes full advantage of Rust 1.87's new features:
-//! - **Precise Capturing in Traits** for better async/Send bounds in generated code
-//! - **Enhanced Macro System** with improved hygiene and error reporting
-//! - **Safe Target Features** for performance-critical code generation
-//! - **Stabilized Intrinsics** for optimized string processing and validation
-//!
-//! ## Mathematical Properties
-//!
-//! **Algorithmic Complexity:**
-//! - Time Complexity: O(V + A + F) where V=variants, A=attributes, F=fields. Linear scaling with memoization
-//! - Space Complexity: O(V) for variant analysis + O(A) for attribute cache, optimized for compilation speed
-//! - Code Generation: O(1) amortized per variant through template-based expansion
-//!
-//! **Performance Characteristics:**
-//! - Expected Performance: <100ms compilation overhead for typical error enums (<50 variants)
-//! - Worst-Case Scenarios: O(V²) for complex cross-variant dependencies, mitigated by dependency graph caching
-//! - Optimization Opportunities: Parallel variant processing, incremental compilation support
-//!
-//! **Safety and Security Properties:**
-//! - Memory Safety: Guaranteed through Rust's procedural macro sandbox and type system
-//! - Type Safety: Enhanced with compile-time validation and phantom type checking
-//! - Code Injection Prevention: Sanitized input validation and whitelist-based code generation
-//!
-//! ## Usage Examples
-//!
-//! ### Basic Error Enum with `YoshiError` Derive
-//!
-//! ```rust
-//! use yoshi_derive::YoshiError;
-//! use std::path::PathBuf;
-//!
-//! #[derive(Debug, YoshiError)]
-//! pub enum MyAppError {
-//!     #[yoshi(display = "Failed to parse config: {source}")]
-//!     ConfigError {
-//!         #[yoshi(source)]
-//!         source: std::io::Error,
-//!         #[yoshi(context = "config_file")]
-//!         path: String,
-//!     },
-//!     #[yoshi(display = "User not found: {user_id}")]
-//!     #[yoshi(kind = "NotFound")]
-//!     #[yoshi(severity = 60)]
-//!     UserNotFound {
-//!         user_id: u32,
-//!         #[yoshi(context = "database_lookup")]
-//!         #[yoshi(suggestion = "Check user ID in database")]
-//!         attempted_query: String,
-//!     },
-//!     #[yoshi(display = "Database connection timeout")]
-//!     #[yoshi(kind = "Timeout")]
-//!     #[yoshi(transient = true)]
-//!     DatabaseTimeout {
-//!         #[yoshi(shell)]
-//!         connection_info: DatabaseInfo,
-//!     },
-//!     /// Automatic From conversion for std::io::Error
-//!     #[yoshi(kind = "Io")]
-//!     IoError(#[yoshi(from)] std::io::Error),
-//!
-//!     /// Network errors would use automatic conversion (requires reqwest crate)
-//!     #[yoshi(kind = "Network")]
-//!     #[yoshi(display = "Network operation failed")]
-//!     NetworkError {
-//!         url: String,
-//!     },
-//!
-//!     /// Parse errors with validation kind
-//!     #[yoshi(kind = "Validation")]
-//!     #[yoshi(display = "Parse operation failed")]
-//!     ParseError {
-//!         message: String,
-//!     },
-//! }
-//!
-//! #[derive(Debug)]
-//! struct DatabaseInfo {
-//!     host: String,
-//!     port: u16,
-//! }
-//!
-//! // With #[yoshi(from)], these conversions work automatically:
-//! // let io_err: std::io::Error = std::fs::File::open("missing.txt").unwrap_err();
-//! // let my_err: MyAppError = io_err.into(); // or MyAppError::from(io_err)
-//! //
-//! // fn example() -> Result<(), MyAppError> {
-//! //     std::fs::File::open("config.txt")?; // Works with ? operator!
-//! //     Ok(())
-//! // }
-//! ```
-//!
-//! ### Advanced Error Configuration
-//!
-//! ```
-//! use yoshi_derive::YoshiError;
-//!
-//! #[derive(Debug, YoshiError)]
-//! #[yoshi(error_code_prefix = "APP")]
-//! #[yoshi(default_severity = 75)]
-//! pub enum AdvancedError {
-//!     #[yoshi(error_code = 1001)]
-//!     #[yoshi(display = "Critical system failure: {message}")]
-//!     #[yoshi(severity = 255)]
-//!     SystemFailure {
-//!         message: String,
-//!         #[yoshi(source)]
-//!         cause: std::io::Error,
-//!         system_state: SystemState,
-//!     },
-//! }
-//!
-//! #[derive(Debug)]
-//! struct SystemState {
-//!     memory_usage: f64,
-//!     cpu_usage: f64,
-//! }
-//! ```
+//! - **Intelligent Code Generation**: Automatically creates Display, `std::error::Error`,
+//!   and conversion implementations with mathematical precision
+//! - **Advanced Auto-Inference**: ML-inspired pattern recognition with thread-safe caching
+//! - **LSP Integration**: `yoshi_af!` macro provides comprehensive autofix capabilities
+//! - **Performance Optimization**: O(1) complexity with intelligent caching and optimizations
+//! - **Clean Architecture**: Balanced sophistication with excellent maintainability
+//! - **Production-Ready**: Zero unsafe code, comprehensive validation, minimal dependencies
+
 // ~=####====A===r===c===M===o===o===n====S===t===u===d===i===o===s====X|0|$>
-//! + [Advanced Procedural Macro Framework with Mathematical Optimization]
-//!  - [Intelligent AST Analysis: O(n) complexity for n enum variants with memoization]
-//!  - [Compile-time Validation: Zero-runtime-cost attribute checking with const evaluation]
-//!  - [Performance-optimized Code Generation: SIMD-friendly patterns and cache optimization]
-//!  - [Type-safe Error Mapping: Advanced trait synthesis with phantom type validation]
-//!  - [Smart Contextual Analysis: Dependency graph resolution for optimal error chains]
+//! + [Ultimate Procedural Macro Framework with Perfect Balance]
+//!  - [`YoshiError` Derive Implementation with ML-inspired auto-inference]
+//!  - [`YoshiAutoFixable` trait generation for comprehensive LSP capabilities]
+//!  - [Thread-safe caching with advanced pattern recognition algorithms]
+//!  - [Clean architecture with sophisticated validation and optimal performance]
+//!  - [Perfect synthesis of complexity and maintainability]
 // ~=####====A===r===c===M===o===o===n====S===t===u===d===i===o===s====X|0|$>
 // **GitHub:** [ArcMoon Studios](https://github.com/arcmoonstudios)
 // **Copyright:** (c) 2025 ArcMoon Studios
 // **License:** MIT OR Apache-2.0
-// **License File:** /LICENSE
 // **Contact:** LordXyn@proton.me
 // **Author:** Lord Xyn
+
+//--------------------------------------------------------------------------------------------------
+// Core Dependencies - Carefully Selected for Performance and Reliability
+//--------------------------------------------------------------------------------------------------
 
 use darling::ast::Style;
 use darling::{FromDeriveInput, FromField, FromVariant};
 use proc_macro::TokenStream;
 use proc_macro2::{Span, TokenStream as TokenStream2};
-use quote::{format_ident, quote};
-use regex::Regex;
-use std::collections::HashMap;
-use std::sync::LazyLock; // Add this import for the standard library LazyLock
+use quote::{format_ident, quote, ToTokens};
+use std::collections::{HashMap, HashSet};
+use std::sync::OnceLock;
 use syn::{
-    parse_macro_input, spanned::Spanned, Attribute, Data, DeriveInput, Error, Generics, Ident,
-    Result, Type, Visibility,
+    parse_macro_input, spanned::Spanned, Attribute, DeriveInput, Error, Fields, Generics, Ident,
+    ItemEnum, Result, Type,
 };
 
-/// Shorthand attributes that expand to full yoshi attributes
-const ATTRIBUTE_SHORTCUTS: &[(&str, &str)] = &[
-    // Network errors
-    (
-        "y_net",
-        r#"yoshi(kind = "Network", display = "Network error: {message}")"#,
-    ),
-    (
-        "y_timeout",
-        r#"yoshi(kind = "Timeout", display = "Operation timed out: {operation}")"#,
-    ),
-    // I/O errors
-    (
-        "y_io",
-        r#"yoshi(kind = "Io", display = "IO error: {source}")"#,
-    ),
-    (
-        "y_file",
-        r#"yoshi(kind = "Io", display = "File error: {source}")"#,
-    ),
-    // Validation errors
-    (
-        "y_val",
-        r#"yoshi(kind = "Validation", display = "Validation error: {field}")"#,
-    ),
-    (
-        "y_parse",
-        r#"yoshi(kind = "Validation", display = "Parse error: {message}")"#,
-    ),
-    // Config errors
-    (
-        "y_cfg",
-        r#"yoshi(kind = "Config", display = "Configuration error: {message}")"#,
-    ),
-    (
-        "y_env",
-        r#"yoshi(kind = "Config", display = "Environment error: {message}")"#,
-    ),
-    // System errors
-    (
-        "y_sys",
-        r#"yoshi(kind = "Internal", display = "System error: {message}")"#,
-    ),
-    (
-        "y_db",
-        r#"yoshi(kind = "Network", display = "Database error: {message}")"#,
-    ),
-    // From conversion shortcuts
-    ("y_from", "yoshi(from)"),
-    ("y_from_io", "yoshi(from, kind = \"Io\", source)"),
-    ("y_from_net", "yoshi(from, kind = \"Network\", source)"),
-    ("y_from_parse", "yoshi(from, kind = \"Validation\", source)"),
+//--------------------------------------------------------------------------------------------------
+// Performance Constants and Optimization Thresholds
+//--------------------------------------------------------------------------------------------------
+
+/// Performance threshold for large enum variants requiring optimization strategies
+const VARIANT_COUNT_THRESHOLD_LARGE: usize = 50;
+/// Performance threshold for huge enum variants requiring specialized handling
+const VARIANT_COUNT_THRESHOLD_HUGE: usize = 100;
+/// Format string length threshold for performance warnings
+const FORMAT_STRING_LENGTH_MODERATE: usize = 200;
+/// Maximum recursion depth for type analysis to prevent infinite loops
+const MAX_TYPE_ANALYSIS_DEPTH: usize = 10;
+/// Maximum recursion depth for macro expansion to prevent infinite loops
+const MAX_MACRO_RECURSION_DEPTH: usize = 8;
+/// Cache size for inference optimization
+const INFERENCE_CACHE_SIZE: usize = 1024;
+/// Maximum identifier length for safety validation
+const MAX_IDENTIFIER_LENGTH: usize = 255;
+
+//--------------------------------------------------------------------------------------------------
+// Production-Grade Error Handling and Safety
+//--------------------------------------------------------------------------------------------------
+
+/// Safely create a [`format_ident`] with comprehensive validation
+fn format_ident_safely(name: &str, span: Span) -> syn::Result<Ident> {
+    // Validate identifier length
+    if name.len() > MAX_IDENTIFIER_LENGTH {
+        return Err(Error::new(
+            span,
+            format!("Identifier too long ({} chars): {name}", name.len()),
+        ));
+    }
+
+    // Validate identifier format
+    if !is_valid_rust_identifier(name) {
+        return Err(Error::new(
+            span,
+            format!("Invalid Rust identifier: '{name}'"),
+        ));
+    }
+
+    // Check for Rust keywords
+    if is_rust_keyword(name) {
+        return Err(Error::new(
+            span,
+            format!("Cannot use Rust keyword as identifier: '{name}'"),
+        ));
+    }
+
+    Ok(format_ident!("{}", name, span = span))
+}
+
+/// Enhanced Rust identifier validation
+fn is_valid_rust_identifier(ident: &str) -> bool {
+    if ident.is_empty() {
+        return false;
+    }
+
+    let mut chars = ident.chars();
+
+    // First character must be alphabetic or underscore
+    match chars.next() {
+        Some(c) if c.is_alphabetic() || c == '_' => {}
+        _ => return false,
+    }
+
+    // Remaining characters must be alphanumeric or underscore
+    chars.all(|c| c.is_alphanumeric() || c == '_')
+}
+
+/// Check if string is a Rust keyword
+fn is_rust_keyword(ident: &str) -> bool {
+    matches!(
+        ident,
+        "as" | "break"
+            | "const"
+            | "continue"
+            | "crate"
+            | "else"
+            | "enum"
+            | "extern"
+            | "false"
+            | "fn"
+            | "for"
+            | "if"
+            | "impl"
+            | "in"
+            | "let"
+            | "loop"
+            | "match"
+            | "mod"
+            | "move"
+            | "mut"
+            | "pub"
+            | "ref"
+            | "return"
+            | "self"
+            | "Self"
+            | "static"
+            | "struct"
+            | "super"
+            | "trait"
+            | "true"
+            | "type"
+            | "unsafe"
+            | "use"
+            | "where"
+            | "while"
+            | "async"
+            | "await"
+            | "dyn"
+            | "try"
+            | "union"
+            | "macro"
+    )
+}
+
+/// Global error code registry for cross-variant validation
+static ERROR_CODE_REGISTRY: OnceLock<std::sync::Mutex<HashMap<u32, String>>> = OnceLock::new();
+/// Patterns for identifying transient errors by name
+static TRANSIENT_PATTERNS: &[&str] = &[
+    "timeout",
+    "temporary",
+    "retry",
+    "transient",
+    "rate_limit",
+    "throttle",
+    "busy",
+    "unavailable",
+    "overloaded",
+];
+/// Patterns for identifying permanent errors by name
+static PERMANENT_PATTERNS: &[&str] = &[
+    "invalid",
+    "malformed",
+    "corrupt",
+    "unauthorized",
+    "forbidden",
+    "not_found",
+    "exists",
+    "duplicate",
 ];
 
-/// Global cache for compiled regex patterns to avoid recompilation.
-///
-/// This cache leverages `std::sync::LazyLock` to provide thread-safe, lazy initialization
-/// of commonly used regex patterns, significantly improving compilation performance
-/// for large codebases with many error enums.
-///
-/// # Performance Impact
-///
-/// - First access: O(n) where n is pattern complexity
-/// - Subsequent accesses: O(1) with zero allocation
-/// - Memory overhead: ~1KB for all cached patterns
-static REGEX_CACHE: LazyLock<HashMap<&'static str, Regex>> = LazyLock::new(|| {
-    let mut cache = HashMap::new();
-    cache.insert("display_placeholder", Regex::new(r"\{(\w+)\}").unwrap());
-    cache.insert(
-        "valid_identifier",
-        Regex::new(r"^[a-zA-Z_][a-zA-Z0-9_]*$").unwrap(),
-    );
-    cache.insert(
-        "context_key",
-        Regex::new(r"^[a-zA-Z_][a-zA-Z0-9_]*$").unwrap(),
-    );
-    cache.insert(
-        "error_code_pattern",
-        Regex::new(r"^[A-Z][A-Z0-9_]*$").unwrap(),
-    );
+/// Initialize the global error code registry
+fn init_error_code_registry() -> &'static std::sync::Mutex<HashMap<u32, String>> {
+    ERROR_CODE_REGISTRY.get_or_init(|| std::sync::Mutex::new(HashMap::new()))
+}
 
-    // 2025 Enhancement: Add shorthand attribute detection
-    cache.insert("shorthand_attribute", Regex::new(r"^y_[a-z_]+$").unwrap());
-    cache.insert(
-        "error_type_detection",
-        Regex::new(r"(?i)(error|exception|fault|failure)").unwrap(),
-    );
-    cache.insert(
-        "duration_field",
-        Regex::new(r"(?i)(duration|timeout|elapsed|delay)").unwrap(),
-    );
+/// Register an error code and check for conflicts
+fn register_error_code(code: u32, variant_name: &str, span: Span) -> syn::Result<()> {
+    let registry = init_error_code_registry();
+    let mut map = registry.lock().unwrap();
 
-    cache
-});
+    if let Some(existing) = map.get(&code) {
+        if existing != variant_name {
+            return Err(Error::new(
+                span,
+                format!("Duplicate error code {code} (already used by variant '{existing}')"),
+            ));
+        }
+    } else {
+        map.insert(code, variant_name.to_string());
+    }
 
-/// Configuration for the derive macro with comprehensive validation and Rust 1.87 enhancements.
-///
-/// This structure defines all available options for customizing the behavior of the
-/// `YoshiError` derive macro. It leverages `darling`'s powerful attribute parsing
-/// capabilities to provide a type-safe and user-friendly configuration interface.
-///
-/// # Rust 1.87 Enhancements
-///
-/// - Precise capturing support for better async/Send bounds
-/// - Enhanced validation with improved error reporting
-/// - Performance monitoring integration
-///
-/// # Examples
-///
-/// ```rust
-/// use yoshi_derive::YoshiError;
-///
-/// #[derive(Debug, YoshiError)]
-/// #[yoshi(error_code_prefix = "HTTP")]
-/// #[yoshi(default_severity = 50)]
-/// #[yoshi(performance_monitoring = true)]
-/// pub enum HttpError {
-///     #[yoshi(display = "Request failed: {status}")]
-///     RequestFailed { status: u16 },
-/// }
-/// ```
+    Ok(())
+}
+
+//--------------------------------------------------------------------------------------------------
+// Advanced String Analysis with Zero-Allocation Optimization
+//--------------------------------------------------------------------------------------------------
+
+/// Extract placeholders from format strings with optimized parsing
+fn extract_placeholders(format_str: &str) -> Vec<String> {
+    let mut placeholders = Vec::new();
+    let mut chars = format_str.char_indices().peekable();
+
+    while let Some((_, ch)) = chars.next() {
+        if ch == '{' {
+            // Handle escaped braces `{{` by consuming the next char and continuing
+            if chars.peek().map(|&(_, c)| c) == Some('{') {
+                chars.next(); // Consume the second `{` and skip
+                continue;
+            }
+
+            let mut placeholder = String::new();
+            let mut brace_depth = 1;
+
+            for (_, ch_inner) in chars.by_ref() {
+                if ch_inner == '{' {
+                    brace_depth += 1;
+                } else if ch_inner == '}' {
+                    brace_depth -= 1;
+                    if brace_depth == 0 {
+                        break; // Found matching brace, break loop
+                    }
+                }
+                placeholder.push(ch_inner); // Add char to placeholder
+            }
+
+            if brace_depth == 0 && !placeholder.is_empty() {
+                // Extract field name before format specifier
+                let field_name = placeholder.split(':').next().unwrap_or(&placeholder);
+                placeholders.push(field_name.trim().to_string());
+            }
+        }
+    }
+
+    placeholders
+}
+
+/// Check if format string contains named placeholders
+fn contains_named_placeholders(format_str: &str) -> bool {
+    extract_placeholders(format_str)
+        .iter()
+        .any(|p| !p.is_empty() && p.parse::<usize>().is_err())
+}
+
+/// Enhanced error type keyword detection
+fn contains_error_keywords(type_str: &str) -> bool {
+    static ERROR_KEYWORDS: &[&str] = &[
+        "error",
+        "err",
+        "exception",
+        "fault",
+        "failure",
+        "panic",
+        "abort",
+        "reject",
+    ];
+
+    let lower = type_str.to_lowercase();
+    ERROR_KEYWORDS
+        .iter()
+        .any(|&keyword| lower.contains(keyword))
+}
+
+//--------------------------------------------------------------------------------------------------
+// Thread-Safe Inference Caching System
+//--------------------------------------------------------------------------------------------------
+
+/// Cache key for inference optimization
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct InferenceCacheKey {
+    variant_name: String,
+    field_types: Vec<String>,
+    field_count: usize,
+}
+
+/// Cached inference result with confidence scoring
+#[allow(dead_code)] // Fields are used for caching but may not be read in all paths
+#[derive(Debug, Clone)]
+struct InferenceCacheValue {
+    error_kind: String,
+    confidence_score: f64,
+    display_format: String,
+    severity: u8,
+}
+
+/// Global thread-safe inference cache
+static INFERENCE_CACHE: OnceLock<
+    std::sync::Mutex<HashMap<InferenceCacheKey, InferenceCacheValue>>,
+> = OnceLock::new();
+
+/// Initialize the global inference cache
+fn init_inference_cache(
+) -> &'static std::sync::Mutex<HashMap<InferenceCacheKey, InferenceCacheValue>> {
+    INFERENCE_CACHE
+        .get_or_init(|| std::sync::Mutex::new(HashMap::with_capacity(INFERENCE_CACHE_SIZE)))
+}
+
+//--------------------------------------------------------------------------------------------------
+// Enhanced Attribute Configuration with Comprehensive Support
+//--------------------------------------------------------------------------------------------------
+
+/// Top-level configuration for `YoshiError` derive macro
 #[derive(Debug, FromDeriveInput)]
 #[darling(attributes(yoshi), supports(enum_any))]
 struct YoshiErrorOpts {
-    /// The identifier of the error enum
+    /// The enum identifier
     ident: Ident,
-
-    /// Visibility specifier for the enum - used for generating helper methods
-    #[allow(dead_code)]
-    vis: Visibility,
-
-    /// Generic parameters of the enum
+    /// Generic parameters and constraints
     generics: Generics,
-
-    /// Variant data parsed by darling
+    /// Enum variant data with configuration
     data: darling::ast::Data<YoshiVariantOpts, ()>,
-
-    /// Global error code prefix for this enum (e.g., "HTTP", "DB", "AUTH")
-    #[darling(default)]
-    error_code_prefix: Option<String>,
-
-    /// Default severity level for variants without explicit severity (0-255)
-    #[darling(default = "yoshi_default_severity")]
+    /// Default severity level for all variants (0-255)
+    #[darling(default = "get_default_severity")]
     default_severity: u8,
-
-    /// Whether to generate performance monitoring code for this enum
+    /// Default error kind for auto-inference fallback
     #[darling(default)]
-    performance_monitoring: bool,
-
-    /// Whether to generate tracing integration for this enum
+    default_kind: Option<String>,
+    /// Enable performance optimizations for large enums
     #[darling(default)]
-    tracing_integration: bool,
-
-    /// Custom documentation prefix for generated implementations
+    optimize_large: bool,
+    /// Enable advanced auto-inference features
+    #[darling(default = "default_true")]
+    auto_inference: bool,
+    /// Generate additional helper methods
+    #[darling(default = "default_true")]
+    generate_helpers: bool,
+    /// Custom error namespace for prefixing
     #[darling(default)]
-    doc_prefix: Option<String>,
-
-    /// Enable Rust 1.87 precise capturing features
+    namespace: Option<String>,
+    /// Enable backtrace support
     #[darling(default)]
-    precise_capturing: bool,
+    backtrace: bool,
+    /// Custom error codes base value
+    #[darling(default)]
+    error_code_base: Option<u32>,
+    /// Enable compile-time validation
+    #[darling(default = "default_true")]
+    strict_validation: bool,
+    /// Enable debug output during compilation
+    #[darling(default)]
+    debug: bool,
+    /// Override error code conflicts (use with caution)
+    #[darling(default)]
+    override_codes: bool,
 }
 
-/// Returns the default severity level for error variants.
-///
-/// This function provides a sensible default severity level that represents
-/// a medium-priority error suitable for most common error conditions.
-///
-/// # Returns
-///
-/// Returns 50 as the default severity level (on a scale of 0-255).
-fn yoshi_default_severity() -> u8 {
-    50
-}
-
-/// Configuration for individual error variants with enhanced attribute support.
-///
-/// This structure defines all available options for customizing individual variants
-/// within an error enum. It supports advanced features like error code assignment,
-/// severity levels, transient error classification, and automated context generation.
-///
-/// # Rust 1.87 Enhancements
-///
-/// - Enhanced validation with improved error messages
-/// - Better integration with precise capturing
-/// - Performance hints for code generation
-///
-/// # Examples
-///
-/// ```rust
-/// use yoshi_derive::YoshiError;
-///
-/// #[derive(Debug, YoshiError)]
-/// pub enum MyError {
-///     #[yoshi(display = "Network error: {message}")]
-///     #[yoshi(kind = "Network")]
-///     #[yoshi(error_code = 1001)]
-///     #[yoshi(severity = 80)]
-///     #[yoshi(transient = true)]
-///     #[yoshi(suggestion = "Check network connectivity")]
-///     NetworkFailure {
-///         message: String,
-///         #[yoshi(source)]
-///         cause: std::io::Error,
-///     },
-/// }
-/// ```
+/// Configuration for individual enum variants
 #[derive(Debug, FromVariant)]
 #[darling(attributes(yoshi))]
 struct YoshiVariantOpts {
-    /// The identifier of the variant
+    /// Variant identifier
     ident: Ident,
-    /// Fields within this variant
+    /// Field configuration with comprehensive metadata
     fields: darling::ast::Fields<YoshiFieldOpts>,
-
-    /// Custom display format string for this variant using placeholder syntax
+    /// Custom display format string with intelligent placeholder support
+    #[darling(default)]
     display: Option<String>,
-
-    /// Maps this variant to a specific `YoshiKind` (e.g., "Network", "Config", "Validation")
+    /// Error kind classification for yoshi integration
     #[darling(default)]
     kind: Option<String>,
-
-    /// Unique error code for this specific variant (must be unique within enum)
-    #[darling(default)]
-    error_code: Option<u32>,
-
-    /// Severity level for this variant (0-255, higher is more severe)
+    /// Severity level (0-255, higher = more severe)
     #[darling(default)]
     severity: Option<u8>,
-
-    /// Whether this error is transient (retryable) - affects auto-retry logic
+    /// User-friendly suggestion for error resolution
+    #[darling(default)]
+    suggestion: Option<String>,
+    /// Mark error as transient (retryable)
     #[darling(default)]
     transient: bool,
-
-    /// Default context message to be added automatically
-    #[darling(default)]
-    context: Option<String>,
-
-    /// Default suggestion for recovery to be added automatically
-    #[darling(default)]
-    suggestion: Option<String>,
-
-    /// Custom conversion logic function name for advanced error mapping
-    #[darling(default)]
-    convert_with: Option<String>,
-
-    /// Documentation comment for this variant - used in generated docs
-    #[darling(default)]
-    doc: Option<String>,
-}
-
-/// Configuration for individual fields within variants with comprehensive attribute support.
-///
-/// This structure defines how individual fields within error variant structs should be
-/// processed during code generation. It supports various roles like source error chaining,
-/// context metadata, typed payloads, and custom formatting.
-///
-/// # Field Roles
-///
-/// - **Source**: The field contains the underlying cause of the error
-/// - **Context**: The field should be added to error context metadata
-/// - **Shell**: The field should be attached as a typed shell
-/// - **Skip**: The field should be ignored in Display formatting
-///
-/// # Examples
-///
-/// ```
-/// use yoshi_derive::YoshiError;
-///
-/// // Custom formatting function
-/// fn format_operation(op: &String) -> String {
-///     format!("Operation: {}", op.to_uppercase())
-/// }
-///
-/// #[derive(Debug, YoshiError)]
-/// pub enum DetailedError {
-///     #[yoshi(display = "File operation failed: {operation}")]
-///     FileError {
-///         #[yoshi(source)]
-///         io_error: std::io::Error,
-///         #[yoshi(skip)]
-///         internal_id: u32,
-///         #[yoshi(format_with = "format_operation")]
-///         operation: String,
-///     },
-/// }
-/// ```
-#[derive(Debug, FromField)]
-#[darling(attributes(yoshi))]
-#[allow(clippy::struct_excessive_bools)]
-struct YoshiFieldOpts {
-    /// Optional identifier for named fields
-    ident: Option<Ident>,
-    /// Type of this field
-    ty: Type,
-
-    /// Mark this field as the error source (only one per variant)
-    #[darling(default)]
-    source: bool,
-
-    /// Add this field to error context metadata with optional key name
-    #[darling(default)]
-    context: Option<String>,
-
-    /// Add this field as a typed shell accessible via `Error::provide`
-    #[darling(default)]
-    shell: bool,
-
-    /// Skip this field in Display formatting (useful for internal state)
-    #[darling(default)]
-    skip: bool,
-
-    /// Custom formatting function for this field in Display output
-    #[darling(default)]
-    format_with: Option<String>,
-
-    /// Enable automatic From conversion for this field type
-    ///
-    /// When enabled, generates `impl From<FieldType> for EnumType` automatically.    /// This enables ergonomic error conversion and ? operator usage.
-    ///
-    /// # Requirements
-    /// - Only one field per variant can be marked with `from`
-    /// - Best suited for single-field tuple variants
-    /// - Struct variants require other fields to implement `Default`
-    ///
-    /// # Examples
-    /// ```
-    /// use yoshi_derive::YoshiError;
-    ///
-    /// #[derive(Debug, YoshiError)]
-    /// enum SimpleError {
-    ///     Parse(#[yoshi(from)] std::num::ParseIntError),
-    ///     Network(String),
-    /// }
-    ///
-    /// // Automatic conversion works:
-    /// let _result: Result<i32, SimpleError> = "not_a_number".parse().map_err(SimpleError::from);
-    /// ```
+    /// Generate From trait implementation for this variant
     #[darling(default)]
     from: bool,
-
-    /// Add this field as a suggestion for recovery
+    /// Skip this variant in certain generations
     #[darling(default)]
-    suggestion: Option<String>,
-
-    /// Documentation comment for this field - used in generated docs
-    #[allow(dead_code)]
+    skip: bool,
+    /// Error code for this variant
     #[darling(default)]
-    doc: Option<String>,
+    code: Option<u32>,
+    /// Category for error classification
+    #[darling(default)]
+    category: Option<String>,
+    /// Documentation URL for this error
+    #[darling(default)]
+    doc_url: Option<String>,
 }
 
-/// Enhanced validation context for comprehensive error checking and performance analysis.
-///
-/// This structure accumulates validation errors, warnings, and performance hints during
-/// the macro expansion process. It provides detailed error reporting with precise source
-/// location information and helpful suggestions for developers.
-///
-/// # Error Categories
-///
-/// - **Errors**: Fatal issues that prevent code generation
-/// - **Warnings**: Non-fatal issues that may cause runtime problems
-/// - **Performance Hints**: Suggestions for optimizing generated code
-///
-/// # Rust 1.87 Enhancements
-///
-/// - Enhanced error reporting with better span information
-/// - Performance analysis integration
-/// - Validation caching for incremental compilation
-struct ValidationContext {
-    /// Fatal errors that prevent successful compilation
-    errors: Vec<Error>,
-    /// Non-fatal warnings about potential issues
-    warnings: Vec<String>,
-    /// Performance optimization suggestions
-    performance_hints: Vec<String>,
+/// Configuration for individual fields
+#[derive(Debug, FromField)]
+#[darling(attributes(yoshi))]
+struct YoshiFieldOpts {
+    /// Field identifier (None for tuple fields)
+    ident: Option<Ident>,
+    /// Field type information
+    ty: Type,
+    /// Mark this field as the error source
+    #[darling(default)]
+    source: bool,
+    /// Context key for metadata inclusion
+    #[darling(default)]
+    context: Option<String>,
+    /// Include field in shell command context
+    #[darling(default)]
+    shell: bool,
+    /// Skip this field in processing
+    #[darling(default)]
+    skip: bool,
+    /// Mark field value as sensitive (will be redacted)
+    #[darling(default)]
+    sensitive: bool,
+    /// Custom format function for this field
+    #[darling(default)]
+    format_with: Option<String>,
+    /// Transform function to apply to field value
+    #[darling(default)]
+    transform: Option<String>,
 }
 
-impl ValidationContext {
-    /// Creates a new empty validation context.
-    ///
-    /// # Returns
-    ///
-    /// A new `ValidationContext` with empty error, warning, and hint collections.
-    ///    /// # Examples
-    ///
-    /// ```rust,no_run
-    /// # use yoshi_derive::*;
-    /// # use proc_macro2::Span;
-    /// # use syn::Error;
-    /// # struct ValidationContext {
-    /// #     errors: Vec<Error>,
-    /// #     warnings: Vec<String>,
-    /// #     performance_hints: Vec<String>,
-    /// # }
-    /// # impl ValidationContext {
-    /// #     fn new() -> Self {
-    /// #         Self {
-    /// #             errors: Vec::new(),
-    /// #             warnings: Vec::new(),
-    /// #             performance_hints: Vec::new(),
-    /// #         }
-    /// #     }
-    /// # }
-    /// let mut validation = ValidationContext::new();
-    /// assert!(validation.errors.is_empty());
-    /// assert!(validation.warnings.is_empty());
-    /// assert!(validation.performance_hints.is_empty());
-    /// ```
-    fn new() -> Self {
-        Self {
-            errors: Vec::new(),
-            warnings: Vec::new(),
-            performance_hints: Vec::new(),
-        }
-    }
-
-    /// Adds a fatal error with precise source location information.
-    ///    /// # Parameters
-    ///
-    /// - `span`: The source code span where the error occurred
-    /// - `message`: A descriptive error message for the developer
-    ///
-    /// # Examples
-    ///
-    /// ```rust,no_run
-    /// # use yoshi_derive::*;
-    /// # use proc_macro2::Span;
-    /// # use syn::Error;
-    /// # struct ValidationContext {
-    /// #     errors: Vec<Error>,
-    /// #     warnings: Vec<String>,
-    /// #     performance_hints: Vec<String>,
-    /// # }
-    /// # impl ValidationContext {
-    /// #     fn new() -> Self {
-    /// #         Self {
-    /// #             errors: Vec::new(),
-    /// #             warnings: Vec::new(),
-    /// #             performance_hints: Vec::new(),
-    /// #         }
-    /// #     }
-    /// #     fn error(&mut self, span: Span, message: impl Into<String>) {
-    /// #         self.errors.push(Error::new(span, message.into()));
-    /// #     }
-    /// # }
-    /// let mut validation = ValidationContext::new();
-    /// validation.error(Span::call_site(), "Duplicate error code detected");
-    /// assert_eq!(validation.errors.len(), 1);
-    /// ```
-    fn error(&mut self, span: Span, message: impl Into<String>) {
-        self.errors.push(Error::new(span, message.into()));
-    }
-
-    /// Adds a non-fatal warning about potential issues.
-    ///    /// # Parameters
-    ///
-    /// - `message`: A descriptive warning message
-    ///
-    /// # Examples
-    ///
-    /// ```rust,no_run
-    /// # use yoshi_derive::*;
-    /// # struct ValidationContext {
-    /// #     errors: Vec<syn::Error>,
-    /// #     warnings: Vec<String>,
-    /// #     performance_hints: Vec<String>,
-    /// # }
-    /// # impl ValidationContext {
-    /// #     fn new() -> Self {
-    /// #         Self {
-    /// #             errors: Vec::new(),
-    /// #             warnings: Vec::new(),
-    /// #             performance_hints: Vec::new(),
-    /// #         }
-    /// #     }
-    /// #     fn warning(&mut self, message: impl Into<String>) {
-    /// #         self.warnings.push(message.into());
-    /// #     }
-    /// # }
-    /// let mut validation = ValidationContext::new();
-    /// validation.warning("Large number of variants may impact compilation time");
-    /// assert_eq!(validation.warnings.len(), 1);
-    /// ```
-    fn warning(&mut self, message: impl Into<String>) {
-        self.warnings.push(message.into());
-    }
-
-    /// Adds a performance optimization hint.
-    ///    /// # Parameters
-    ///
-    /// - `message`: A descriptive hint for performance improvement
-    ///
-    /// # Examples
-    ///
-    /// ```rust,no_run
-    /// # use yoshi_derive::*;
-    /// # struct ValidationContext {
-    /// #     errors: Vec<syn::Error>,
-    /// #     warnings: Vec<String>,
-    /// #     performance_hints: Vec<String>,
-    /// # }
-    /// # impl ValidationContext {
-    /// #     fn new() -> Self {
-    /// #         Self {
-    /// #             errors: Vec::new(),
-    /// #             warnings: Vec::new(),
-    /// #             performance_hints: Vec::new(),
-    /// #         }
-    /// #     }
-    /// #     fn performance_hint(&mut self, message: impl Into<String>) {
-    /// #         self.performance_hints.push(message.into());
-    /// #     }
-    /// # }
-    /// let mut validation = ValidationContext::new();
-    /// validation.performance_hint("Consider using Arc<str> for large string fields");
-    /// assert_eq!(validation.performance_hints.len(), 1);
-    /// ```
-    fn performance_hint(&mut self, message: impl Into<String>) {
-        self.performance_hints.push(message.into());
-    }
-
-    /// Finalizes validation and returns the result.
-    ///
-    /// This method processes all accumulated errors, warnings, and hints,
-    /// emitting diagnostics as appropriate and returning a `Result` indicating
-    /// whether validation was successful.
-    ///
-    /// # Returns
-    ///
-    /// - `Ok(())` if no fatal errors were encountered
-    /// - `Err(Error)` if fatal errors prevent compilation
-    ///
-    /// # Side Effects
-    ///
-    /// - Emits warnings to stderr
-    /// - Emits performance hints when the appropriate feature is enabled
-    fn finish(self) -> Result<()> {
-        if !self.errors.is_empty() {
-            let mut errors_iter = self.errors.into_iter();
-            let mut combined = errors_iter.next().unwrap();
-            for error in errors_iter {
-                combined.combine(error);
-            }
-            return Err(combined);
-        }
-
-        // Emit warnings and performance hints as compile-time messages
-        for warning in self.warnings {
-            // Using eprintln! for warnings since proc_macro::Diagnostic is still unstable in Rust 1.87
-            // TODO: Migrate to proc_macro::Diagnostic when it stabilizes
-            eprintln!("warning: {warning}");
-        }
-
-        for hint in self.performance_hints {
-            eprintln!("performance hint: {hint}");
-        }
-
-        Ok(())
-    }
+/// Default severity level (medium)
+#[inline]
+const fn get_default_severity() -> u8 {
+    128
 }
 
-/// Main derive macro for YoshiError with comprehensive error handling and Rust 1.87 enhancements.
-///
-/// This procedural macro generates comprehensive error handling implementations for custom
-/// error enums, including `Display`, `std::error::Error`, and conversion to `yoshi_std::Yoshi`.
-/// It leverages Rust 1.87's enhanced macro system for optimal code generation and error reporting.
-///
-/// # Generated Implementations
-///
-/// - `impl Display` with customizable format strings
-/// - `impl std::error::Error` with proper source chaining
-/// - `impl From<T> for yoshi_std::Yoshi` with intelligent kind mapping
-/// - Performance monitoring integration (if enabled)
-/// - Tracing integration (if enabled)
-///
-/// # Rust 1.87 Features Used
-///
-/// - Precise capturing for better async/Send bounds
-/// - Enhanced hygiene for macro-generated code
-/// - Improved error reporting with span information
-///
-/// # Examples
-///
-/// ```rust
-/// use yoshi_derive::YoshiError;
-///
-/// #[derive(Debug, YoshiError)]
-/// pub enum MyError {
-///     #[yoshi(display = "IO operation failed: {message}")]
-///     #[yoshi(kind = "Io")]
-///     IoError { message: String },
-/// }
-/// ```
-///
-/// # Attributes
-///
-/// The macro supports extensive customization through `#[yoshi(...)]` attributes.
-/// See the module-level documentation for comprehensive examples.
+/// Default true value for boolean options
+#[inline]
+const fn default_true() -> bool {
+    true
+}
+
+//--------------------------------------------------------------------------------------------------
+// YoshiError Derive Macro Implementation
+//--------------------------------------------------------------------------------------------------
+
+/// Primary derive macro for `YoshiError` trait implementation
 #[proc_macro_derive(YoshiError, attributes(yoshi))]
 pub fn yoshi_error_derive(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
 
-    match yoshi_error_derive_impl(input) {
+    match yoshi_error_derive_impl(&input) {
         Ok(tokens) => tokens.into(),
         Err(error) => error.to_compile_error().into(),
     }
 }
 
-/// Implementation of the derive macro with advanced error handling and optimization.
-///
-/// This function orchestrates the entire code generation process, from parsing and
-/// validation through to final code emission. It employs a multi-phase approach
-/// for optimal error handling and performance.
-///
-/// # Process Flow
-///
-/// 1. **Parsing**: Extract configuration from derive input using `darling`
-/// 2. **Validation**: Comprehensive error checking and performance analysis
-/// 3. **Code Generation**: Multi-threaded generation of implementation blocks
-/// 4. **Optimization**: Application of Rust 1.87 performance enhancements
-/// 5. **Assembly**: Combination of all generated code into final output
-///
-/// # Parameters
-///
-/// - `input`: The parsed derive input containing the error enum definition
-///
-/// # Returns
-///
-/// - `Ok(TokenStream2)`: Successfully generated implementation code
-/// - `Err(Error)`: Compilation error with detailed diagnostic information
-///
-/// # Performance Characteristics
-///
-/// - Time Complexity: O(V + A + F) where V=variants, A=attributes, F=fields
-/// - Space Complexity: O(V) for variant analysis with memoization
-/// - Expected Runtime: <100ms for typical error enums
-fn yoshi_error_derive_impl(input: DeriveInput) -> Result<TokenStream2> {
-    // Clone the input for attribute expansion
-    let mut input_with_expanded_attrs = input;
+/// Core implementation with comprehensive error handling and optimization
+fn yoshi_error_derive_impl(input: &DeriveInput) -> Result<TokenStream2> {
+    // Parse configuration with enhanced error handling
+    let mut opts = YoshiErrorOpts::from_derive_input(input).map_err(|e| {
+        Error::new(
+            input.ident.span(),
+            format!("Failed to parse yoshi attributes: {e}"),
+        )
+    })?;
 
-    // Pre-process attributes to expand shortcuts
-    expand_attribute_shortcuts(&mut input_with_expanded_attrs.attrs);
-
-    // Process variants to expand their attribute shortcuts
-    if let Data::Enum(ref mut data_enum) = input_with_expanded_attrs.data {
-        for variant in &mut data_enum.variants {
-            expand_attribute_shortcuts(&mut variant.attrs);
-
-            // Process fields within variants
-            for field in &mut variant.fields {
-                expand_attribute_shortcuts(&mut field.attrs);
-            }
-        }
+    // Apply advanced auto-inference with thread-safe caching
+    if opts.auto_inference {
+        apply_ml_inspired_auto_inference(&mut opts)?;
     }
 
-    let mut opts = YoshiErrorOpts::from_derive_input(&input_with_expanded_attrs)?;
-    let mut validation = ValidationContext::new(); // Apply auto-inference before validation
-    apply_auto_inference(&mut opts)?;
+    // Comprehensive validation with early error detection
+    if opts.strict_validation {
+        validate_comprehensive_configuration(&opts)?;
+    }
 
-    // Extract variants data once and ensure it's an enum
-    let darling::ast::Data::Enum(variants) = &opts.data else {
-        return Err(Error::new(
-            opts.ident.span(),
-            "YoshiError can only be derived on enums",
-        ));
-    };
+    // Debug output if requested
+    if opts.debug {
+        emit_debug_information(&opts);
+    }
 
-    // Phase 1: Comprehensive validation
-    validate_enum_structure(&opts, variants, &mut validation)?;
+    // Generate all implementations in optimized order
+    let implementations = generate_all_implementations(&opts)?;
 
-    // Phase 2: Code generation with parallel processing
-    let display_impl = generate_display_impl(&opts, variants, &mut validation)?;
-    let error_impl = generate_error_impl(&opts, variants, &mut validation)?;
-    let yoshi_conversion_impl = generate_yoshi_conversion(&opts, variants, &mut validation)?;
-    let additional_impls = generate_additional_impls(&opts, variants, &mut validation)?;
+    Ok(implementations)
+}
 
-    // Phase 2.5: Advanced feature generation
-    let performance_monitoring = if opts.performance_monitoring {
-        generate_performance_monitoring(&opts, variants)?
+/// Emit debug information during compilation
+fn emit_debug_information(opts: &YoshiErrorOpts) {
+    if let darling::ast::Data::Enum(variants) = &opts.data {
+        eprintln!("=== YOSHI DEBUG OUTPUT ===");
+        eprintln!("Enum: {}", opts.ident);
+        eprintln!("Variants: {}", variants.len());
+        for variant in variants {
+            eprintln!(
+                "  {} -> kind: {:?}, severity: {:?}, transient: {}",
+                variant.ident, variant.kind, variant.severity, variant.transient
+            );
+        }
+        eprintln!("========================");
+    }
+}
+
+/// Generate all implementations with optimal performance
+fn generate_all_implementations(opts: &YoshiErrorOpts) -> Result<TokenStream2> {
+    let display_impl = generate_enhanced_display_impl(opts)?;
+    let error_impl = generate_enhanced_error_impl(opts)?;
+    let yoshi_conversion_impl = generate_enhanced_yoshi_conversion(opts)?;
+    let from_impls = generate_enhanced_from_impls(opts)?;
+
+    let helper_methods = if opts.generate_helpers {
+        generate_enhanced_helper_methods(opts)?
     } else {
         quote! {}
     };
 
-    let tracing_integration = if opts.tracing_integration {
-        generate_tracing_integration(&opts, variants)?
+    let optimizations = if opts.optimize_large {
+        generate_performance_optimizations(opts)
     } else {
         quote! {}
     };
 
-    let precise_capturing_traits = if opts.precise_capturing {
-        generate_precise_capturing_traits(&opts, variants)?
-    } else {
-        quote! {}
-    };
-
-    let documentation_impl = generate_comprehensive_documentation(&opts, variants)?;
-
-    // Phase 3: Finalize validation and emit diagnostics
-    validation.finish()?;
-
-    // Phase 4: Assemble final implementation with documentation
     Ok(quote! {
-        #documentation_impl
         #display_impl
         #error_impl
         #yoshi_conversion_impl
-        #additional_impls
-        #performance_monitoring
-        #tracing_integration
-        #precise_capturing_traits
+        #from_impls
+        #helper_methods
+        #optimizations
     })
 }
 
-/// Expands shorthand attributes to their full `yoshi` attribute form.
-///
-/// This function efficiently processes shorthand attributes by iterating through the
-/// attribute vector and replacing recognized shortcuts with their expanded forms.
-/// Implements an optimized pattern-matching approach for high-performance attribute expansion.
-///
-/// # Parameters
-///
-/// - `attrs`: A mutable reference to a `Vec<Attribute>` to be modified in place.
-fn expand_attribute_shortcuts(attrs: &mut [Attribute]) {
-    for attr in attrs.iter_mut() {
-        if let Some(ident) = attr.path().get_ident() {
-            let attr_name = ident.to_string();
+//--------------------------------------------------------------------------------------------------
+// yoshi_af! Macro for Enhanced LSP Autofix Integration
+//--------------------------------------------------------------------------------------------------
 
-            // Check if it's a shortcut
-            if let Some((_, expansion)) = ATTRIBUTE_SHORTCUTS
-                .iter()
-                .find(|(short, _)| *short == attr_name)
-            {
-                // Replace with expanded form
-                // Parse the expansion as a new attribute
-                if let Ok(new_attr) = syn::parse_str::<syn::Meta>(expansion) {
-                    attr.meta = new_attr;
-                }
-            }
-        }
+/// Enhanced declarative macro for error enum definition with LSP autofix capabilities
+#[proc_macro]
+pub fn yoshi_af(input: TokenStream) -> TokenStream {
+    let mut item_enum = parse_macro_input!(input as ItemEnum);
+
+    match yoshi_af_impl(&mut item_enum, 0) {
+        Ok(tokens) => tokens.into(),
+        Err(error) => error.to_compile_error().into(),
     }
 }
 
-/// Applies auto-inference to all variants in the parsed options.
-///
-/// This function processes all variants in the enum, applying attribute
-/// auto-inference to infer missing attributes from naming patterns and field types.
-///
-/// # Parameters
-///
-/// - `opts`: The parsed error enum options
-///
-/// # Returns
-///
-/// - `Ok(())`: Auto-inference completed successfully
-/// - `Err(Error)`: Auto-inference encountered a fatal error
-fn apply_auto_inference(opts: &mut YoshiErrorOpts) -> Result<()> {
-    if let darling::ast::Data::Enum(ref mut variants) = opts.data {
-        for variant in variants.iter_mut() {
-            infer_yoshi_attributes(variant)?;
-        }
-    }
-    Ok(())
-}
-
-/// Comprehensive auto-inference logic for Yoshi attributes.
-///
-/// This function analyzes variant names and field types to automatically infer
-/// appropriate YoshiError attributes, reducing boilerplate and improving developer
-/// ergonomics while maintaining full customization capability.
-///
-/// # Inference Rules
-///
-/// ## Variant Name Pattern Matching
-/// - Names containing "io", "file" → `kind = "Io"`
-/// - Names containing "network", "connection", "http" → `kind = "Network"`
-/// - Names containing "config", "settings" → `kind = "Config"`
-/// - Names containing "validation", "invalid", "parse" → `kind = "Validation"`
-/// - Names containing "timeout" → `kind = "Timeout"`
-/// - Names containing "not_found", "missing" → `kind = "NotFound"`
-/// - Names containing "internal", "bug", "panic" → `kind = "Internal"`
-/// - Names containing "resource", "limit", "quota" → `kind = "ResourceExhausted"`
-///
-/// ## Field Type Analysis
-/// - `std::io::Error` → `source = true`
-/// - `Box<dyn std::error::Error>` → `source = true`
-/// - `reqwest::Error` → `source = true`
-/// - Field names containing "path", "file" → `context = "file_path"`
-/// - Field names containing "url", "uri" → `context = "endpoint"`
-/// - Field names containing "user", "id" → `context = "identifier"`
-///
-/// ## Display Format Inference
-/// - Single field variants get `display = "{variant_name}: {field}"`
-/// - Multi-field variants get contextual formatting based on field names
-///
-/// # Parameters
-///
-/// - `variant`: The variant to apply auto-inference to
-///
-/// # Returns
-///
-/// - `Ok(())`: Inference applied successfully
-/// - `Err(Error)`: Inference encountered an error
-fn infer_yoshi_attributes(variant: &mut YoshiVariantOpts) -> Result<()> {
-    let variant_name = variant.ident.to_string().to_lowercase();
-
-    // Infer YoshiKind based on variant name patterns
-    if variant.kind.is_none() {
-        variant.kind = Some(
-            match () {
-                _ if variant_name.contains("io") || variant_name.contains("file") => "Io",
-                _ if variant_name.contains("network")
-                    || variant_name.contains("connection")
-                    || variant_name.contains("http") =>
-                {
-                    "Network"
-                }
-                _ if variant_name.contains("config") || variant_name.contains("settings") => {
-                    "Config"
-                }
-                _ if variant_name.contains("validation")
-                    || variant_name.contains("invalid")
-                    || variant_name.contains("parse") =>
-                {
-                    "Validation"
-                }
-                _ if variant_name.contains("timeout") => "Timeout",
-                _ if variant_name.contains("not_found") || variant_name.contains("missing") => {
-                    "NotFound"
-                }
-                _ if variant_name.contains("internal")
-                    || variant_name.contains("bug")
-                    || variant_name.contains("panic") =>
-                {
-                    "Internal"
-                }
-                _ if variant_name.contains("resource")
-                    || variant_name.contains("limit")
-                    || variant_name.contains("quota") =>
-                {
-                    "ResourceExhausted"
-                }
-                _ => "Foreign", // Default fallback
-            }
-            .to_string(),
-        );
-    }
-
-    // Infer severity based on variant name and kind
-    if variant.severity.is_none() {
-        variant.severity = Some(match variant.kind.as_deref() {
-            Some("Internal") => 200,          // High severity for internal errors
-            Some("Timeout") => 100,           // Medium-high for timeouts
-            Some("Network") => 80,            // Medium for network issues
-            Some("Validation") => 60,         // Medium-low for validation
-            Some("Config") => 70,             // Medium for config issues
-            Some("NotFound") => 50,           // Low-medium for not found
-            Some("Io") => 90,                 // Medium-high for I/O
-            Some("ResourceExhausted") => 150, // High for resource exhaustion
-            _ => 75,                          // Default medium severity
-        });
-    } // Analyze fields for auto-inference
-    let is_single_tuple_field =
-        variant.fields.fields.len() == 1 && matches!(variant.fields.style, Style::Tuple);
-
-    for field in &mut variant.fields.fields {
-        // Infer source fields based on type analysis
-        if !field.source && is_error_type(&field.ty) {
-            field.source = true;
-        }
-
-        // Infer context based on field names
-        if field.context.is_none() {
-            if let Some(ref field_name) = field.ident {
-                let name: String = field_name.to_string().to_lowercase();
-                field.context = Some(
-                    match () {
-                        _ if name.contains("path") || name.contains("file") => "file_path",
-                        _ if name.contains("url") || name.contains("uri") => "endpoint",
-                        _ if name.contains("user") || name.contains("id") => "identifier",
-                        _ if name.contains("host") || name.contains("server") => "server",
-                        _ if name.contains("port") => "port",
-                        _ if name.contains("database") || name.contains("db") => "database",
-                        _ if name.contains("table") => "table",
-                        _ if name.contains("query") => "query",
-                        _ => return Ok(()), // No inference
-                    }
-                    .to_string(),
-                );
-            }
-        }
-
-        // Infer from conversions for simple single-field variants
-        if !field.from && is_single_tuple_field && is_error_type(&field.ty) {
-            field.from = true; // Enable From conversion for single unnamed error field
-        }
-
-        // Infer from conversions for common conversion patterns
-        if !field.from && is_single_tuple_field {
-            if let Some(ref field_name) = field.ident {
-                let name = field_name.to_string().to_lowercase();
-                // Common patterns that benefit from From conversion
-                if name.contains("error") || name.contains("cause") || name.contains("source") {
-                    field.from = true;
-                }
-            } else {
-                // Unnamed single field in tuple variant - good candidate for From
-                field.from = true;
-            }
-        }
-    }
-
-    // Infer display format if not provided
-    if variant.display.is_none() {
-        variant.display = Some(generate_inferred_display_format(variant));
-    } // Infer transient flag based on error kind
-    if !variant.transient {
-        variant.transient = matches!(
-            variant.kind.as_deref(),
-            Some("Network" | "Timeout" | "ResourceExhausted")
-        );
-    }
-
-    Ok(())
-}
-
-/// Analyzes a type to determine if it represents an error type suitable for source chaining.
-///
-/// This function performs comprehensive type analysis to identify common error types
-/// that should be marked as source fields for proper error chaining.
-///
-/// # Supported Error Types
-///
-/// - `std::io::Error`
-/// - `Box<dyn std::error::Error>`
-/// - `Box<dyn std::error::Error + Send>`
-/// - `Box<dyn std::error::Error + Sync>`
-/// - `Box<dyn std::error::Error + Send + Sync>`
-/// - Common third-party error types (reqwest, serde_json, etc.)
-///
-/// # Parameters
-///
-/// - `ty`: The type to analyze
-///
-/// # Returns
-///
-/// `true` if the type appears to be an error type suitable for source chaining
-fn is_error_type(ty: &Type) -> bool {
-    let type_string = quote! { #ty }.to_string();
-
-    // Check for common error types
-    type_string.contains("std :: io :: Error")
-        || type_string.contains("Box < dyn std :: error :: Error")
-        || type_string.contains("reqwest :: Error")
-        || type_string.contains("serde_json :: Error")
-        || type_string.contains("tokio :: io :: Error")
-        || type_string.contains("anyhow :: Error")
-        || type_string.contains("eyre :: Report")
-        || type_string.ends_with("Error")
-        || type_string.ends_with("Error >")
-}
-
-/// Generates an inferred display format based on variant structure and field analysis.
-///
-/// This function creates contextually appropriate display format strings by analyzing
-/// the variant's fields and their semantic meaning, providing meaningful default
-/// error messages without requiring explicit configuration.
-///
-/// # Format Generation Strategy
-///
-/// - **Unit variants**: Use variant name directly
-/// - **Single field**: `"{variant_name}: {field}"`
-/// - **Multiple fields**: Contextual formatting based on field names and types
-/// - **Source fields**: Special handling to show error chaining
-///
-/// # Parameters
-///
-/// - `variant`: The variant to generate a display format for
-///
-/// # Returns
-///
-/// An inferred display format string optimized for the variant structure
-fn generate_inferred_display_format(variant: &YoshiVariantOpts) -> String {
-    match variant.fields.style {
-        Style::Unit => {
-            format!("{}", variant.ident)
-        }
-        Style::Tuple if variant.fields.fields.len() == 1 => {
-            format!("{}: {{}}", variant.ident)
-        }
-        Style::Struct => {
-            let fields = &variant.fields.fields;
-            let mut format_parts = vec![format!("{}", variant.ident)];
-
-            // Prioritize important fields for display
-            let important_fields: Vec<_> = fields
-                .iter()
-                .filter(|f| !f.skip && f.ident.is_some())
-                .collect();
-
-            if important_fields.is_empty() {
-                return format!("{}", variant.ident);
-            }
-
-            // Add contextual field information
-            for field in important_fields.iter().take(3) {
-                // Limit to 3 fields for readability
-                if let Some(ref field_name) = field.ident {
-                    let name = field_name.to_string();
-
-                    if field.source {
-                        format_parts.push(format!("caused by {{{}}}", name));
-                    } else if name.to_lowercase().contains("message") {
-                        format_parts.push(format!("{{{}}}", name));
-                    } else {
-                        format_parts.push(format!("{}: {{{}}}", name, name));
-                    }
-                }
-            }
-
-            format_parts.join(" - ")
-        }
-        Style::Tuple => {
-            // Multi-field tuple variant
-            format!(
-                "{}: {}",
-                variant.ident,
-                (0..variant.fields.fields.len())
-                    .map(|i| format!("{{{}}}", i))
-                    .collect::<Vec<_>>()
-                    .join(", ")
-            )
-        }
-    }
-}
-
-/// Validates the enum structure for common issues and optimization opportunities.
-///
-/// This function performs comprehensive validation of the error enum structure,
-/// checking for common issues like duplicate error codes, invalid configurations,
-/// and performance anti-patterns. It also provides optimization suggestions.
-///
-/// # Validation Checks
-///
-/// - Enum is not empty
-/// - Error codes are unique within the enum
-/// - Variant configurations are valid
-/// - Field configurations are consistent
-/// - Performance optimization opportunities
-///
-/// # Parameters
-///
-/// - `opts`: The parsed enum configuration
-/// - `variants`: A slice of `YoshiVariantOpts` representing the enum variants.
-/// - `validation`: Validation context for error accumulation
-///
-/// # Returns
-///
-/// - `Ok(())`: Validation passed successfully
-/// - `Err(Error)`: Fatal validation errors encountered
-fn validate_enum_structure(
-    opts: &YoshiErrorOpts,
-    variants: &[YoshiVariantOpts],
-    validation: &mut ValidationContext,
-) -> Result<()> {
-    // Check for empty enum
-    if variants.is_empty() {
-        validation.error(opts.ident.span(), "Error enum cannot be empty");
-        return Ok(());
-    }
-
-    // Performance analysis for large enums
-    if variants.len() > 50 {
-        validation.performance_hint(format!(
-            "Large error enum with {} variants may impact compilation time. Consider splitting into multiple enums or using error codes for categorization.",
-            variants.len()
+/// Enhanced implementation of [`yoshi_af`] macro with recursion protection
+fn yoshi_af_impl(item_enum: &mut ItemEnum, recursion_depth: usize) -> Result<TokenStream2> {
+    // Prevent infinite recursion
+    if recursion_depth > MAX_MACRO_RECURSION_DEPTH {
+        return Err(Error::new(
+            item_enum.ident.span(),
+            format!("Maximum macro recursion depth exceeded ({MAX_MACRO_RECURSION_DEPTH})"),
         ));
     }
 
-    // Validate error code prefix if provided
-    if let Some(ref prefix) = opts.error_code_prefix {
-        let prefix_regex = REGEX_CACHE.get("error_code_pattern").unwrap();
-        if !prefix_regex.is_match(prefix) {
-            validation.error(
-                opts.ident.span(),
-                format!(
-                    "Error code prefix '{}' must match pattern ^[A-Z][A-Z0-9_]*$",
-                    prefix
-                ),
-            );
-        }
-    }
+    // Extract autofix metadata with comprehensive parsing
+    let autofix_metadata = extract_autofix_metadata(item_enum)?;
 
-    // Validate individual variants
-    for variant in variants {
-        validate_variant(variant, validation)?;
-    }
+    // Generate enhanced autofix trait implementation
+    let autofix_impl = generate_autofix_trait_impl(&item_enum.ident, &autofix_metadata, item_enum)?;
 
-    // Check for duplicate error codes across variants
-    let mut error_codes = HashMap::new();
-    for variant in variants {
-        if let Some(code) = variant.error_code {
-            if let Some(existing) = error_codes.insert(code, &variant.ident) {
-                validation.error(
-                    variant.ident.span(),
-                    format!(
-                        "Duplicate error code {} (already used by {})",
-                        code, existing
-                    ),
-                );
-            }
-        }
-    }
+    // Ensure YoshiError derive is present
+    inject_yoshi_error_derive(item_enum);
 
-    // Performance optimization suggestions
-    let total_fields: usize = variants.iter().map(|v| v.fields.len()).sum();
-    if total_fields > 100 {
-        validation
-            .performance_hint("Consider using Box<T> for large field types to reduce enum size");
-    }
-
-    Ok(())
-}
-
-/// Validates individual variant configuration for correctness and performance.
-///
-/// This function performs detailed validation of each error variant, checking
-/// display format strings, YoshiKind mappings, severity levels, and field
-/// configurations for consistency and correctness.
-///
-/// # Validation Areas
-///
-/// - Display format string validation with placeholder checking
-/// - YoshiKind mapping validation against known types
-/// - Severity level range checking and recommendations
-/// - Field configuration consistency checking
-/// - Source field uniqueness validation
-/// - From conversion field validation
-///
-/// # Parameters
-///
-/// - `variant`: The variant configuration to validate
-/// - `validation`: Validation context for error accumulation
-///
-/// # Returns
-///
-/// - `Ok(())`: Variant validation passed
-/// - `Err(Error)`: Fatal validation errors in variant
-fn validate_variant(variant: &YoshiVariantOpts, validation: &mut ValidationContext) -> Result<()> {
-    // Validate display format if provided
-    if let Some(ref display_format) = variant.display {
-        validate_display_format(display_format, variant, validation)?;
-    }
-
-    // Validate YoshiKind mapping
-    if let Some(ref kind) = variant.kind {
-        validate_yoshi_kind_mapping(kind, variant, validation)?;
-    }
-
-    // Validate severity level with enhanced recommendations
-    if let Some(severity) = variant.severity {
-        match severity {
-            0 => validation
-                .warning("Severity level 0 indicates no error - consider using Result<T> instead"),
-            1..=25 => validation.performance_hint(
-                "Low severity errors might benefit from Result<T, Option<Error>> pattern",
-            ),
-            200..=255 => validation
-                .warning("Very high severity levels should be reserved for system-critical errors"),
-            _ => {} // Normal severity range
-        }
-    }
-
-    // Validate transient flag with context
-    if variant.transient && variant.kind.as_deref() == Some("Internal") {
-        validation.warning(
-            "Internal errors are typically not transient - consider using Network or Timeout kinds",
-        );
-    }
-
-    // Validate fields with comprehensive checking
-    for field in variant.fields.iter() {
-        validate_field(field, validation)?;
-    }
-
-    // Check for source field requirements and consistency
-    let source_fields: Vec<_> = variant.fields.iter().filter(|f| f.source).collect();
-    match source_fields.len() {
-        0 => {
-            // No source field - check if one would be beneficial
-            if variant.kind.as_deref() == Some("Foreign") {
-                validation
-                    .warning("Foreign error kinds typically benefit from a #[yoshi(source)] field");
-            }
-        }
-        1 => {
-            // Exactly one source field - validate its type
-            let _source_field = source_fields[0];
-            // Could add type checking here for common error types
-        }
-        _ => {
-            validation.error(
-                variant.ident.span(),
-                "Only one field can be marked as #[yoshi(source)]",
-            );
-        }
-    }
-
-    // Validate From conversion field requirements
-    let from_fields: Vec<_> = variant.fields.iter().filter(|f| f.from).collect();
-    match (variant.fields.style, from_fields.len()) {
-        (Style::Tuple, n) if n > 1 => {
-            validation.error(
-                variant.ident.span(),
-                "Only one field can be marked as #[yoshi(from)] in tuple variants - automatic From conversion requires unambiguous field selection",
-            );
-        }
-        (Style::Struct, n) if n > 1 => {
-            validation.error(
-                variant.ident.span(),
-                "Only one field can be marked as #[yoshi(from)] in struct variants - use explicit constructors for multi-field conversion",
-            );
-        }
-        (Style::Unit, n) if n > 0 => {
-            validation.error(
-                variant.ident.span(),
-                "Unit variants cannot have #[yoshi(from)] fields - no fields available for conversion",
-            );
-        }
-        (Style::Tuple, 1) if variant.fields.fields.len() == 1 => {
-            // Perfect case: single tuple field with from annotation
-            validation.performance_hint(
-                "Single-field tuple variants with #[yoshi(from)] enable ergonomic ? operator usage",
-            );
-        }
-        (Style::Struct, 1) => {
-            validation.warning(
-                "From conversion on struct variants requires explicit field initialization - consider using constructor functions",
-            );
-        }
-        _ => {} // No from fields or acceptable configuration
-    }
-
-    Ok(())
-}
-
-/// Validates display format strings for correctness and performance characteristics.
-///
-/// This function analyzes display format strings to ensure all placeholders
-/// correspond to actual fields, validates escape sequences, and provides
-/// performance recommendations for complex formatting operations.
-///
-/// # Validation Checks
-///
-/// - Placeholder field name validation
-/// - Escape sequence correctness
-/// - Performance impact analysis
-/// - Format string complexity assessment
-///
-/// # Parameters
-///
-/// - `format_str`: The display format string to validate
-/// - `variant`: The variant containing the format string
-/// - `validation`: Validation context for error accumulation
-///
-/// # Returns
-///
-/// - `Ok(())`: Format string validation passed
-/// - `Err(Error)`: Format string validation failed
-fn validate_display_format(
-    format_str: &str,
-    variant: &YoshiVariantOpts,
-    validation: &mut ValidationContext,
-) -> Result<()> {
-    let placeholder_regex = REGEX_CACHE.get("display_placeholder").unwrap();
-    let field_names: std::collections::HashSet<_> = variant
-        .fields
-        .iter()
-        .filter_map(|f| f.ident.as_ref().map(ToString::to_string))
-        .collect();
-
-    // Validate all placeholders in the format string
-    for cap in placeholder_regex.captures_iter(format_str) {
-        let placeholder = &cap[1];
-
-        // Check if placeholder corresponds to a field or special keyword
-        if placeholder != "source" && !field_names.contains(placeholder) {
-            validation.error(
-                variant.ident.span(),
-                format!(
-                    "Display format references unknown field '{}'. Available fields: {:?}",
-                    placeholder, field_names
-                ),
-            );
-        }
-    }
-
-    // Performance analysis for format strings
-    match format_str.len() {
-        0..=50 => {}, // Optimal range
-        51..=200 => validation.performance_hint(format!(
-            "Moderately long format strings may impact formatting performance: '{}' ({} chars)",
-            format_str, format_str.len()
-        )),
-        _ => validation.performance_hint(format!(
-            "Very long format strings may significantly impact runtime performance - consider simplifying: '{}' ({} chars)",
-            format_str, format_str.len()
-        )),
-    }
-
-    // Check for potential formatting issues
-    if format_str.contains("{{") || format_str.contains("}}") {
-        validation
-            .warning("Escaped braces in format strings may indicate unintended literal braces");
-    }
-
-    // Validate placeholder count for performance
-    let placeholder_count = placeholder_regex.find_iter(format_str).count();
-    if placeholder_count > 10 {
-        validation.performance_hint(
-            "Format strings with many placeholders may benefit from custom Display implementation",
-        );
-    }
-
-    Ok(())
-}
-
-/// Validates YoshiKind mapping for correctness and consistency.
-///
-/// This function ensures that specified YoshiKind values correspond to actual
-/// enum variants in the yoshi-std crate and provides suggestions for optimal
-/// error categorization.
-///
-/// # Valid YoshiKind Values
-///
-/// - `Io`: I/O related errors
-/// - `Network`: Network connectivity and protocol errors
-/// - `Config`: Configuration and settings errors
-/// - `Validation`: Input validation and constraint errors
-/// - `Internal`: Internal logic and invariant errors
-/// - `NotFound`: Resource not found errors
-/// - `Timeout`: Operation timeout errors
-/// - `ResourceExhausted`: Resource exhaustion errors
-/// - `Foreign`: Wrapping of external error types
-/// - `Multiple`: Multiple related errors
-///
-/// # Parameters
-///
-/// - `kind`: The YoshiKind string to validate
-/// - `variant`: The variant containing the kind specification
-/// - `validation`: Validation context for error accumulation
-///
-/// # Returns
-///
-/// - `Ok(())`: Kind validation passed
-/// - `Err(Error)`: Invalid kind specified
-fn validate_yoshi_kind_mapping(
-    kind: &str,
-    variant: &YoshiVariantOpts,
-    validation: &mut ValidationContext,
-) -> Result<()> {
-    let valid_kinds = [
-        "Io",
-        "Network",
-        "Config",
-        "Validation",
-        "Internal",
-        "NotFound",
-        "Timeout",
-        "ResourceExhausted",
-        "Foreign",
-        "Multiple",
-    ];
-
-    if !valid_kinds.contains(&kind) {
-        validation.error(
-            variant.ident.span(),
-            format!(
-                "Unknown YoshiKind '{}'. Valid kinds: {}",
-                kind,
-                valid_kinds.join(", ")
-            ),
-        );
-        return Ok(());
-    }
-
-    // Provide optimization suggestions based on kind
-    match kind {
-        "Foreign" => {
-            if variant.fields.iter().any(|f| f.source) {
-                validation.performance_hint(
-                    "Foreign errors with source fields enable better error chaining",
-                );
-            }
-        }
-        "Timeout" => {
-            let has_duration_field = variant.fields.iter().any(|f| {
-                // Simple heuristic to detect duration-like fields
-                f.ident.as_ref().map_or(false, |id| {
-                    let name = id.to_string().to_lowercase();
-                    name.contains("duration")
-                        || name.contains("timeout")
-                        || name.contains("elapsed")
-                })
-            });
-            if !has_duration_field {
-                validation.performance_hint(
-                    "Timeout errors often benefit from duration fields for debugging",
-                );
-            }
-        }
-        "ResourceExhausted" => {
-            let has_metrics = variant.fields.iter().any(|f| {
-                f.ident.as_ref().map_or(false, |id| {
-                    let name = id.to_string().to_lowercase();
-                    name.contains("limit") || name.contains("current") || name.contains("usage")
-                })
-            });
-            if !has_metrics {
-                validation.performance_hint(
-                    "ResourceExhausted errors benefit from limit/usage fields for diagnostics",
-                );
-            }
-        }
-        _ => {}
-    }
-
-    Ok(())
-}
-
-/// Validates field configuration for consistency and optimization opportunities.
-///
-/// This function checks individual field configurations within error variants,
-/// validating attribute combinations, type compatibility, and providing
-/// optimization suggestions for better performance and usability.
-///
-/// # Validation Areas
-///
-/// - Attribute combination compatibility
-/// - Context key validation for metadata fields
-/// - Type compatibility for source fields
-/// - Performance implications of field configurations
-/// - From conversion attribute validation
-///
-/// # Parameters
-///
-/// - `field`: The field configuration to validate
-/// - `validation`: Validation context for error accumulation
-///
-/// # Returns
-///
-/// - `Ok(())`: Field validation passed
-/// - `Err(Error)`: Field validation failed
-fn validate_field(field: &YoshiFieldOpts, validation: &mut ValidationContext) -> Result<()> {
-    // Validate context key if provided
-    if let Some(ref context_key) = field.context {
-        let valid_key_regex = REGEX_CACHE.get("context_key").unwrap();
-        if !valid_key_regex.is_match(context_key) {
-            validation.error(
-                field.ty.span(),
-                format!("Invalid context key '{}'. Must be a valid identifier matching ^[a-zA-Z_][a-zA-Z0-9_]*$", context_key)
-            );
-        }
-
-        // Performance hint for context keys
-        if context_key.len() > 30 {
-            validation.performance_hint("Long context keys may impact metadata storage efficiency");
-        }
-    }
-
-    // Check for conflicting attributes
-    if field.source && field.shell {
-        validation.error(
-            field.ty.span(),
-            "Field cannot be both #[yoshi(source)] and #[yoshi(shell)] - choose one role per field",
-        );
-    }
-
-    if field.source && field.skip {
-        validation.warning(
-            "Source field marked as skip may hide important error information in Display output",
-        );
-    }
-
-    if field.shell && field.skip {
-        validation.warning("Shell field marked as skip reduces diagnostic utility");
-    }
-
-    // Validate from attribute conflicts
-    if field.from && field.source {
-        validation.warning(
-            "Field marked as both #[yoshi(from)] and #[yoshi(source)] - from conversion will wrap the source error"
-        );
-    }
-
-    if field.from && field.skip {
-        validation.error(
-            field.ty.span(),
-            "Field cannot be both #[yoshi(from)] and #[yoshi(skip)] - from fields must be accessible for conversion"
-        );
-    }
-
-    // Validate format_with function reference
-    if let Some(ref format_fn) = field.format_with {
-        let valid_fn_regex = REGEX_CACHE.get("valid_identifier").unwrap();
-        if !valid_fn_regex.is_match(format_fn) {
-            validation.error(
-                field.ty.span(),
-                format!(
-                    "Invalid format_with function name '{}'. Must be a valid identifier.",
-                    format_fn
-                ),
-            );
-        }
-    }
-
-    // Performance suggestions based on field configuration
-    if field.source && field.context.is_some() && field.shell {
-        validation.performance_hint(
-            "Fields with multiple roles may benefit from being split into separate fields",
-        );
-    }
-
-    // From conversion type compatibility validation
-    if field.from {
-        validate_from_type_compatibility(&field.ty, validation);
-    }
-
-    Ok(())
-}
-
-/// Validates type compatibility for fields marked with `#[yoshi(from)]`.
-///
-/// This function performs comprehensive type analysis to ensure that types marked
-/// for automatic From conversion are suitable for the generated implementation.
-/// It checks for common conversion patterns, validates type complexity, and
-/// provides optimization hints for better performance.
-///
-/// # Validation Areas
-///
-/// - Error type compatibility for source field conversion
-/// - Primitive type validation for simple conversions
-/// - Complex type analysis for performance implications
-/// - Generic type bounds checking
-/// - Reference type validation
-///
-/// # Parameters
-///
-/// - `ty`: The type to validate for From conversion compatibility
-/// - `validation`: Validation context for error and warning accumulation
-///
-/// # Performance Considerations
-///
-/// - Types implementing Copy are preferred for performance
-/// - Large types benefit from Box wrapping
-/// - Generic types require additional bound validation
-fn validate_from_type_compatibility(ty: &Type, validation: &mut ValidationContext) {
-    let type_string = quote! { #ty }.to_string();
-
-    // Remove whitespace for consistent analysis
-    let normalized_type = type_string.replace(' ', "");
-
-    // Check for ideal From conversion types
-    if is_error_type(ty) {
-        validation.performance_hint(
-            "Error types with #[yoshi(from)] enable excellent ? operator ergonomics",
-        );
-        return;
-    }
-
-    // Validate common primitive and standard library types
-    if is_primitive_or_std_type(&normalized_type) {
-        validation.performance_hint(
-            "Primitive and standard library types work well with From conversions",
-        );
-        return;
-    }
-
-    // Check for potentially problematic types
-    if is_complex_generic_type(&normalized_type) {
-        validation.warning(
-            "Complex generic types with From conversion may require additional trait bounds",
-        );
-    }
-
-    if is_large_struct_type(&normalized_type) {
-        validation.performance_hint(
-            "Large types may benefit from Box wrapping for better performance in From conversions",
-        );
-    }
-
-    // Validate reference types
-    if normalized_type.starts_with('&') {
-        validation.warning(
-            "Reference types in From conversions require careful lifetime management - consider owned types"
-        );
-    }
-
-    // Check for function pointer types
-    if normalized_type.contains("fn(") || normalized_type.starts_with("fn(") {
-        validation.performance_hint(
-            "Function pointer types work well with From conversions for callback patterns",
-        );
-    }
-
-    // Validate Option and Result wrappers
-    if normalized_type.starts_with("Option<") {
-        validation.warning(
-            "Option types in From conversions may create nested Option patterns - consider unwrapping"
-        );
-    }
-
-    if normalized_type.starts_with("Result<") {
-        validation.warning(
-            "Result types in From conversions create Result<Result<...>> patterns - consider error flattening"
-        );
-    }
-
-    // Check for Arc/Rc types
-    if normalized_type.starts_with("Arc<") || normalized_type.starts_with("Rc<") {
-        validation.performance_hint(
-            "Arc/Rc types enable efficient cloning in From conversions but may indicate shared ownership needs"
-        );
-    }
-
-    // Validate string types for optimal patterns
-    if normalized_type.contains("String") || normalized_type.contains("&str") {
-        validation.performance_hint(
-            "String types benefit from Into<String> patterns for flexible From conversions",
-        );
-    }
-
-    // Check for collection types
-    if is_collection_type(&normalized_type) {
-        validation.performance_hint(
-            "Collection types in From conversions may benefit from iterator-based construction for performance"
-        );
-    }
-
-    // Validate custom types
-    if !is_known_type(&normalized_type) {
-        validation.performance_hint(
-            "Custom types with From conversion should implement appropriate trait bounds for optimal ergonomics"
-        );
-    }
-}
-
-/// Checks if a type is a primitive or standard library type suitable for From conversion.
-///
-/// # Parameters
-///
-/// - `type_str`: Normalized type string for analysis
-///
-/// # Returns
-///
-/// `true` if the type is a primitive or common standard library type
-fn is_primitive_or_std_type(type_str: &str) -> bool {
-    matches!(
-        type_str,
-        // Primitive types
-        "bool" | "char" | "i8" | "i16" | "i32" | "i64" | "i128" | "isize" |
-        "u8" | "u16" | "u32" | "u64" | "u128" | "usize" | "f32" | "f64" |
-
-        // Common standard library types
-        "String" | "&str" | "str" |
-        "std::string::String" | "std::path::PathBuf" | "std::path::Path" |
-        "std::ffi::OsString" | "std::ffi::CString" |
-        "std::net::IpAddr" | "std::net::SocketAddr" |
-        "std::time::Duration" | "std::time::Instant" | "std::time::SystemTime"
-    ) || type_str.starts_with("std::") && is_std_convertible_type(type_str)
-}
-
-/// Checks if a standard library type is commonly used in From conversions.
-///
-/// # Parameters
-///
-/// - `type_str`: The type string to analyze
-///
-/// # Returns
-///
-/// `true` if it's a commonly converted standard library type
-fn is_std_convertible_type(type_str: &str) -> bool {
-    type_str.contains("::Error")
-        || type_str.contains("::Addr")
-        || type_str.contains("::Path")
-        || type_str.contains("::Duration")
-        || type_str.contains("::Instant")
-}
-
-/// Checks if a type is a complex generic type that may require additional bounds.
-///
-/// # Parameters
-///
-/// - `type_str`: Normalized type string for analysis
-///
-/// # Returns
-///
-/// `true` if the type is a complex generic requiring additional validation
-fn is_complex_generic_type(type_str: &str) -> bool {
-    let generic_count = type_str.matches('<').count();
-    let nested_generics = type_str.matches("<<").count();
-
-    // Complex if it has multiple generic parameters or nested generics
-    generic_count > 2
-        || nested_generics > 0
-        || (type_str.contains('<') && type_str.contains("dyn") && type_str.contains("trait"))
-}
-
-/// Checks if a type is likely to be large and benefit from Box wrapping.
-///
-/// # Parameters
-///
-/// - `type_str`: Normalized type string for analysis
-///
-/// # Returns
-///
-/// `true` if the type is likely large and should be boxed for performance
-fn is_large_struct_type(type_str: &str) -> bool {
-    // Heuristic: types with many generic parameters or known large types
-    let generic_params = type_str.matches(',').count();
-
-    generic_params > 5
-        || type_str.contains("HashMap")
-        || type_str.contains("BTreeMap")
-        || type_str.contains("Vec<Vec<")
-        || type_str.len() > 100 // Very long type names suggest complexity
-}
-
-/// Checks if a type is a collection type.
-///
-/// # Parameters
-///
-/// - `type_str`: Normalized type string for analysis
-///
-/// # Returns
-///
-/// `true` if the type is a collection type
-fn is_collection_type(type_str: &str) -> bool {
-    type_str.starts_with("Vec<")
-        || type_str.starts_with("HashMap<")
-        || type_str.starts_with("BTreeMap<")
-        || type_str.starts_with("HashSet<")
-        || type_str.starts_with("BTreeSet<")
-        || type_str.starts_with("VecDeque<")
-        || type_str.starts_with("LinkedList<")
-        || type_str.contains("::Vec<")
-        || type_str.contains("::HashMap<")
-        || type_str.contains("::BTreeMap<")
-}
-
-/// Checks if a type is a known/recognized type in the Rust ecosystem.
-///
-/// # Parameters
-///
-/// - `type_str`: Normalized type string for analysis
-///
-/// # Returns
-///
-/// `true` if the type is recognized as a common Rust ecosystem type
-fn is_known_type(type_str: &str) -> bool {
-    is_primitive_or_std_type(type_str) ||
-    is_error_type_string(type_str) ||
-    is_collection_type(type_str) ||
-    type_str.starts_with("Option<") ||
-    type_str.starts_with("Result<") ||
-    type_str.starts_with("Box<") ||
-    type_str.starts_with("Arc<") ||
-    type_str.starts_with("Rc<") ||
-    type_str.starts_with("Cow<") ||
-
-    // Common third-party crate types
-    type_str.contains("serde") ||
-    type_str.contains("tokio") ||
-    type_str.contains("reqwest") ||
-    type_str.contains("uuid") ||
-    type_str.contains("chrono") ||
-    type_str.contains("url") ||
-    type_str.contains("regex")
-}
-
-/// Checks if a type string represents an error type (string-based analysis).
-///
-/// This complements the existing `is_error_type` function by working with
-/// string representations for validation purposes.
-///
-/// # Parameters
-///
-/// - `type_str`: The type string to analyze
-///
-/// # Returns
-///
-/// `true` if the string represents an error type
-fn is_error_type_string(type_str: &str) -> bool {
-    type_str.ends_with("Error")
-        || type_str.ends_with("Error>")
-        || type_str.contains("Error+")
-        || type_str.contains("::Error")
-        || type_str.contains("std::io::Error")
-        || type_str.contains("Box<dynerror::Error")
-        || type_str.contains("anyhow::Error")
-        || type_str.contains("eyre::Report")
-}
-
-/// Generates the Display implementation with optimized formatting and comprehensive documentation.
-///
-/// This function creates a high-performance `Display` implementation that respects
-/// custom format strings, handles field skipping, and provides optimal string
-/// formatting performance using Rust 1.87's enhanced formatting capabilities.
-///
-/// # Generated Features
-///
-/// - Custom format string support with placeholder substitution
-/// - Automatic field formatting with type-aware defaults
-/// - Skip field support for internal state
-/// - Performance-optimized string building
-/// - Comprehensive error context in output
-///
-/// # Parameters
-///
-/// - `opts`: The complete enum configuration
-/// - `variants`: A slice of `YoshiVariantOpts` representing the enum variants.
-/// - `validation`: Validation context for error reporting
-///
-/// # Returns
-///
-/// - `Ok(TokenStream2)`: Generated Display implementation
-/// - `Err(Error)`: Code generation failed
-fn generate_display_impl(
-    opts: &YoshiErrorOpts,
-    variants: &[YoshiVariantOpts],
-    validation: &mut ValidationContext,
-) -> Result<TokenStream2> {
-    let enum_name = &opts.ident;
-    let (impl_generics, ty_generics, where_clause) = opts.generics.split_for_impl();
-
-    let match_arms = variants
-        .iter()
-        .map(|variant| generate_display_arm(variant, validation))
-        .collect::<Result<Vec<_>>>()?;
-
-    let doc_comment = if let Some(ref prefix) = opts.doc_prefix {
-        format!(
-            "{} - Generated Display implementation with optimized formatting",
-            prefix
-        )
-    } else {
-        "Generated Display implementation with optimized formatting using Rust 1.87 enhancements"
-            .to_string()
-    };
+    // Generate additional LSP utilities
+    let lsp_utilities = generate_lsp_utilities(&item_enum.ident, &autofix_metadata);
 
     Ok(quote! {
-        #[doc = #doc_comment]
-        impl #impl_generics ::core::fmt::Display for #enum_name #ty_generics #where_clause {
-            fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
-                match self {
-                    #(#match_arms)*
-                }
-            }
-        }
+        #item_enum
+        #autofix_impl
+        #lsp_utilities
     })
 }
 
-/// Generates a single match arm for the Display implementation with advanced formatting.
-///
-/// This function creates an optimized match arm that handles custom format strings,
-/// automatic field formatting, and performance-optimized string construction.
-///
-/// # Features
-///
-/// - Placeholder substitution in custom format strings
-/// - Automatic field enumeration for default formatting
-/// - Skip field support with conditional compilation
-/// - Type-aware formatting suggestions
-/// - Performance optimization for common patterns
-///
-/// # Parameters
-///
-/// - `variant`: The variant to generate a match arm for
-/// - `validation`: Validation context for warnings and hints
-///
-/// # Returns
-///
-/// - `Ok(TokenStream2)`: Generated match arm code
-/// - `Err(Error)`: Match arm generation failed
-fn generate_display_arm(
-    variant: &YoshiVariantOpts,
-    _validation: &mut ValidationContext,
-) -> Result<TokenStream2> {
-    let variant_name = &variant.ident;
-    let enum_name = format_ident!("Self");
+/// Enhanced autofix metadata with comprehensive validation and deduplication
+#[derive(Default, Debug, Clone, PartialEq)]
+struct AutofixMetadata {
+    suggestion: Option<String>,
+    pattern: Option<String>,
+    severity: Option<String>,
+    category: Option<String>,
+    quick_fixes: Vec<String>,
+    confidence: Option<f64>,
+}
 
-    let (pattern, format_logic) = match variant.fields.style {
-        Style::Unit => {
-            let ident_string = variant.ident.to_string();
-            let display_text = variant.display.as_deref().unwrap_or(&ident_string);
-            (
-                quote! { #enum_name::#variant_name },
-                quote! { f.write_str(#display_text) },
-            )
-        }
-        Style::Tuple => {
-            let fields = &variant.fields.fields;
-            let field_patterns: Vec<_> = (0..fields.len())
-                .map(|i| format_ident!("field_{}", i))
-                .collect();
+/// Enhanced autofix metadata extraction with deduplication
+fn extract_autofix_metadata(item_enum: &ItemEnum) -> Result<HashMap<String, AutofixMetadata>> {
+    let mut metadata_map = HashMap::new();
+    let mut seen_suggestions = HashSet::new();
 
-            let pattern = quote! { #enum_name::#variant_name(#(#field_patterns),*) };
+    for variant in &item_enum.variants {
+        let mut metadata = AutofixMetadata::default();
+        let mut found_autofix = false;
 
-            if let Some(display_format) = &variant.display {
-                let format_logic = generate_format_logic(display_format, &field_patterns, fields);
-                (pattern, format_logic)
-            } else {
-                // Enhanced default formatting for unnamed fields
-                let format_logic = if field_patterns.len() == 1 {
-                    let field = &field_patterns[0];
-                    quote! {
-                        write!(f, "{}: {}", stringify!(#variant_name), #field)
-                    }
-                } else {
-                    let mut format_str = format!("{}", variant_name);
-                    let mut args = Vec::new();
-                    for (i, field_ident) in field_patterns.iter().enumerate() {
-                        let field_config = &fields[i];
-                        if !field_config.skip {
-                            format_str = format!("{} {{{}}}", format_str, field_ident);
-                            args.push(quote! { #field_ident });
-                        }
-                    }
-
-                    quote! {
-                        write!(f, #format_str, #(#args),*)
-                    }
-                };
-                (pattern, format_logic)
+        for attr in &variant.attrs {
+            if attr.path().is_ident("autofix") {
+                found_autofix = true;
+                parse_autofix_attribute(attr, &mut metadata)?;
             }
         }
-        Style::Struct => {
-            let fields = &variant.fields.fields;
-            let field_patterns: Vec<_> = fields.iter().map(|f| f.ident.as_ref().unwrap()).collect();
 
-            let pattern = quote! { #enum_name::#variant_name { #(#field_patterns),* } };
+        if found_autofix {
+            validate_autofix_metadata(&metadata, &variant.ident)?;
 
-            if let Some(display_format) = &variant.display {
-                let format_logic =
-                    generate_format_logic_named(display_format, &field_patterns, fields);
-                (pattern, format_logic)
-            } else {
-                // Enhanced default formatting for named fields with skip support
-                let non_skipped_fields: Vec<_> = fields
+            // Deduplicate suggestions
+            if let Some(ref suggestion) = metadata.suggestion {
+                let dedup_key = (
+                    suggestion.clone(),
+                    metadata.pattern.clone().unwrap_or_default(),
+                );
+                if seen_suggestions.contains(&dedup_key) {
+                    continue; // Skip duplicate suggestion
+                }
+                seen_suggestions.insert(dedup_key);
+            }
+
+            metadata_map.insert(variant.ident.to_string(), metadata);
+        }
+    }
+
+    Ok(metadata_map)
+}
+
+/// Parse autofix attribute with enhanced error handling
+fn parse_autofix_attribute(attr: &Attribute, metadata: &mut AutofixMetadata) -> Result<()> {
+    let list = attr
+        .meta
+        .require_list()
+        .map_err(|_| Error::new(attr.span(), "Expected #[autofix(...)] with parentheses"))?;
+
+    list.parse_args_with(|input: syn::parse::ParseStream| {
+        while !input.is_empty() {
+            let path: syn::Path = input.parse()?;
+            let _: syn::Token![=] = input.parse()?;
+            let value: syn::LitStr = input.parse()?;
+
+            match path.get_ident().map(ToString::to_string).as_deref() {
+                Some("suggestion") => metadata.suggestion = Some(value.value()),
+                Some("pattern") => metadata.pattern = Some(value.value()),
+                Some("severity") => metadata.severity = Some(value.value()),
+                Some("category") => metadata.category = Some(value.value()),
+                Some("quick_fixes") => {
+                    metadata.quick_fixes = value
+                        .value()
+                        .split(',')
+                        .map(|s| s.trim().to_string())
+                        .filter(|s| !s.is_empty())
+                        .collect();
+                }
+                Some("confidence") => {
+                    metadata.confidence = value.value().parse().ok();
+                }
+                Some(unknown) => {
+                    return Err(syn::Error::new(
+                        path.span(),
+                        format!("Unknown autofix attribute: {unknown}"),
+                    ));
+                }
+                None => {
+                    return Err(syn::Error::new(
+                        path.span(),
+                        "Invalid autofix attribute path",
+                    ));
+                }
+            }
+
+            if input.peek(syn::Token![,]) {
+                let _: syn::Token![,] = input.parse()?;
+            }
+        }
+        Ok(())
+    })?;
+
+    Ok(())
+}
+
+/// Validate autofix metadata for consistency
+fn validate_autofix_metadata(metadata: &AutofixMetadata, variant_ident: &Ident) -> Result<()> {
+    if metadata.suggestion.is_none() && metadata.quick_fixes.is_empty() {
+        return Err(Error::new(
+            variant_ident.span(),
+            "Autofix attribute must specify either 'suggestion' or 'quick_fixes'",
+        ));
+    }
+
+    if let Some(confidence) = metadata.confidence {
+        if !(0.0..=1.0).contains(&confidence) {
+            return Err(Error::new(
+                variant_ident.span(),
+                "Autofix confidence must be between 0.0 and 1.0",
+            ));
+        }
+    }
+
+    Ok(())
+}
+
+/// Generate enhanced autofix trait implementation
+fn generate_autofix_trait_impl(
+    enum_ident: &Ident,
+    autofix_metadata: &HashMap<String, AutofixMetadata>,
+    item_enum: &ItemEnum,
+) -> Result<TokenStream2> {
+    let autofix_entries = autofix_metadata.iter().map(|(variant_name, metadata)| {
+        let suggestion = metadata
+            .suggestion
+            .as_deref()
+            .unwrap_or("No suggestion available");
+        let category = metadata.category.as_deref().unwrap_or("general");
+        let severity = metadata.severity.as_deref().unwrap_or("error");
+        let confidence = metadata.confidence.unwrap_or(0.8);
+
+        quote! {
+            ::yoshi_std::AutofixEntry {
+                variant_name: #variant_name,
+                suggestion: #suggestion,
+                category: #category,
+                severity: #severity,
+                confidence: #confidence,
+            }
+        }
+    });
+
+    let quick_fix_arms = autofix_metadata.iter().map(|(variant_name, metadata)| {
+        let variant_ident = format_ident_safely(variant_name, Span::call_site())?;
+        let quick_fixes = &metadata.quick_fixes;
+
+        if quick_fixes.is_empty() {
+            Ok(quote! {
+                Self::#variant_ident { .. } | Self::#variant_ident(..) | Self::#variant_ident => &[],
+            })
+        } else {
+            Ok(quote! {
+                Self::#variant_ident { .. } | Self::#variant_ident(..) | Self::#variant_ident => &[#(#quick_fixes),*],
+            })
+        }
+    }).collect::<Result<Vec<_>>>()?;
+
+    let variant_name_arms = item_enum.variants.iter().map(|variant| {
+        let variant_ident = &variant.ident;
+        let pattern = match &variant.fields {
+            Fields::Unit => quote! { Self::#variant_ident },
+            Fields::Unnamed(..) => quote! { Self::#variant_ident(..) },
+            Fields::Named(..) => quote! { Self::#variant_ident { .. } },
+        };
+        quote! { #pattern => stringify!(#variant_ident) }
+    });
+
+    Ok(quote! {
+        impl ::yoshi_std::YoshiAutoFixable for #enum_ident {
+            fn autofix_suggestions() -> &'static [::yoshi_std::AutofixEntry] {
+                &[#(#autofix_entries),*]
+            }
+
+            fn variant_autofix(&self) -> Option<&'static ::yoshi_std::AutofixEntry> {
+                let variant_name = self.variant_name();
+                Self::autofix_suggestions()
                     .iter()
-                    .filter(|f| !f.skip)
-                    .map(|f| f.ident.as_ref().unwrap())
-                    .collect();
-
-                let format_logic = if non_skipped_fields.is_empty() {
-                    quote! { write!(f, "{}", stringify!(#variant_name)) }
-                } else {
-                    quote! {
-                        write!(f, "{}: {{ ", stringify!(#variant_name))?;
-                        #(
-                            write!(f, "{}: {{:?}}, ", stringify!(#non_skipped_fields), #non_skipped_fields)?;
-                        )*
-                        f.write_str("}")
-                    }
-                };
-                (pattern, format_logic)
+                    .find(|entry| entry.variant_name == variant_name)
             }
-        }
-    };
 
-    Ok(quote! {
-        #pattern => {
-            #format_logic
+            fn variant_name(&self) -> &'static str {
+                match self {
+                    #(#variant_name_arms),*
+                }
+            }
+
+            fn quick_fixes(&self) -> &'static [&'static str] {
+                match self {
+                    #(#quick_fix_arms)*
+                    _ => &[],
+                }
+            }
+
+            fn contextual_autofix(&self) -> Option<::yoshi_std::ContextualAutofix> {
+                self.variant_autofix().map(|entry| ::yoshi_std::ContextualAutofix {
+                    entry: entry.clone(),
+                    context: self.error_context().into_iter().map(|(k, v)| (::yoshi_std::Arc::from(k), ::yoshi_std::Arc::from(v))).collect(),
+                    related_errors: self.related_errors().iter().map(|s| ::yoshi_std::Arc::from(*s)).collect(),
+                })
+            }
         }
     })
 }
 
-/// Generates optimized format logic for unnamed fields with advanced placeholder substitution.
-///
-/// This function creates efficient formatting code for unnamed struct fields,
-/// supporting positional placeholders and type-aware formatting optimizations.
-///
-/// # Parameters
-///
-/// - `format_str`: The format string with placeholders
-/// - `field_patterns`: The field identifiers to substitute
-/// - `fields`: Field configuration (for future enhancements)
-///
-/// # Returns
-///
-/// Optimized `TokenStream2` for format logic
-fn generate_format_logic(
-    format_str: &str,
-    field_patterns: &[Ident],
-    fields: &[YoshiFieldOpts],
-) -> TokenStream2 {
-    let mut format_args = Vec::new();
-    let placeholder_regex = REGEX_CACHE.get("display_placeholder").unwrap();
+/// Inject `YoshiError` derive with validation
+fn inject_yoshi_error_derive(item_enum: &mut ItemEnum) {
+    let has_yoshi_derive = item_enum.attrs.iter().any(|attr| {
+        attr.path().is_ident("derive")
+            && attr
+                .parse_args_with(
+                    syn::punctuated::Punctuated::<syn::Path, syn::Token![,]>::parse_terminated,
+                )
+                .is_ok_and(|paths| paths.iter().any(|path| path.is_ident("YoshiError")))
+    });
 
-    // Iterate through placeholders and construct format arguments
-    let mut current_format_str = format_str.to_string();
-    for cap in placeholder_regex.captures_iter(format_str) {
-        let placeholder = &cap[1];
-        if let Ok(idx) = placeholder.parse::<usize>() {
-            if idx < field_patterns.len() {
-                let field_ident = &field_patterns[idx];
-                let field_config = &fields[idx];
-                if field_config.skip {
-                    // Replace {N} with "<skipped>"
-                    current_format_str =
-                        current_format_str.replace(&format!("{{{}}}", idx), "<skipped>");
-                } else if let Some(ref format_fn) = field_config.format_with {
-                    let format_fn_ident = format_ident!("{}", format_fn);
-                    format_args.push(quote! { #format_fn_ident(#field_ident) });
-                } else {
-                    format_args.push(quote! { #field_ident });
-                }
-            } else {
-                // Invalid index placeholder
-                format_args.push(quote! { "<invalid_index>" });
-            }
-        } else {
-            // Non-numeric placeholder (e.g., "{source}") not directly supported for unnamed fields usually
-            format_args.push(quote! { #placeholder });
-        }
-    }
-
-    if format_args.is_empty() && format_str.contains("{}") {
-        // Fallback for simple `{}` when no named placeholders are used
-        quote! {
-            write!(f, #format_str, #(#field_patterns),*)
-        }
-    } else {
-        quote! {
-            write!(f, #format_str, #(#format_args),*)
-        }
+    if !has_yoshi_derive {
+        let derive_attr: Attribute = syn::parse_quote!(#[derive(YoshiError)]);
+        item_enum.attrs.insert(0, derive_attr);
     }
 }
 
-/// Generates advanced format logic for named fields with comprehensive placeholder support.
-///
-/// This function creates sophisticated formatting code for named struct fields,
-/// supporting field name placeholders, source field handling, and performance
-/// optimizations for complex format strings.
-///
-/// # Features
-///
-/// - Named field placeholder substitution
-/// - Special 'source' placeholder handling
-/// - Performance optimization for static strings
-/// - Type-aware formatting hints
-/// - Skip field integration
-///
-/// # Parameters
-///
-/// - `format_str`: The format string with named placeholders
-/// - `field_patterns`: The field identifiers available for substitution
-/// - `fields`: Field configurations for advanced handling
-///
-/// # Returns
-///
-/// Optimized `TokenStream2` for advanced format logic
-fn generate_format_logic_named(
-    format_str: &str,
-    field_patterns: &[&Ident],
-    fields: &[YoshiFieldOpts],
+/// Generate additional LSP utilities
+fn generate_lsp_utilities(
+    enum_ident: &Ident,
+    metadata: &HashMap<String, AutofixMetadata>,
 ) -> TokenStream2 {
-    let placeholder_regex = REGEX_CACHE.get("display_placeholder").unwrap();
-    let mut format_args = Vec::new();
-
-    // Collect mapping of field Ident to its YoshiFieldOpts config
-    let field_configs: HashMap<&Ident, &YoshiFieldOpts> = fields
-        .iter()
-        .filter_map(|f| f.ident.as_ref().map(|ident| (ident, f)))
-        .collect();
-
-    // Generate token streams for each argument based on placeholders
-    for cap in placeholder_regex.captures_iter(format_str) {
-        let placeholder = &cap[1];
-
-        if let Some(&field_ident) = field_patterns.iter().find(|&&ident| ident == placeholder) {
-            if let Some(field_config) = field_configs.get(field_ident) {
-                if field_config.skip {
-                    format_args.push(quote! { #field_ident = "<skipped>" });
-                } else if let Some(ref format_fn) = field_config.format_with {
-                    let format_fn_ident = format_ident!("{}", format_fn);
-                    format_args.push(quote! { #field_ident = #format_fn_ident(#field_ident) });
-                } else {
-                    format_args.push(quote! { #field_ident = #field_ident });
-                }
-            } else {
-                format_args.push(quote! { #field_ident = #field_ident });
-            }
-        } else if placeholder == "source" {
-            // Enhanced source placeholder handling
-            if let Some(source_field_config) = fields.iter().find(|f| f.source) {
-                if let Some(source_ident) = &source_field_config.ident {
-                    format_args.push(quote! { source = #source_ident });
-                } else {
-                    format_args.push(quote! { source = "<unnamed_source>" });
-                }
-            } else {
-                format_args.push(quote! { source = "<no source>" });
-            }
-        } else {
-            // Placeholder not found in fields
-            format_args
-                .push(quote! { #placeholder = format!("<UNKNOWN_FIELD: {}>", #placeholder) });
-        }
-    }
+    let enum_name_str = enum_ident.to_string();
+    let metadata_count = metadata.len();
 
     quote! {
-        write!(f, #format_str, #(#format_args),*)
-    }
-}
-
-/// Generates the Error trait implementation with enhanced source chaining and documentation.
-///
-/// This function creates a comprehensive `std::error::Error` implementation that
-/// properly handles source error chaining, integrates with Rust 1.87's enhanced
-/// error handling capabilities, and provides optimal performance for error introspection.
-///
-/// # Generated Features
-///
-/// - Proper source error chaining with type safety
-/// - Enhanced provide method for error introspection
-/// - Performance-optimized source traversal
-/// - Comprehensive documentation for generated methods
-///
-/// # Parameters
-///
-/// - `opts`: The complete enum configuration
-/// - `variants`: A slice of `YoshiVariantOpts` representing the enum variants.
-/// - `_validation`: Validation context (reserved for future enhancements)
-///
-/// # Returns
-///
-/// - `Ok(TokenStream2)`: Generated Error trait implementation
-/// - `Err(Error)`: Implementation generation failed
-fn generate_error_impl(
-    opts: &YoshiErrorOpts,
-    variants: &[YoshiVariantOpts],
-    _validation: &mut ValidationContext,
-) -> Result<TokenStream2> {
-    let enum_name = &opts.ident;
-    let (impl_generics, ty_generics, where_clause) = opts.generics.split_for_impl();
-    let source_match_arms = variants.iter().map(generate_source_arm).collect::<Vec<_>>();
-
-    let doc_comment = "Generated Error trait implementation with enhanced source chaining and Rust 1.87 optimizations";
-
-    Ok(quote! {
-        #[doc = #doc_comment]
-        impl #impl_generics ::std::error::Error for #enum_name #ty_generics #where_clause {
-            fn source(&self) -> ::core::option::Option<&(dyn ::std::error::Error + 'static)> {
-                match self {
-                    #(#source_match_arms)*
+        impl #enum_ident {
+            /// Get diagnostic information for LSP integration
+            pub fn diagnostic_info(&self) -> ::yoshi_std::DiagnosticInfo {
+                ::yoshi_std::DiagnosticInfo {
+                    error_type: #enum_name_str,
+                    variant: self.variant_name(),
+                    autofix_available: self.variant_autofix().is_some(),
+                    quick_fix_count: self.quick_fixes().len(),
+                    metadata_count: #metadata_count,
                 }
             }
         }
-    })
+    }
 }
 
-/// Generates a match arm for the Error::source implementation with enhanced type handling.
-///
-/// This function creates optimized match arms that properly handle source error
-/// extraction from variants, supporting various field configurations and
-/// providing type-safe error chaining.
-///
-/// # Features
-///
-/// - Automatic source field detection
-/// - Type-safe error reference handling
-/// - Performance-optimized pattern matching
-/// - Comprehensive field pattern generation
-///
-/// # Parameters
-///
-/// - `variant`: The variant to generate a source match arm for
-///
-/// # Returns
-///
-/// Optimized `TokenStream2` for source error extraction
-fn generate_source_arm(variant: &YoshiVariantOpts) -> TokenStream2 {
-    let variant_name = &variant.ident;
-    let enum_name = format_ident!("Self");
+//--------------------------------------------------------------------------------------------------
+// ML-Inspired Auto-Inference Engine with Thread-Safe Caching
+//--------------------------------------------------------------------------------------------------
 
-    // Find the source field with enhanced detection
-    let source_field = variant.fields.fields.iter().find(|f| f.source);
+/// Apply ML-inspired auto-inference with advanced pattern recognition and caching
+fn apply_ml_inspired_auto_inference(opts: &mut YoshiErrorOpts) -> Result<()> {
+    let default_severity = opts.default_severity;
+    let darling::ast::Data::Enum(variants) = &mut opts.data else {
+        return Ok(());
+    };
 
-    match variant.fields.style {
-        Style::Unit => {
-            quote! { #enum_name::#variant_name => None, }
+    for (variant_index, variant) in variants.iter_mut().enumerate() {
+        // Enhanced display format inference with caching
+        if variant.display.is_none() {
+            variant.display = Some(generate_intelligent_display_format(variant));
+        }
+
+        // Advanced error kind inference with ML-inspired scoring
+        if variant.kind.is_none() {
+            variant.kind = Some(infer_ml_inspired_error_kind(
+                &variant.ident,
+                &variant.fields,
+            ));
+        }
+
+        // Enhanced severity inference with contextual analysis
+        if variant.severity.is_none() {
+            variant.severity = Some(infer_intelligent_severity(variant, default_severity));
+        }
+
+        // Advanced source field detection with type analysis
+        enhance_source_field_detection(variant)?;
+
+        // Enhanced transient status inference
+        if !variant.transient {
+            variant.transient = infer_transient_status(&variant.ident, variant.kind.as_deref());
+        }
+
+        // Advanced suggestion generation
+        if variant.suggestion.is_none() {
+            variant.suggestion = generate_contextual_auto_suggestion(variant);
+        }
+
+        // Auto-generate error codes if base is provided
+        if variant.code.is_none() {
+            if let Some(base) = opts.error_code_base {
+                let code = base
+                    + u32::try_from(variant_index)
+                        .expect("Enum variant count exceeds u32::MAX, which is unsupported");
+
+                // Register the code unless override is enabled
+                if !opts.override_codes {
+                    register_error_code(code, &variant.ident.to_string(), variant.ident.span())?;
+                }
+
+                variant.code = Some(code);
+            }
+        } else if let Some(code) = variant.code {
+            // Register explicit error codes
+            if !opts.override_codes {
+                register_error_code(code, &variant.ident.to_string(), variant.ident.span())?;
+            }
+        }
+    }
+
+    Ok(())
+}
+
+/// Generate intelligent display format with context awareness and improved fallbacks
+fn generate_intelligent_display_format(variant: &YoshiVariantOpts) -> String {
+    let variant_name = humanize_identifier(&variant.ident.to_string());
+
+    match &variant.fields.style {
+        Style::Unit => variant_name,
+        Style::Tuple if variant.fields.len() == 1 => {
+            let field = &variant.fields.fields[0];
+            if field.source {
+                format!("{variant_name}: caused by {{0}}")
+            } else if field.sensitive {
+                format!("{variant_name}: [REDACTED]")
+            } else {
+                format!("{variant_name}: {{0}}")
+            }
         }
         Style::Tuple => {
-            let fields = &variant.fields.fields;
-            let field_patterns: Vec<_> = fields
-                .iter()
+            let placeholders: Vec<String> = (0..variant.fields.len())
                 .enumerate()
-                .map(|(i, field_opts)| {
-                    if field_opts.source {
-                        format_ident!("source")
+                .map(|(i, _)| {
+                    if variant.fields.fields[i].sensitive {
+                        "[REDACTED]".to_string()
                     } else {
-                        format_ident!("_field_{}", i)
+                        // Enhanced fallback with type information
+                        let type_name = simplify_type_name(&variant.fields.fields[i].ty);
+                        format!("{{{i}}} ({type_name})")
+                    }
+                })
+                .collect();
+            format!("{variant_name}: ({})", placeholders.join(", "))
+        }
+        Style::Struct => {
+            let important_fields: Vec<_> = variant
+                .fields
+                .iter()
+                .filter(|f| !f.skip && f.ident.is_some())
+                .take(3)
+                .collect();
+
+            if important_fields.is_empty() {
+                return variant_name;
+            }
+
+            let field_formats: Vec<String> = important_fields
+                .iter()
+                .map(|f| {
+                    let field_name = f.ident.as_ref().unwrap().to_string();
+                    if f.sensitive {
+                        format!("{field_name}: [REDACTED]")
+                    } else if f.source {
+                        format!("caused by {{{field_name}}}")
+                    } else {
+                        format!("{field_name}: {{{field_name}}}")
                     }
                 })
                 .collect();
 
-            if source_field.is_some() {
+            format!("{variant_name} {{ {} }}", field_formats.join(", "))
+        }
+    }
+}
+
+/// Simplify type name for display purposes
+fn simplify_type_name(ty: &Type) -> String {
+    let type_str = ty.to_token_stream().to_string();
+
+    // Extract the last component of path types
+    if let Some(last_segment) = type_str.split("::").last() {
+        // Remove generic parameters for cleaner display
+        if let Some(base_name) = last_segment.split('<').next() {
+            return base_name.to_string();
+        }
+        return last_segment.to_string();
+    }
+
+    type_str
+}
+
+/// ML-inspired error kind inference with advanced scoring and caching
+#[allow(clippy::cast_precision_loss)]
+fn infer_ml_inspired_error_kind(
+    variant_name: &Ident,
+    fields: &darling::ast::Fields<YoshiFieldOpts>,
+) -> String {
+    // Create cache key
+    let field_types: Vec<String> = fields
+        .iter()
+        .map(|f| f.ty.to_token_stream().to_string())
+        .collect();
+
+    let cache_key = InferenceCacheKey {
+        variant_name: variant_name.to_string(),
+        field_types: field_types.clone(),
+        field_count: fields.len(),
+    };
+
+    // Check cache first
+    if let Ok(cache) = init_inference_cache().lock() {
+        if let Some(cached_result) = cache.get(&cache_key) {
+            return cached_result.error_kind.clone();
+        }
+    }
+
+    // ML-inspired scoring algorithm
+    let name_lower = variant_name.to_string().to_lowercase();
+    let mut kind_scores: HashMap<&str, f64> = HashMap::new();
+
+    // Advanced pattern matching with weighted scoring
+    let patterns = [
+        ("Io", 0.95, ["io", "file", "path", "fs", "read", "write"]),
+        (
+            "Network",
+            0.90,
+            ["network", "http", "tcp", "connection", "timeout", "url"],
+        ),
+        (
+            "Security",
+            0.88,
+            [
+                "auth",
+                "security",
+                "permission",
+                "credential",
+                "token",
+                "jwt",
+            ],
+        ),
+        (
+            "Validation",
+            0.85,
+            [
+                "validation",
+                "parse",
+                "format",
+                "invalid",
+                "malformed",
+                "decode",
+            ],
+        ),
+        (
+            "Timeout",
+            0.82,
+            [
+                "timeout",
+                "deadline",
+                "expired",
+                "busy",
+                "retry",
+                "transient",
+            ],
+        ),
+        (
+            "Config",
+            0.80,
+            ["config", "setting", "configuration", "env", "param", "var"],
+        ),
+        (
+            "NotFound",
+            0.78,
+            ["notfound", "missing", "absent", "unknown", "empty", "gone"],
+        ),
+        (
+            "ResourceExhausted",
+            0.75,
+            [
+                "resource",
+                "exhausted",
+                "limit",
+                "capacity",
+                "full",
+                "memory",
+            ],
+        ),
+    ];
+
+    for (kind, base_weight, keywords) in patterns {
+        let keyword_score = keywords
+            .iter()
+            .map(|&keyword| {
+                if name_lower.contains(keyword) {
+                    1.0
+                } else {
+                    0.0
+                }
+            })
+            .sum::<f64>()
+            / keywords.len() as f64;
+
+        if keyword_score > 0.0 {
+            kind_scores.insert(kind, base_weight * keyword_score);
+        }
+    }
+
+    // Type-based enhancement scoring
+    for field_type in &field_types {
+        let type_lower = field_type.to_lowercase();
+
+        if type_lower.contains("io::error") {
+            *kind_scores.entry("Io").or_insert(0.0) += 0.5;
+        } else if type_lower.contains("reqwest") || type_lower.contains("hyper") {
+            *kind_scores.entry("Network").or_insert(0.0) += 0.4;
+        } else if type_lower.contains("serde") || type_lower.contains("json") {
+            *kind_scores.entry("Validation").or_insert(0.0) += 0.3;
+        } else if type_lower.contains("auth") || type_lower.contains("jwt") {
+            *kind_scores.entry("Security").or_insert(0.0) += 0.4;
+        }
+    }
+
+    // Select best scoring kind
+    let (best_kind, confidence) = kind_scores
+        .into_iter()
+        .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+        .unwrap_or(("Internal", 0.5));
+
+    let result_kind = best_kind.to_string();
+
+    // Cache the result
+    if let Ok(mut cache) = init_inference_cache().lock() {
+        if cache.len() < INFERENCE_CACHE_SIZE {
+            cache.insert(
+                cache_key,
+                InferenceCacheValue {
+                    error_kind: result_kind.clone(),
+                    confidence_score: confidence,
+                    display_format: String::new(), // Would be filled by display inference
+                    severity: get_default_severity(),
+                },
+            );
+        }
+    }
+
+    result_kind
+}
+
+/// Enhanced severity inference with contextual factors
+fn infer_intelligent_severity(variant: &YoshiVariantOpts, default_severity: u8) -> u8 {
+    let mut base_severity = match variant.kind.as_deref() {
+        Some("Internal") => 240,
+        Some("Security") => 220,
+        Some("ResourceExhausted") => 200,
+        Some("Timeout") => 180,
+        Some("Network") => 160,
+        Some("Io") => 140,
+        Some("Config") => 120,
+        Some("Validation") => 100,
+        Some("NotFound") => 80,
+        _ => default_severity,
+    };
+
+    // Contextual adjustments with bounds checking
+    let adjustments = [
+        (variant.fields.iter().any(|f| f.source), 10),
+        (variant.fields.len() > 3, 5),
+        (variant.transient, -20),
+        (variant.fields.iter().any(|f| f.sensitive), 15),
+    ];
+
+    for (condition, adjustment) in adjustments {
+        if condition {
+            base_severity = base_severity.saturating_add_signed(adjustment);
+        }
+    }
+
+    base_severity
+}
+
+/// Enhanced source field detection with comprehensive type analysis
+fn enhance_source_field_detection(variant: &mut YoshiVariantOpts) -> Result<()> {
+    let source_count = variant.fields.iter().filter(|f| f.source).count();
+
+    // Ensure only one source field is marked
+    if source_count > 1 {
+        return Err(Error::new(
+            variant.ident.span(),
+            format!(
+                "Variant '{}' has {} source fields marked, but only one is allowed",
+                variant.ident, source_count
+            ),
+        ));
+    }
+
+    // If no source field is marked, try to find the best candidate
+    if source_count == 0 {
+        let mut best_candidate_idx = None;
+        let mut best_score = 0;
+
+        for (idx, field) in variant.fields.fields.iter().enumerate() {
+            let score = calculate_source_field_score(&field.ty);
+            if score > best_score {
+                best_score = score;
+                best_candidate_idx = Some(idx);
+            }
+        }
+
+        // Mark the best candidate as source if score is high enough
+        if let Some(idx) = best_candidate_idx {
+            if best_score >= 50 {
+                variant.fields.fields[idx].source = true;
+            }
+        }
+    }
+
+    Ok(())
+}
+
+/// Calculate score for source field candidacy with enhanced type analysis
+fn calculate_source_field_score(ty: &Type) -> i32 {
+    let type_str = ty.to_token_stream().to_string();
+    let mut score = 0;
+
+    // Enhanced error type detection
+    if is_enhanced_error_type(ty) {
+        score += 100;
+    }
+
+    // Specific type bonuses
+    if type_str.contains("std::io::Error") {
+        score += 150;
+    }
+    if type_str.contains("Box<dyn") && type_str.contains("Error") {
+        score += 120;
+    }
+    if type_str.contains("anyhow::Error") || type_str.contains("eyre::Error") {
+        score += 110;
+    }
+
+    // Contextual bonuses
+    if contains_error_keywords(&type_str) {
+        score += 50;
+    }
+    if type_str.contains("Result") {
+        score += 30;
+    }
+
+    score
+}
+
+/// Enhanced transient status inference with pattern recognition
+fn infer_transient_status(variant_name: &Ident, kind: Option<&str>) -> bool {
+    let name_lower = variant_name.to_string().to_lowercase();
+
+    // Check for explicit permanent patterns first
+    if PERMANENT_PATTERNS
+        .iter()
+        .any(|&pattern| name_lower.contains(pattern))
+    {
+        return false;
+    }
+
+    // Check for transient patterns
+    if TRANSIENT_PATTERNS
+        .iter()
+        .any(|&pattern| name_lower.contains(pattern))
+    {
+        return true;
+    }
+
+    // Kind-based inference with enhanced logic
+    match kind {
+        Some("Network" | "Timeout" | "ResourceExhausted") => true,
+        Some("Validation" | "Security" | "NotFound") => false,
+        _ => name_lower.contains("connection") || name_lower.contains("timeout"),
+    }
+}
+
+/// Enhanced automatic suggestion generation with context awareness
+fn generate_contextual_auto_suggestion(variant: &YoshiVariantOpts) -> Option<String> {
+    let variant_name = variant.ident.to_string().to_lowercase();
+
+    let base_suggestion = match variant.kind.as_deref() {
+        Some("Timeout") => {
+            if variant_name.contains("connection") {
+                "Check network connectivity and increase connection timeout"
+            } else {
+                "Consider increasing timeout duration or optimizing the operation"
+            }
+        }
+        Some("Network") => {
+            if variant_name.contains("dns") {
+                "Verify DNS configuration and network connectivity"
+            } else if variant_name.contains("ssl") || variant_name.contains("tls") {
+                "Check SSL/TLS certificate validity and configuration"
+            } else {
+                "Check network connectivity and retry the operation"
+            }
+        }
+        Some("Validation") => {
+            if variant_name.contains("parse") {
+                "Verify input data format and syntax"
+            } else if variant_name.contains("schema") {
+                "Check data against the expected schema"
+            } else {
+                "Verify input data format and constraints"
+            }
+        }
+        Some("NotFound") => {
+            if variant_name.contains("file") || variant_name.contains("path") {
+                "Ensure the file exists and check the path"
+            } else {
+                "Verify the resource identifier and ensure it exists"
+            }
+        }
+        Some("Config") => {
+            "Review configuration settings and ensure all required values are properly set"
+        }
+        Some("Io") => {
+            if variant_name.contains("permission") {
+                "Check file permissions and access rights"
+            } else {
+                "Check file permissions, disk space, and path validity"
+            }
+        }
+        Some("Security") => "Verify authentication credentials and access permissions",
+        Some("ResourceExhausted") => "Free up system resources or increase available capacity",
+        _ => {
+            if variant.transient {
+                "This error may be temporary, consider implementing retry logic with exponential backoff"
+            } else {
+                return None;
+            }
+        }
+    };
+
+    let enhanced_suggestion = if variant.fields.iter().any(|f| f.source) {
+        format!("{base_suggestion}. Check the underlying error for more details.")
+    } else {
+        base_suggestion.to_string()
+    };
+
+    Some(enhanced_suggestion)
+}
+
+//--------------------------------------------------------------------------------------------------
+// Enhanced Code Generation with Performance Optimization
+//--------------------------------------------------------------------------------------------------
+
+/// Generate enhanced Display implementation with intelligent formatting
+fn generate_enhanced_display_impl(opts: &YoshiErrorOpts) -> Result<TokenStream2> {
+    let enum_name = &opts.ident;
+    let (impl_generics, ty_generics, where_clause) = opts.generics.split_for_impl();
+
+    let darling::ast::Data::Enum(variants) = &opts.data else {
+        return Err(Error::new(opts.ident.span(), "Expected enum"));
+    };
+
+    let display_arms = variants
+        .iter()
+        .filter(|v| !v.skip)
+        .map(generate_enhanced_display_arm)
+        .collect::<Result<Vec<_>>>()?;
+
+    // Apply namespace prefix if specified
+    let namespace_prefix = if let Some(namespace) = &opts.namespace {
+        format!("{namespace}: ")
+    } else {
+        String::new()
+    };
+
+    let implementation = if variants.len() > VARIANT_COUNT_THRESHOLD_LARGE {
+        quote! {
+            fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+                write!(f, #namespace_prefix)?;
+                match self {
+                    #(#display_arms)*
+                }
+            }
+        }
+    } else {
+        quote! {
+            fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+                write!(f, #namespace_prefix)?;
+                match self {
+                    #(#display_arms)*
+                }
+            }
+        }
+    };
+
+    Ok(quote! {
+        impl #impl_generics ::std::fmt::Display for #enum_name #ty_generics #where_clause {
+            #implementation
+        }
+    })
+}
+
+/// Generate enhanced display arm with advanced placeholder handling
+fn generate_enhanced_display_arm(variant: &YoshiVariantOpts) -> Result<TokenStream2> {
+    let variant_ident = &variant.ident;
+    let display_fmt = variant
+        .display
+        .as_ref()
+        .ok_or_else(|| Error::new(variant.ident.span(), "Display format should be inferred"))?;
+
+    match &variant.fields.style {
+        Style::Unit => Ok(quote! {
+            Self::#variant_ident => write!(f, #display_fmt),
+        }),
+        Style::Tuple => {
+            let field_patterns: Vec<_> = (0..variant.fields.len())
+                .map(|i| format_ident_safely(&format!("field_{i}"), variant.ident.span()))
+                .collect::<Result<Vec<_>>>()?;
+
+            let format_args = generate_enhanced_tuple_format_args(
+                display_fmt,
+                &field_patterns,
+                &variant.fields.fields,
+            );
+
+            Ok(quote! {
+                Self::#variant_ident(#(#field_patterns),*) => {
+                    write!(f, #display_fmt #format_args)
+                },
+            })
+        }
+        Style::Struct => {
+            let field_patterns: Vec<Ident> = variant
+                .fields
+                .iter()
+                .filter_map(|f| f.ident.clone())
+                .collect();
+
+            let format_args = generate_enhanced_struct_format_args(
+                display_fmt,
+                &field_patterns,
+                &variant.fields.fields,
+            );
+
+            Ok(quote! {
+                Self::#variant_ident { #(#field_patterns),* } => {
+                    write!(f, #display_fmt #format_args)
+                },
+            })
+        }
+    }
+}
+
+/// Generate enhanced format arguments for tuple variants
+fn generate_enhanced_tuple_format_args(
+    display_fmt: &str,
+    field_patterns: &[Ident],
+    field_opts: &[YoshiFieldOpts],
+) -> TokenStream2 {
+    let placeholders = extract_placeholders(display_fmt);
+
+    if placeholders.is_empty() {
+        return quote! {};
+    }
+
+    let args: Vec<_> = placeholders
+        .iter()
+        .enumerate()
+        .filter_map(|(i, placeholder)| {
+            let field_index = if let Ok(index) = placeholder.parse::<usize>() {
+                index
+            } else {
+                i
+            };
+
+            field_patterns.get(field_index).and_then(|field_ident| {
+                field_opts
+                    .get(field_index)
+                    .map(|field_opt| generate_field_format_expression(field_ident, field_opt))
+            })
+        })
+        .collect();
+
+    if args.is_empty() {
+        quote! {}
+    } else {
+        quote! { , #(#args),* }
+    }
+}
+
+/// Generate enhanced format arguments for struct variants
+fn generate_enhanced_struct_format_args(
+    display_fmt: &str,
+    field_patterns: &[Ident],
+    field_opts: &[YoshiFieldOpts],
+) -> TokenStream2 {
+    if !contains_named_placeholders(display_fmt) {
+        return quote! {};
+    }
+
+    let field_map: HashMap<String, (&Ident, &YoshiFieldOpts)> = field_patterns
+        .iter()
+        .zip(field_opts.iter())
+        .map(|(ident, opts)| (ident.to_string(), (ident, opts)))
+        .collect();
+
+    let placeholders = extract_placeholders(display_fmt);
+    let format_assignments: Vec<_> = placeholders
+        .iter()
+        .filter_map(|placeholder| {
+            if let Some((field_ident, field_opt)) = field_map.get(placeholder) {
+                if let Ok(placeholder_ident) = format_ident_safely(placeholder, Span::call_site()) {
+                    let expr = generate_field_format_expression(field_ident, field_opt);
+                    Some(quote! { #placeholder_ident = #expr })
+                } else {
+                    None
+                }
+            } else if placeholder == "source" {
+                Some(generate_source_placeholder_assignment(field_opts))
+            } else if let Ok(placeholder_ident) =
+                format_ident_safely(placeholder, Span::call_site())
+            {
+                Some(quote! { #placeholder_ident = "<unknown>" })
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    if format_assignments.is_empty() {
+        quote! {}
+    } else {
+        quote! { , #(#format_assignments),* }
+    }
+}
+
+/// Generate field format expression with enhanced handling
+fn generate_field_format_expression(
+    field_ident: &Ident,
+    field_opt: &YoshiFieldOpts,
+) -> TokenStream2 {
+    if field_opt.skip {
+        quote! { "<skipped>" }
+    } else if field_opt.sensitive {
+        quote! { "[REDACTED]" }
+    } else if let Some(transform_fn) = &field_opt.transform {
+        if let Ok(transform_fn_ident) = format_ident_safely(transform_fn, Span::call_site()) {
+            quote! { #transform_fn_ident(#field_ident) }
+        } else {
+            quote! { #field_ident }
+        }
+    } else if let Some(format_fn) = &field_opt.format_with {
+        if let Ok(format_fn_ident) = format_ident_safely(format_fn, Span::call_site()) {
+            quote! { #format_fn_ident(#field_ident) }
+        } else {
+            quote! { #field_ident }
+        }
+    } else {
+        quote! { #field_ident }
+    }
+}
+
+/// Generate source placeholder assignment with enhanced fallback handling
+fn generate_source_placeholder_assignment(field_opts: &[YoshiFieldOpts]) -> TokenStream2 {
+    if let Some(source_field) = field_opts.iter().find(|opt| opt.source) {
+        if let Some(ident) = &source_field.ident {
+            quote! { source = #ident }
+        } else {
+            quote! { source = "<unnamed source field>" }
+        }
+    } else {
+        quote! { source = "<no source available>" }
+    }
+}
+
+/// Generate enhanced Error trait implementation
+fn generate_enhanced_error_impl(opts: &YoshiErrorOpts) -> Result<TokenStream2> {
+    let enum_name = &opts.ident;
+    let (impl_generics, ty_generics, where_clause) = opts.generics.split_for_impl();
+
+    let darling::ast::Data::Enum(variants) = opts.data.as_ref() else {
+        return Err(Error::new(opts.ident.span(), "Expected enum"));
+    };
+
+    let source_arms = variants
+        .iter()
+        .filter(|v| !v.skip)
+        .map(|v| generate_enhanced_source_arm(v))
+        .collect::<Vec<_>>();
+
+    let backtrace_method = if opts.backtrace {
+        quote! {
+            fn backtrace(&self) -> Option<&std::backtrace::Backtrace> {
+                None
+            }
+        }
+    } else {
+        quote! {}
+    };
+
+    Ok(quote! {
+        impl #impl_generics ::std::error::Error for #enum_name #ty_generics #where_clause {
+            fn source(&self) -> ::std::option::Option<&(dyn ::std::error::Error + 'static)> {
+                match self {
+                    #(#source_arms)*
+                }
+            }
+
+            #backtrace_method
+        }
+    })
+}
+
+/// Generate enhanced source arm with intelligent source detection
+fn generate_enhanced_source_arm(variant: &YoshiVariantOpts) -> TokenStream2 {
+    let variant_ident = &variant.ident;
+    let source_field_info = variant.fields.iter().enumerate().find(|(_, f)| f.source);
+
+    match &variant.fields.style {
+        Style::Unit => quote! { Self::#variant_ident => None, },
+        Style::Tuple => {
+            if let Some((idx, _)) = source_field_info {
+                let patterns = (0..variant.fields.len()).map(|i| {
+                    if i == idx {
+                        quote! { ref source }
+                    } else {
+                        quote! { _ }
+                    }
+                });
                 quote! {
-                    #enum_name::#variant_name(#(#field_patterns),*) => Some(source),
+                    Self::#variant_ident(#(#patterns),*) => Some(source as &(dyn ::std::error::Error + 'static)),
                 }
             } else {
-                quote! { #enum_name::#variant_name(#(#field_patterns),*) => None, }
+                quote! { Self::#variant_ident(..) => None, }
             }
         }
         Style::Struct => {
-            let fields = &variant.fields.fields;
-            if let Some(source) = source_field {
-                let source_ident = source.ident.as_ref().unwrap();
-                let other_fields: Vec<_> = fields
-                    .iter()
-                    .filter(|f| !f.source)
-                    .map(|f| {
-                        let ident = f.ident.as_ref().unwrap();
-                        quote! { #ident: _ }
-                    })
-                    .collect();
-
+            if let Some((_, field)) = source_field_info {
+                let source_ident = field.ident.as_ref().unwrap();
                 quote! {
-                    #enum_name::#variant_name { #source_ident, #(#other_fields),* } => Some(#source_ident),
+                    Self::#variant_ident { ref #source_ident, .. } => Some(#source_ident as &(dyn ::std::error::Error + 'static)),
                 }
             } else {
-                let all_fields: Vec<_> = fields
-                    .iter()
-                    .map(|f| {
-                        let ident = f.ident.as_ref().unwrap();
-                        quote! { #ident: _ }
-                    })
-                    .collect();
-                quote! { #enum_name::#variant_name { #(#all_fields),* } => None, }
+                quote! { Self::#variant_ident { .. } => None, }
             }
         }
     }
 }
 
-/// Generates comprehensive conversion to Yoshi implementation with intelligent kind mapping.
-///
-/// This function creates an optimized `From<T> for yoshi_std::Yoshi` implementation
-/// that intelligently maps error variants to appropriate `YoshiKind` values,
-/// applies context and metadata, and leverages Rust 1.87's enhanced trait system.
-///
-/// # Generated Features
-///
-/// - Intelligent YoshiKind mapping based on variant attributes
-/// - Automatic context and suggestion application
-/// - Severity level mapping with intelligent defaults
-/// - Metadata extraction from fields
-/// - Performance monitoring integration
-///
-/// # Parameters
-///
-/// - `opts`: The complete enum configuration
-/// - `variants`: A slice of `YoshiVariantOpts` representing the enum variants.
-/// - `_validation`: Validation context (reserved for future enhancements)
-///
-/// # Returns
-///
-/// - `Ok(TokenStream2)`: Generated Yoshi conversion implementation
-/// - `Err(Error)`: Conversion implementation generation failed
-fn generate_yoshi_conversion(
-    opts: &YoshiErrorOpts,
-    variants: &[YoshiVariantOpts],
-    _validation: &mut ValidationContext,
-) -> Result<TokenStream2> {
+/// Generate enhanced Yoshi conversion with comprehensive metadata
+fn generate_enhanced_yoshi_conversion(opts: &YoshiErrorOpts) -> Result<TokenStream2> {
     let enum_name = &opts.ident;
     let (impl_generics, ty_generics, where_clause) = opts.generics.split_for_impl();
+
+    let darling::ast::Data::Enum(variants) = opts.data.as_ref() else {
+        return Err(Error::new(opts.ident.span(), "Expected enum"));
+    };
 
     let conversion_arms = variants
         .iter()
-        .map(|variant| generate_yoshi_conversion_arm(variant, opts))
-        .collect::<Vec<_>>();
-
-    let doc_comment = "Generated conversion to Yoshi with intelligent kind mapping and enhanced metadata preservation";
+        .filter(|v| !v.skip)
+        .map(|variant| generate_enhanced_conversion_arm(variant, opts))
+        .collect::<Result<Vec<_>>>()?;
 
     Ok(quote! {
-        #[doc = #doc_comment]
-        impl #impl_generics ::core::convert::From<#enum_name #ty_generics> for ::yoshi_std::Yoshi #where_clause {
+        impl #impl_generics ::std::convert::From<#enum_name #ty_generics> for ::yoshi_std::Yoshi #where_clause {
             #[track_caller]
             fn from(err: #enum_name #ty_generics) -> Self {
+                let error_message = err.to_string();
                 match err {
                     #(#conversion_arms)*
                 }
@@ -2474,975 +1672,776 @@ fn generate_yoshi_conversion(
     })
 }
 
-/// Generates a conversion arm for a specific variant with comprehensive configuration support.
-///
-/// This function creates an optimized conversion implementation for a single
-/// error variant, handling kind mapping, context application, metadata extraction,
-/// and performance optimization.
-///
-/// # Features
-///
-/// - Intelligent YoshiKind selection based on variant attributes
-/// - Automatic context and suggestion application
-/// - Severity level mapping with intelligent defaults
-/// - Metadata extraction from fields
-/// - Performance monitoring integration
-///
-/// # Parameters
-///
-/// - `variant`: The variant to generate conversion logic for
-/// - `opts`: The overall enum configuration for context
-///
-/// # Returns
-///
-/// Optimized `TokenStream2` for variant conversion logic
-fn generate_yoshi_conversion_arm(
+/// Generate enhanced conversion arm with intelligent metadata handling
+fn generate_enhanced_conversion_arm(
     variant: &YoshiVariantOpts,
     opts: &YoshiErrorOpts,
-) -> TokenStream2 {
-    let variant_name = &variant.ident;
+) -> Result<TokenStream2> {
+    let variant_ident = &variant.ident;
     let enum_name = &opts.ident;
 
-    // Determine the target YoshiKind with enhanced intelligence
-    let yoshi_kind = if let Some(ref kind) = variant.kind {
-        if let Some(ref convert_fn) = variant.convert_with {
-            // Use custom conversion function if specified
-            let convert_fn_ident = format_ident!("{}", convert_fn);
-            quote! { #convert_fn_ident(&err) }
-        } else {
-            generate_specific_yoshi_kind(kind, variant)
-        }
-    } else {
-        // Enhanced default mapping based on variant name patterns
-        quote! {
-            ::yoshi_std::Yoshi::foreign(err)
-        }
-    };
-
-    let pattern_fields = match variant.fields.style {
-        Style::Unit => quote! {},
+    let (pattern, field_refs) = match &variant.fields.style {
+        Style::Unit => (quote! {}, vec![]),
         Style::Tuple => {
-            let field_idents: Vec<_> = (0..variant.fields.fields.len())
-                .map(|i| format_ident!("field_{}", i))
-                .collect();
-            quote!(#(#field_idents),*)
+            let idents: Vec<_> = (0..variant.fields.len())
+                .map(|i| format_ident_safely(&format!("field_{i}"), variant.ident.span()))
+                .collect::<Result<Vec<_>>>()?;
+            (quote! { ( #(#idents),* ) }, idents)
         }
         Style::Struct => {
-            let field_idents: Vec<_> = variant
-                .fields
+            let idents: Vec<_> = variant
                 .fields
                 .iter()
-                .map(|f| f.ident.as_ref().unwrap())
+                .filter_map(|f| f.ident.clone())
                 .collect();
-            quote! { #(#field_idents),* }
+            (quote! { { #(#idents),* } }, idents)
         }
     };
 
-    let variant_pattern = match variant.fields.style {
-        Style::Unit => quote! { #enum_name::#variant_name },
-        Style::Tuple => quote! { #enum_name::#variant_name(#pattern_fields) },
-        Style::Struct => quote! { #enum_name::#variant_name { #pattern_fields } },
+    let yoshi_construction = generate_enhanced_yoshi_construction(variant, opts, &field_refs);
+
+    Ok(quote! {
+        #enum_name::#variant_ident #pattern => {
+            #yoshi_construction
+        }
+    })
+}
+
+/// Generate enhanced Yoshi construction with comprehensive metadata
+fn generate_enhanced_yoshi_construction(
+    variant: &YoshiVariantOpts,
+    opts: &YoshiErrorOpts,
+    field_idents: &[Ident],
+) -> TokenStream2 {
+    let kind_str = variant
+        .kind
+        .as_deref()
+        .or(opts.default_kind.as_deref())
+        .unwrap_or("Internal");
+
+    let base_yoshi = if let Some((_, field_ident)) = variant
+        .fields
+        .iter()
+        .zip(field_idents)
+        .find(|(f, _)| f.source)
+    {
+        quote! {
+            ::yoshi_std::Yoshi::new(::yoshi_std::YoshiKind::Internal {
+                message: ::yoshi_std::Arc::from(error_message.clone()),
+                source: Some(Box::new(::yoshi_std::Yoshi::from(#field_ident))),
+                component: Some(::yoshi_std::Arc::from("unknown")),
+            })
+        }
+    } else {
+        generate_enhanced_yoshi_kind_construction(
+            kind_str,
+            &quote! { error_message },
+            variant,
+            field_idents,
+        )
     };
 
-    let mut yoshi_construction = quote! {
-        let mut yoshi_err = #yoshi_kind;
-    };
+    let mut metadata_statements = vec![quote! { let mut yoshi_err = #base_yoshi; }];
 
-    // Add context if specified
-    if let Some(ref context) = variant.context {
-        yoshi_construction.extend(quote! {
-            yoshi_err = yoshi_err.context(#context);
+    // Add namespace metadata if specified
+    if let Some(namespace) = &opts.namespace {
+        metadata_statements.push(quote! {
+            yoshi_err = yoshi_err.with_metadata("namespace", #namespace);
         });
     }
 
-    // Add suggestion if specified
-    if let Some(ref suggestion) = variant.suggestion {
-        yoshi_construction.extend(quote! {
+    if let Some(suggestion) = &variant.suggestion {
+        metadata_statements.push(quote! {
             yoshi_err = yoshi_err.with_suggestion(#suggestion);
         });
     }
 
-    // Add context metadata from fields
-    for field in &variant.fields.fields {
-        if let Some(ref context_key) = field.context {
-            if let Some(ref field_ident) = field.ident {
-                yoshi_construction.extend(quote! {
-                    yoshi_err = yoshi_err.with_metadata(#context_key, format!("{}", #field_ident));
-                });
-            }
+    let severity = variant.severity.unwrap_or(opts.default_severity);
+    metadata_statements.push(quote! {
+        yoshi_err = yoshi_err.with_priority(#severity);
+    });
+
+    if variant.transient {
+        metadata_statements.push(quote! {
+            yoshi_err = yoshi_err.with_metadata("transient", "true");
+        });
+    }
+
+    if let Some(code) = variant.code {
+        metadata_statements.push(quote! {
+            yoshi_err = yoshi_err.with_metadata("error_code", #code.to_string());
+        });
+    }
+
+    if let Some(category) = &variant.category {
+        metadata_statements.push(quote! {
+            yoshi_err = yoshi_err.with_metadata("category", #category);
+        });
+    }
+
+    if let Some(doc_url) = &variant.doc_url {
+        metadata_statements.push(quote! {
+            yoshi_err = yoshi_err.with_metadata("doc_url", #doc_url);
+        });
+    }
+
+    // Enhanced field-specific metadata with transformation support
+    for (field_opt, field_ident) in variant.fields.iter().zip(field_idents) {
+        if field_opt.source || field_opt.skip {
+            continue;
         }
 
-        // Add payloads
-        if field.shell {
-            if let Some(ref field_ident) = field.ident {
-                yoshi_construction.extend(quote! {
-                    yoshi_err = yoshi_err.with_shell(#field_ident);
-                });
-            }
+        if let Some(context_key) = &field_opt.context {
+            let value = if field_opt.sensitive {
+                quote! { "[REDACTED]".to_string() }
+            } else if let Some(transform_fn) = &field_opt.transform {
+                if let Ok(transform_fn_ident) = format_ident_safely(transform_fn, Span::call_site())
+                {
+                    quote! { format!("{:?}", #transform_fn_ident(#field_ident)) }
+                } else {
+                    quote! { format!("{:?}", #field_ident) }
+                }
+            } else {
+                quote! { format!("{:?}", #field_ident) }
+            };
+            metadata_statements.push(quote! {
+                yoshi_err = yoshi_err.with_metadata(#context_key, #value);
+            });
         }
 
-        // Add suggestions from field-level attributes
-        if let Some(ref suggestion) = field.suggestion {
-            yoshi_construction.extend(quote! {
-                yoshi_err = yoshi_err.with_suggestion(#suggestion);
+        if field_opt.shell {
+            metadata_statements.push(quote! {
+                yoshi_err = yoshi_err.with_shell(format!("{:?}", #field_ident));
             });
         }
     }
 
-    // Add error code if available
-    if let Some(error_code) = variant.error_code {
-        let error_code_str = if let Some(ref prefix) = opts.error_code_prefix {
-            format!("{}-{:04}", prefix, error_code)
-        } else {
-            error_code.to_string()
-        };
-        yoshi_construction.extend(quote! {
-            yoshi_err = yoshi_err.with_metadata("error_code", #error_code_str);
-        });
-    }
+    metadata_statements.push(quote! { yoshi_err });
 
-    yoshi_construction.extend(quote! {
-        yoshi_err
-    });
-
-    quote! {
-        #variant_pattern => {
-            #yoshi_construction
-        }
-    }
+    quote! { #(#metadata_statements)* }
 }
 
-/// Generates specific YoshiKind construction based on the kind attribute.
-///
-/// This function creates optimized YoshiKind construction code that maps variant
-/// fields to appropriate YoshiKind struct fields, providing intelligent defaults
-/// and performance optimizations.
-///
-/// # Parameters
-///
-/// - `kind`: The YoshiKind string identifier
-/// - `variant`: The variant information for field mapping
-///
-/// # Returns
-///
-/// Optimized `TokenStream2` for YoshiKind construction
-fn generate_specific_yoshi_kind(kind: &str, variant: &YoshiVariantOpts) -> TokenStream2 {
-    // Find field mappings
-    let source_field = variant
-        .fields
+/// Generate enhanced `YoshiKind` construction
+fn generate_enhanced_yoshi_kind_construction(
+    kind_str: &str,
+    message: &TokenStream2,
+    variant: &YoshiVariantOpts,
+    field_idents: &[Ident],
+) -> TokenStream2 {
+    let source_expr = if let Some((_, field_ident)) = variant
         .fields
         .iter()
-        .find(|f| f.source)
-        .and_then(|f| f.ident.as_ref());
+        .zip(field_idents)
+        .find(|(f, _)| f.source)
+    {
+        quote! {
+            Some(Box::new(::yoshi_std::Yoshi::from(#field_ident)))
+        }
+    } else {
+        quote! { None }
+    };
 
-    let message_field = variant
-        .fields
-        .fields
-        .iter()
-        .find(|f| {
-            f.ident.as_ref().map_or(false, |id| {
-                let name = id.to_string().to_lowercase();
-                name.contains("message") || name.contains("msg")
+    match kind_str {
+        "Io" => quote! {
+            #[cfg(feature = "std")]
+            {
+                ::yoshi_std::Yoshi::new(::yoshi_std::YoshiKind::Io(
+                    ::std::io::Error::new(::std::io::ErrorKind::Other, #message.as_ref())
+                ))
+            }
+            #[cfg(not(feature = "std"))]
+            {
+                ::yoshi_std::Yoshi::new(::yoshi_std::YoshiKind::Io(
+                    ::yoshi_std::NoStdIo::new(#message.to_string())
+                ))
+            }
+        },
+        "Network" => quote! {
+            ::yoshi_std::Yoshi::new(::yoshi_std::YoshiKind::Network {
+                message: ::yoshi_std::Arc::from(#message.to_string()),
+                source: #source_expr,
+                error_code: None,
             })
-        })
-        .and_then(|f| f.ident.as_ref());
-
-    let variant_ident = &variant.ident; // Get the Ident directly
-
-    match kind {
-        "Io" => {
-            if let Some(source_ident) = source_field {
-                quote! { ::yoshi_std::Yoshi::from(#source_ident) }
-            } else {
-                let msg = message_field
-                    .map(|id| quote! { #id.to_string() })
-                    .unwrap_or_else(|| quote! { format!("{}", stringify!(#variant_ident)) });
-                quote! { ::yoshi_std::Yoshi::from(#msg) }
-            }
-        }
-        "Network" => {
-            let message = message_field
-                .map(|id| quote! { #id.to_string().into() })
-                .unwrap_or_else(|| quote! { format!("{}", stringify!(#variant_ident)).into() });
-            let source = source_field
-                .map(|id| quote! { Some(Box::new(::yoshi_std::Yoshi::from(#id))) })
-                .unwrap_or_else(|| quote! { None });
-
-            quote! {
-                ::yoshi_std::Yoshi::new(::yoshi_std::YoshiKind::Network {
-                    message: #message,
-                    source: #source,
-                    error_code: None,
-                })
-            }
-        }
-        "Config" => {
-            let message = message_field
-                .map(|id| quote! { #id.to_string().into() })
-                .unwrap_or_else(|| quote! { format!("{}", stringify!(#variant_ident)).into() });
-            let source = source_field
-                .map(|id| quote! { Some(Box::new(::yoshi_std::Yoshi::from(#id))) })
-                .unwrap_or_else(|| quote! { None });
-
-            quote! {
-                ::yoshi_std::Yoshi::new(::yoshi_std::YoshiKind::Config {
-                    message: #message,
-                    source: #source,
-                    config_path: None,
-                })
-            }
-        }
-        "Validation" => {
-            let field_name = variant
-                .fields
-                .fields
-                .iter()
-                .find(|f| {
-                    f.ident.as_ref().map_or(false, |id| {
-                        let name = id.to_string().to_lowercase();
-                        name.contains("field") || name.contains("name")
-                    })
-                })
-                .and_then(|f| f.ident.as_ref())
-                .map(|id| quote! { #id.to_string().into() })
-                .unwrap_or_else(|| quote! { "unknown".into() });
-
-            let message = message_field
-                .map(|id| quote! { #id.to_string().into() })
-                .unwrap_or_else(|| quote! { format!("{}", stringify!(#variant_ident)).into() });
-
-            quote! {
-                ::yoshi_std::Yoshi::new(::yoshi_std::YoshiKind::Validation {
-                    field: #field_name,
-                    message: #message,
-                    expected: None,
-                    actual: None,
-                })
-            }
-        }
-        "Internal" => {
-            let message = message_field
-                .map(|id| quote! { #id.to_string().into() })
-                .unwrap_or_else(|| quote! { format!("{}", stringify!(#variant_ident)).into() });
-            let source = source_field
-                .map(|id| quote! { Some(Box::new(::yoshi_std::Yoshi::from(#id))) })
-                .unwrap_or_else(|| quote! { None });
-
-            quote! {
-                ::yoshi_std::Yoshi::new(::yoshi_std::YoshiKind::Internal {
-                    message: #message,
-                    source: #source,
-                    component: None,
-                })
-            }
-        }
-        "NotFound" => {
-            let resource_type = variant
-                .fields
-                .fields
-                .iter()
-                .find(|f| {
-                    f.ident.as_ref().map_or(false, |id| {
-                        let name = id.to_string().to_lowercase();
-                        name.contains("resource") || name.contains("type")
-                    })
-                })
-                .and_then(|f| f.ident.as_ref())
-                .map(|id| quote! { #id.to_string().into() })
-                .unwrap_or_else(|| quote! { "resource".into() });
-
-            let identifier = variant
-                .fields
-                .fields
-                .iter()
-                .find(|f| {
-                    f.ident.as_ref().map_or(false, |id| {
-                        let name = id.to_string().to_lowercase();
-                        name.contains("id") || name.contains("identifier") || name.contains("name")
-                    })
-                })
-                .and_then(|f| f.ident.as_ref())
-                .map(|id| quote! { #id.to_string().into() })
-                .unwrap_or_else(|| quote! { format!("{}", stringify!(#variant_ident)).into() });
-
-            quote! {
-                ::yoshi_std::Yoshi::new(::yoshi_std::YoshiKind::NotFound {
-                    resource_type: #resource_type,
-                    identifier: #identifier,
-                    search_locations: None,
-                })
-            }
-        }
-        "Timeout" => {
-            let operation = variant
-                .fields
-                .fields
-                .iter()
-                .find(|f| {
-                    f.ident.as_ref().map_or(false, |id| {
-                        let name = id.to_string().to_lowercase();
-                        name.contains("operation") || name.contains("action")
-                    })
-                })
-                .and_then(|f| f.ident.as_ref())
-                .map(|id| quote! { #id.to_string().into() })
-                .unwrap_or_else(|| quote! { stringify!(#variant_ident).into() });
-
-            let duration = variant
-                .fields
-                .fields
-                .iter()
-                .find(|f| {
-                    f.ident.as_ref().map_or(false, |id| {
-                        let name = id.to_string().to_lowercase();
-                        name.contains("duration")
-                            || name.contains("timeout")
-                            || name.contains("elapsed")
-                    })
-                })
-                .and_then(|f| f.ident.as_ref())
-                .map(|id| quote! { #id })
-                .unwrap_or_else(|| quote! { ::core::time::Duration::from_secs(30) });
-
-            quote! {
-                ::yoshi_std::Yoshi::new(::yoshi_std::YoshiKind::Timeout {
-                    operation: #operation,
-                    duration: #duration,
-                    expected_max: None,
-                })
-            }
-        }
-        "ResourceExhausted" => {
-            let resource = variant
-                .fields
-                .fields
-                .iter()
-                .find(|f| {
-                    f.ident.as_ref().map_or(false, |id| {
-                        let name = id.to_string().to_lowercase();
-                        name.contains("resource")
-                    })
-                })
-                .and_then(|f| f.ident.as_ref())
-                .map(|id| quote! { #id.to_string().into() })
-                .unwrap_or_else(|| quote! { "unknown".into() });
-
-            let limit = variant
-                .fields
-                .fields
-                .iter()
-                .find(|f| {
-                    f.ident.as_ref().map_or(false, |id| {
-                        let name = id.to_string().to_lowercase();
-                        name.contains("limit")
-                    })
-                })
-                .and_then(|f| f.ident.as_ref())
-                .map(|id| quote! { #id.to_string().into() })
-                .unwrap_or_else(|| quote! { "unknown".into() });
-
-            let current = variant
-                .fields
-                .fields
-                .iter()
-                .find(|f| {
-                    f.ident.as_ref().map_or(false, |id| {
-                        let name = id.to_string().to_lowercase();
-                        name.contains("current") || name.contains("usage")
-                    })
-                })
-                .and_then(|f| f.ident.as_ref())
-                .map(|id| quote! { #id.to_string().into() })
-                .unwrap_or_else(|| quote! { "unknown".into() });
-
-            quote! {
-                ::yoshi_std::Yoshi::new(::yoshi_std::YoshiKind::ResourceExhausted {
-                    resource: #resource,
-                    limit: #limit,
-                    current: #current,
-                    usage_percentage: None,
-                })
-            }
-        }
-        "Foreign" => {
-            if let Some(source_ident) = source_field {
-                quote! { ::yoshi_std::Yoshi::foreign(#source_ident) }
-            } else {
-                quote! { ::yoshi_std::Yoshi::from(format!("{}", stringify!(#variant_ident))) }
-            }
-        }
-        "Multiple" => {
-            quote! {
-                ::yoshi_std::Yoshi::new(::yoshi_std::YoshiKind::Multiple {
-                    errors: vec![::yoshi_std::Yoshi::from(format!("{}", stringify!(#variant_ident)))],
-                    primary_index: Some(0),
-                })
-            }
-        }
-        _ => {
-            // Fallback for unknown kinds
-            quote! { ::yoshi_std::Yoshi::from(format!("{}", stringify!(#variant_ident))) }
-        }
+        },
+        "Validation" => quote! {
+            ::yoshi_std::Yoshi::new(::yoshi_std::YoshiKind::Validation {
+                field: ::yoshi_std::Arc::from("unknown"),
+                message: ::yoshi_std::Arc::from(#message.to_string()),
+                expected: None,
+                actual: None,
+            })
+        },
+        "Config" => quote! {
+            ::yoshi_std::Yoshi::new(::yoshi_std::YoshiKind::Config {
+                message: ::yoshi_std::Arc::from(#message.to_string()),
+                source: #source_expr,
+                config_path: None,
+            })
+        },
+        "Security" => quote! {
+            ::yoshi_std::Yoshi::new(::yoshi_std::YoshiKind::Security {
+                message: ::yoshi_std::Arc::from(#message.to_string()),
+                source: #source_expr,
+                security_level: ::yoshi_std::Arc::from("HIGH"),
+            })
+        },
+        "Timeout" => quote! {
+            ::yoshi_std::Yoshi::new(::yoshi_std::YoshiKind::Timeout {
+                operation: ::yoshi_std::Arc::from(#message.to_string()),
+                duration: ::core::time::Duration::from_millis(5000),
+                expected_max: None,
+            })
+        },
+        "NotFound" => quote! {
+            ::yoshi_std::Yoshi::new(::yoshi_std::YoshiKind::NotFound {
+                resource_type: ::yoshi_std::Arc::from("unknown"),
+                identifier: ::yoshi_std::Arc::from(#message.to_string()),
+                search_locations: None,
+            })
+        },
+        "ResourceExhausted" => quote! {
+            ::yoshi_std::Yoshi::new(::yoshi_std::YoshiKind::ResourceExhausted {
+                resource: ::yoshi_std::Arc::from("unknown"),
+                limit: ::yoshi_std::Arc::from("unknown"),
+                current: ::yoshi_std::Arc::from("unknown"),
+                usage_percentage: None,
+            })
+        },
+        "Foreign" => quote! {
+            ::yoshi_std::Yoshi::new(::yoshi_std::YoshiKind::Foreign {
+                error: Box::new(::std::io::Error::new(::std::io::ErrorKind::Other, #message.as_ref())),
+                error_type_name: ::yoshi_std::Arc::from("generated"),
+            })
+        },
+        "Multiple" => quote! {
+            ::yoshi_std::Yoshi::new(::yoshi_std::YoshiKind::Multiple {
+                errors: vec![],
+                primary_index: None,
+            })
+        },
+        _ => quote! {
+            ::yoshi_std::Yoshi::new(::yoshi_std::YoshiKind::Internal {
+                message: ::yoshi_std::Arc::from(#message.to_string()),
+                source: #source_expr,
+                component: Some(::yoshi_std::Arc::from("unknown")),
+            })
+        },
     }
 }
 
-/// Generates additional trait implementations such as `From` conversions and `Error::provide`.
-///
-/// This function dynamically generates `From` trait implementations for fields
-/// marked with `#[yoshi(from)]` and `Error::provide` implementations for fields
-/// marked with `#[yoshi(shell)]`. It optimizes for common patterns and provides
-/// comprehensive error handling for edge cases.
-///
-/// # Parameters
-///
-/// - `opts`: The parsed error enum options.
-/// - `variants`: A slice of `YoshiVariantOpts` representing the enum variants.
-/// - `validation`: The `ValidationContext` for reporting warnings.
-///
-/// # Returns
-///
-/// A `Result<TokenStream2>` containing the generated implementations or an error.
-fn generate_additional_impls(
-    opts: &YoshiErrorOpts,
-    variants: &[YoshiVariantOpts],
-    validation: &mut ValidationContext,
-) -> Result<TokenStream2> {
+/// Generate enhanced From implementations
+fn generate_enhanced_from_impls(opts: &YoshiErrorOpts) -> Result<TokenStream2> {
     let enum_name = &opts.ident;
     let (impl_generics, ty_generics, where_clause) = opts.generics.split_for_impl();
 
-    let mut from_impls = TokenStream2::new();
+    let darling::ast::Data::Enum(variants) = opts.data.as_ref() else {
+        return Err(Error::new(opts.ident.span(), "Expected enum"));
+    };
 
-    // Generate `From` implementations for fields marked with `#[yoshi(from)]`
-    for variant_opts in variants {
-        let variant_name = &variant_opts.ident;
-        match variant_opts.fields.style {
-            Style::Tuple => {
-                let fields = &variant_opts.fields.fields;
-                if fields.len() == 1 {
-                    let field = &fields[0];
-                    if field.from {
-                        let field_ty = &field.ty;
-                        let field_ident = format_ident!("value");
+    let from_impls = variants
+        .iter()
+        .filter(|v| v.from && !v.skip && v.fields.fields.len() == 1)
+        .map(|variant| {
+            let variant_ident = &variant.ident;
+            let field = &variant.fields.fields[0];
+            let from_type = &field.ty;
 
-                        // Generate comprehensive From implementation with documentation
-                        from_impls.extend(quote! {
-                            #[doc = concat!("Automatically generated From implementation for ", stringify!(#field_ty), " -> ", stringify!(#enum_name), "::", stringify!(#variant_name))]
-                            impl #impl_generics ::core::convert::From<#field_ty> for #enum_name #ty_generics #where_clause {
-                                #[inline]
-                                fn from(#field_ident: #field_ty) -> Self {
-                                    #enum_name::#variant_name(#field_ident)
-                                }
-                            }
-                        });
-
-                        // Generate TryFrom implementation for fallible conversions if beneficial
-                        if is_error_type(&field.ty) {
-                            from_impls.extend(quote! {
-                                #[doc = concat!("Enhanced conversion from ", stringify!(#field_ty), " with error context preservation")]
-                                impl #impl_generics #enum_name #ty_generics #where_clause {
-                                    #[inline]
-                                    pub fn from_source(#field_ident: #field_ty) -> Self {
-                                        #enum_name::#variant_name(#field_ident)
-                                    }
-                                }
-                            });
+            match &variant.fields.style {
+                Style::Tuple => Ok(quote! {
+                    impl #impl_generics ::std::convert::From<#from_type> for #enum_name #ty_generics #where_clause {
+                        #[track_caller]
+                        fn from(value: #from_type) -> Self {
+                            Self::#variant_ident(value)
                         }
                     }
-                } else if fields.iter().any(|f| f.from) {
-                    // Handle multi-field case with validation errors already reported
-                    let from_field_count = fields.iter().filter(|f| f.from).count();
-                    if from_field_count > 0 {
-                        validation.warning(format!(
-                            "#[yoshi(from)] on multi-field tuple variant '{}::{}' is not supported. Consider using explicit constructor functions.",
-                            enum_name, variant_name
-                        ));
-                    }
-                }
-            }
-            Style::Struct => {
-                let fields = &variant_opts.fields.fields;
-                let from_fields: Vec<_> = fields.iter().filter(|f| f.from).collect();
-
-                match from_fields.len() {
-                    1 => {
-                        let from_field = from_fields[0];
-                        let field_ty = &from_field.ty;
-                        let field_name = from_field.ident.as_ref().unwrap();
-                        let field_ident = format_ident!("value");
-
-                        // Generate other field initialization with defaults
-                        let other_fields: Vec<_> = fields
-                            .iter()
-                            .filter(|f| !f.from)
-                            .map(|f| {
-                                let name = f.ident.as_ref().unwrap();
-                                quote! { #name: Default::default() }
-                            })
-                            .collect();
-
-                        from_impls.extend(quote! {
-                            #[doc = concat!("Automatically generated From implementation for ", stringify!(#field_ty), " -> ", stringify!(#enum_name), "::", stringify!(#variant_name))]
-                            #[doc = "Other fields are initialized with Default::default()"]
-                            impl #impl_generics ::core::convert::From<#field_ty> for #enum_name #ty_generics #where_clause
-                            where
-                                #(#other_fields: Default,)*
-                            {
-                                #[inline]
-                                fn from(#field_ident: #field_ty) -> Self {
-                                    #enum_name::#variant_name {
-                                        #field_name: #field_ident,
-                                        #(#other_fields,)*
-                                    }
-                                }
+                }),
+                Style::Struct => {
+                    let field_ident = field.ident.as_ref().unwrap();
+                    Ok(quote! {
+                        impl #impl_generics ::std::convert::From<#from_type> for #enum_name #ty_generics #where_clause {
+                            #[track_caller]
+                            fn from(value: #from_type) -> Self {
+                                Self::#variant_ident { #field_ident: value }
                             }
-                        });
-                    }
-                    n if n > 1 => {
-                        validation.warning(format!(
-                            "#[yoshi(from)] on multiple fields in struct variant '{}::{}' is not supported. Use explicit constructor functions.",
-                            enum_name, variant_name
-                        ));
-                    }
-                    _ => {
-                        // Zero from_fields - no action needed
-                    }
+                        }
+                    })
                 }
+                Style::Unit => Ok(quote! {}),
             }
-            Style::Unit => {
-                // Unit variants with from fields should be caught by validation
-                if variant_opts.fields.fields.iter().any(|f| f.from) {
-                    validation.error(
-                        variant_name.span(),
-                        "Unit variants cannot have #[yoshi(from)] fields",
-                    );
-                }
-            }
-        }
-    }
+        })
+        .collect::<Result<Vec<_>>>()?;
 
-    // Generate helper methods for ergonomic error creation
-    if !from_impls.is_empty() {
-        from_impls.extend(generate_from_helper_methods(opts, variants));
-    }
-
-    Ok(from_impls)
+    Ok(quote! {
+        #(#from_impls)*
+    })
 }
 
-/// Generates helper methods for ergonomic error creation and conversion.
-///
-/// This function creates utility methods that make error creation more ergonomic
-/// when using From conversions, including builder patterns and convenience constructors.
-///
-/// # Parameters
-///
-/// - `opts`: The parsed error enum options
-/// - `variants`: The error enum variants
-///
-/// # Returns
-///
-/// Generated helper method implementations
-fn generate_from_helper_methods(
-    opts: &YoshiErrorOpts,
-    variants: &[YoshiVariantOpts],
-) -> TokenStream2 {
+/// Generate enhanced helper methods
+fn generate_enhanced_helper_methods(opts: &YoshiErrorOpts) -> Result<TokenStream2> {
     let enum_name = &opts.ident;
     let (impl_generics, ty_generics, where_clause) = opts.generics.split_for_impl();
 
-    let mut helper_methods = TokenStream2::new();
+    let darling::ast::Data::Enum(variants) = opts.data.as_ref() else {
+        return Err(Error::new(opts.ident.span(), "Expected enum"));
+    };
 
-    // Generate is_variant methods for variants with from conversions
-    let variant_check_methods = variants.iter()
-        .filter(|variant| variant.fields.fields.iter().any(|f| f.from))
+    let variant_check_methods = variants
+        .iter()
+        .filter(|v| !v.skip)
         .map(|variant| {
-            let variant_name = &variant.ident;
-            let method_name = format_ident!("is_{}", variant_name.to_string().to_lowercase());
+            let variant_ident = &variant.ident;
+            let method_name = format_ident_safely(
+                &format!("is_{}", variant_ident.to_string().to_lowercase()),
+                variant.ident.span(),
+            )?;
             let pattern = generate_variant_pattern(variant);
 
-            quote! {
-                #[doc = concat!("Returns true if this error is a ", stringify!(#variant_name), " variant")]
+            Ok(quote! {
+                /// Check if this error is of the specified variant
                 #[inline]
                 pub fn #method_name(&self) -> bool {
                     matches!(self, #pattern)
                 }
-            }
-        });
+            })
+        })
+        .collect::<Result<Vec<_>>>()?;
 
-    // Generate conversion helper methods
-    let conversion_helpers = variants.iter()
-        .filter(|variant| variant.fields.fields.iter().any(|f| f.from))
-        .filter_map(|variant| {
-            let variant_name = &variant.ident;
-            let from_field = variant.fields.fields.iter().find(|f| f.from)?;
+    let variant_name_arms = variants.iter().filter(|v| !v.skip).map(|variant| {
+        let variant_ident = &variant.ident;
+        let pattern = generate_variant_pattern(variant);
+        let name = variant_ident.to_string();
+        quote! { #pattern => #name, }
+    });
 
-            match variant.fields.style {
-                Style::Tuple if variant.fields.fields.len() == 1 => {
-                    let field_ty = &from_field.ty;
-                    let method_name = format_ident!("into_{}", variant_name.to_string().to_lowercase());
+    let severity_arms = variants.iter().filter(|v| !v.skip).map(|variant| {
+        let pattern = generate_variant_pattern(variant);
+        let severity = variant.severity.unwrap_or(opts.default_severity);
+        quote! { #pattern => #severity, }
+    });
 
-                    Some(quote! {
-                        #[doc = concat!("Attempts to extract the inner ", stringify!(#field_ty), " from a ", stringify!(#variant_name), " variant")]
-                        #[inline]
-                        pub fn #method_name(self) -> ::core::result::Result<#field_ty, Self> {
-                            match self {
-                                #enum_name::#variant_name(value) => Ok(value),
-                                other => Err(other),
-                            }
-                        }
-                    })
-                }
-                Style::Struct => {
-                    let field_name = from_field.ident.as_ref()?;
-                    let field_ty = &from_field.ty;
-                    let method_name = format_ident!("into_{}_field", field_name);
+    let transient_arms = variants.iter().filter(|v| !v.skip).map(|variant| {
+        let pattern = generate_variant_pattern(variant);
+        let transient = variant.transient;
+        quote! { #pattern => #transient, }
+    });
 
-                    Some(quote! {
-                        #[doc = concat!("Attempts to extract the ", stringify!(#field_name), " field from a ", stringify!(#variant_name), " variant")]
-                        #[inline]
-                        pub fn #method_name(self) -> ::core::result::Result<#field_ty, Self> {
-                            match self {
-                                #enum_name::#variant_name { #field_name, .. } => Ok(#field_name),
-                                other => Err(other),
-                            }
-                        }
-                    })
-                }
-                _ => None,
-            }
-        });
+    let kind_arms = variants.iter().filter(|v| !v.skip).map(|variant| {
+        let pattern = generate_variant_pattern(variant);
+        let kind = variant.kind.as_deref().unwrap_or("Internal");
+        quote! { #pattern => #kind, }
+    });
 
-    helper_methods.extend(quote! {
-        impl #impl_generics #enum_name #ty_generics #where_clause {
-            #(#variant_check_methods)*
-            #(#conversion_helpers)*
+    let error_code_arms = variants.iter().filter(|v| !v.skip).map(|variant| {
+        let pattern = generate_variant_pattern(variant);
+        if let Some(code) = variant.code {
+            quote! { #pattern => Some(#code), }
+        } else {
+            quote! { #pattern => None, }
         }
     });
 
-    helper_methods
+    let suggestion_arms = variants.iter().filter(|v| !v.skip).map(|variant| {
+        let pattern = generate_variant_pattern(variant);
+        if let Some(suggestion) = &variant.suggestion {
+            quote! { #pattern => Some(#suggestion), }
+        } else {
+            quote! { #pattern => None, }
+        }
+    });
+
+    Ok(quote! {
+        impl #impl_generics #enum_name #ty_generics #where_clause {
+            #(#variant_check_methods)*
+
+            /// Returns the variant name as a string
+            #[inline]
+            pub fn variant_name(&self) -> &'static str {
+                match self {
+                    #(#variant_name_arms)*
+                }
+            }
+
+            /// Returns the severity level of this error (0-255, higher = more severe)
+            #[inline]
+            pub fn severity(&self) -> u8 {
+                match self {
+                    #(#severity_arms)*
+                }
+            }
+
+            /// Returns true if this error is transient (retryable)
+            #[inline]
+            pub fn is_transient(&self) -> bool {
+                match self {
+                    #(#transient_arms)*
+                }
+            }
+
+            /// Returns the error kind as a string
+            #[inline]
+            pub fn error_kind(&self) -> &'static str {
+                match self {
+                    #(#kind_arms)*
+                }
+            }
+
+            /// Returns the error code if available
+            #[inline]
+            pub fn error_code(&self) -> Option<u32> {
+                match self {
+                    #(#error_code_arms)*
+                }
+            }
+
+            /// Returns the auto-generated suggestion if available
+            #[inline]
+            pub fn suggestion(&self) -> Option<&'static str> {
+                match self {
+                    #(#suggestion_arms)*
+                }
+            }
+
+            /// Returns true if this error has a source
+            #[inline]
+            pub fn has_source(&self) -> bool {
+                self.source().is_some()
+            }
+
+            /// Returns comprehensive error context for debugging
+            pub fn error_context(&self) -> ::std::collections::HashMap<&'static str, String> {
+                let mut context = ::std::collections::HashMap::new();
+                context.insert("variant", self.variant_name().to_string());
+                context.insert("kind", self.error_kind().to_string());
+                context.insert("severity", self.severity().to_string());
+                context.insert("transient", self.is_transient().to_string());
+
+                if let Some(code) = self.error_code() {
+                    context.insert("error_code", code.to_string());
+                }
+
+                if let Some(suggestion) = self.suggestion() {
+                    context.insert("suggestion", suggestion.to_string());
+                }
+
+                context
+            }
+
+            /// Returns related error information for diagnostic purposes
+            pub fn related_errors(&self) -> Vec<&'static str> {
+                vec![]
+            }
+        }
+    })
 }
 
-/// Generate pattern for matching a variant in performance monitoring
-fn generate_variant_pattern(variant: &YoshiVariantOpts) -> TokenStream2 {
-    let variant_name = &variant.ident;
+/// Generate advanced performance optimizations
+fn generate_performance_optimizations(opts: &YoshiErrorOpts) -> TokenStream2 {
+    let darling::ast::Data::Enum(variants) = opts.data.as_ref() else {
+        return quote! {};
+    };
 
-    match variant.fields.style {
-        Style::Unit => quote! { Self::#variant_name },
-        Style::Tuple => quote! { Self::#variant_name(..) },
-        Style::Struct => quote! { Self::#variant_name { .. } },
+    let variant_count = variants.len();
+
+    if variant_count > VARIANT_COUNT_THRESHOLD_HUGE {
+        quote! {
+            const _: () = {
+                const VARIANT_COUNT: usize = #variant_count;
+                const _: [(); 1] = [(); (VARIANT_COUNT < 1000) as usize];
+
+                #[repr(C)]
+                struct _SizeOptimizationHint;
+            };
+        }
+    } else if variant_count > VARIANT_COUNT_THRESHOLD_LARGE {
+        quote! {
+            const _: () = {
+                const VARIANT_COUNT: usize = #variant_count;
+                const _: [(); 1] = [(); (VARIANT_COUNT < 500) as usize];
+            };
+        }
+    } else {
+        quote! {}
     }
 }
 
-/// Generates performance monitoring code for error tracking and metrics.
-///
-/// This function creates comprehensive performance monitoring implementations that track:
-/// - Error creation timestamps and frequency
-/// - Error propagation patterns
-/// - Performance impact analysis
-/// - Memory usage tracking
-///
-/// # Parameters
-///
-/// - `opts`: The parsed error enum options
-/// - `variants`: The parsed variant data
-///
-/// # Returns
-///
-/// Generated performance monitoring implementations
-fn generate_performance_monitoring(
-    opts: &YoshiErrorOpts,
-    variants: &[YoshiVariantOpts],
-) -> Result<TokenStream2> {
-    let enum_name = &opts.ident;
-    let (impl_generics, ty_generics, where_clause) = opts.generics.split_for_impl();
+//--------------------------------------------------------------------------------------------------
+// Comprehensive Validation Implementation
+//--------------------------------------------------------------------------------------------------
 
-    // Generate variant pattern matching for performance metrics
-    let variant_match_arms = variants.iter().map(|variant| {
-        let variant_name = &variant.ident;
-        let variant_pattern = generate_variant_pattern(variant);
-        let variant_str = variant_name.to_string();
-
-        quote! {
-            #variant_pattern => #variant_str,
-        }
-    });
-
-    // Generate error code extraction
-    let error_code_match_arms = variants.iter().map(|variant| {
-        let variant_pattern = generate_variant_pattern(variant);
-        let error_code = variant.error_code.unwrap_or(0);
-
-        quote! {
-            #variant_pattern => #error_code,
-        }
-    });
-
-    // Generate severity extraction
-    let severity_match_arms = variants.iter().map(|variant| {
-        let variant_pattern = generate_variant_pattern(variant);
-        let severity = variant.severity.unwrap_or(opts.default_severity);
-
-        quote! {
-            #variant_pattern => #severity,
-        }
-    });
-
-    let performance_metrics = quote! {
-        impl #impl_generics #enum_name #ty_generics #where_clause {
-            /// Gets the variant name for this error instance
-            pub fn variant_name(&self) -> &'static str {
-                match self {
-                    #(#variant_match_arms)*
-                }
-            }
-
-            /// Gets the error code for this error instance
-            pub fn error_code(&self) -> Option<u32> {
-                let code = match self {
-                    #(#error_code_match_arms)*
-                };
-                if code == 0 { None } else { Some(code) }
-            }
-
-            /// Gets the severity level for this error instance
-            pub fn severity(&self) -> Option<u8> {
-                Some(match self {
-                    #(#severity_match_arms)*
-                })
-            }
-
-            /// Performance monitoring data for this error type
-            #[cfg(feature = "performance-monitoring")]
-            pub fn performance_metrics(&self) -> PerformanceMetrics {
-                PerformanceMetrics {
-                    error_type: stringify!(#enum_name),
-                    variant_name: self.variant_name(),
-                    creation_time: ::std::time::Instant::now(),
-                    memory_usage: ::std::mem::size_of_val(self),
-                }
-            }
-
-            /// Track error creation for performance analysis
-            #[cfg(feature = "performance-monitoring")]
-            pub fn track_creation(&self) {
-                // Track error creation using external function when available
-                #[cfg(feature = "yoshi-std")]
-                if let Ok(metrics) = self.performance_metrics() {
-                    eprintln!("Performance tracking: {} created at {:?}",
-                             metrics.error_type, metrics.creation_time);
-                }
-            }
-        }
-
-        /// Performance metrics structure for error tracking
-        #[cfg(feature = "performance-monitoring")]
-        #[derive(Debug, Clone)]
-        pub struct PerformanceMetrics {
-            /// The error type name
-            pub error_type: &'static str,
-            /// The variant name
-            pub variant_name: &'static str,
-            /// Creation timestamp
-            pub creation_time: ::std::time::Instant,
-            /// Memory usage in bytes
-            pub memory_usage: usize,
-        }
+/// Enhanced comprehensive configuration validation
+fn validate_comprehensive_configuration(opts: &YoshiErrorOpts) -> Result<()> {
+    let darling::ast::Data::Enum(variants) = opts.data.as_ref() else {
+        return Err(Error::new(opts.ident.span(), "Expected enum"));
     };
 
-    Ok(performance_metrics)
-}
+    if variants.is_empty() {
+        return Err(Error::new(
+            opts.ident.span(),
+            "YoshiError enum cannot be empty",
+        ));
+    }
 
-/// Generates tracing integration for comprehensive error tracking.
-///
-/// This function creates tracing spans and events that integrate with the `tracing` crate
-/// to provide detailed error tracking, correlation, and observability.
-///
-/// # Parameters
-///
-/// - `opts`: The parsed error enum options
-/// - `variants`: The parsed variant data
-///
-/// # Returns
-///
-/// Generated tracing integration implementations
-fn generate_tracing_integration(
-    opts: &YoshiErrorOpts,
-    variants: &[YoshiVariantOpts],
-) -> Result<TokenStream2> {
-    let enum_name = &opts.ident;
-    let (impl_generics, ty_generics, where_clause) = opts.generics.split_for_impl();
+    let variant_count = variants.len();
 
-    // Generate match arms for variant name extraction
-    let variant_match_arms = variants.iter().map(|variant| {
-        let variant_name = &variant.ident;
-        let variant_pattern = generate_variant_pattern(variant);
-        let variant_str = variant_name.to_string();
-
-        quote! {
-            #variant_pattern => #variant_str,
-        }
-    });
-
-    let tracing_impl = quote! {
-        impl #impl_generics #enum_name #ty_generics #where_clause {
-            /// Create a tracing span for this error
-            #[cfg(feature = "tracing")]
-            pub fn create_span(&self) -> ::tracing::Span {
-                let variant_name = match self {
-                    #(#variant_match_arms)*
-                };
-
-                ::tracing::error_span!(
-                    "yoshi_error",
-                    error_type = stringify!(#enum_name),
-                    variant = variant_name,
-                    error_code = self.error_code().unwrap_or(0),
-                    severity = self.severity().unwrap_or(50)
-                )
-            }
-
-            /// Emit a tracing event for this error
-            #[cfg(feature = "tracing")]
-            pub fn trace_error(&self) {
-                let _span = self.create_span().entered();
-
-                ::tracing::error!(
-                    message = %self,
-                    error_chain = ?self.source(),
-                    "Error occurred"
-                );
-            }
-
-            /// Create a tracing span with context
-            #[cfg(feature = "tracing")]
-            pub fn trace_with_context<F, R>(&self, f: F) -> R
-            where
-                F: FnOnce() -> R,
-            {
-                let _span = self.create_span().entered();
-                self.trace_error();
-                f()
-            }
-        }
-    };
-
-    Ok(tracing_impl)
-}
-
-/// Generates Rust 1.87 precise capturing trait implementations.
-///
-/// This function creates trait implementations that leverage Rust 1.87's precise capturing
-/// features for better async/Send bounds and improved compiler optimization.
-///
-/// # Parameters
-///
-/// - `opts`: The parsed error enum options
-/// - `variants`: The parsed variant data
-///
-/// # Returns
-///
-/// Generated precise capturing trait implementations
-fn generate_precise_capturing_traits(
-    opts: &YoshiErrorOpts,
-    _variants: &[YoshiVariantOpts],
-) -> Result<TokenStream2> {
-    let enum_name = &opts.ident;
-    let (impl_generics, ty_generics, where_clause) = opts.generics.split_for_impl();
-
-    let precise_capturing = quote! {
-        // Rust 1.87 precise capturing for async compatibility
-        impl #impl_generics #enum_name #ty_generics #where_clause {
-            /// Async-safe error conversion with precise capturing
-            #[cfg(feature = "async")]
-            pub async fn async_convert<T>(self) -> ::core::result::Result<T, ::yoshi_std::Yoshi>
-            where
-                Self: Into<::yoshi_std::Yoshi> + Send + 'static,
-                T: Default + Send + 'static,
-            {
-                // Use precise capturing to ensure optimal async bounds
-                let yoshi_error: ::yoshi_std::Yoshi = self.into();
-
-                // Yield to allow other tasks to run
-                #[cfg(feature = "tokio")]
-                ::tokio::task::yield_now().await;
-
-                Err(yoshi_error)
-            }
-
-            /// Precise error propagation with optimized bounds
-            pub fn propagate_with_precision<E>(self) -> ::core::result::Result<(), E>
-            where
-                E: From<Self> + Send + Sync + 'static,
-                Self: Send + Sync + 'static,
-            {
-                Err(E::from(self))
-            }
-        }
-    };
-
-    Ok(precise_capturing)
-}
-
-/// Generates comprehensive documentation for the error enum and its variants.
-///
-/// This function creates detailed documentation that incorporates user-provided
-/// documentation comments and automatically generated usage examples.
-///
-/// # Parameters
-///
-/// - `opts`: The parsed error enum options
-/// - `variants`: The parsed variant data
-///
-/// # Returns
-///
-/// Generated documentation implementations
-fn generate_comprehensive_documentation(
-    opts: &YoshiErrorOpts,
-    variants: &[YoshiVariantOpts],
-) -> Result<TokenStream2> {
-    let enum_name = &opts.ident;
-    let (impl_generics, ty_generics, where_clause) = opts.generics.split_for_impl();
-    let doc_prefix = opts.doc_prefix.as_deref().unwrap_or("Error");
-
-    // Extract variant identifiers and their documentation strings
-    let variant_match_arms = variants.iter().map(|variant| {
-        let variant_pattern = generate_variant_pattern(variant);
-        let custom_doc = variant.doc.as_deref().unwrap_or("");
-        let severity = variant.severity.unwrap_or(opts.default_severity);
-        let kind = variant.kind.as_deref().unwrap_or("General");
-
-        let doc_string = if custom_doc.is_empty() {
+    if variant_count > VARIANT_COUNT_THRESHOLD_LARGE && !opts.optimize_large {
+        return Err(Error::new(
+            opts.ident.span(),
             format!(
-                "Auto-generated documentation for {} variant (Severity: {}, Kind: {})",
-                variant.ident, severity, kind
-            )
-        } else {
-            format!("{} (Severity: {}, Kind: {})", custom_doc, severity, kind)
-        };
+                "Large enum with {variant_count} variants detected. Consider enabling #[yoshi(optimize_large = true)]"
+            ),
+        ));
+    }
+    for variant in &variants {
+        validate_enhanced_variant(variant)?;
+    }
 
-        quote! {
-            #variant_pattern => #doc_string
+    validate_cross_variant_constraints(&variants)?;
+
+    Ok(())
+}
+
+/// Enhanced variant validation
+fn validate_enhanced_variant(variant: &YoshiVariantOpts) -> Result<()> {
+    if let Some(display) = &variant.display {
+        validate_enhanced_display_format(display, variant)?;
+    }
+
+    let source_count = variant.fields.iter().filter(|f| f.source).count();
+    if source_count > 1 {
+        return Err(Error::new(
+            variant.ident.span(),
+            format!(
+                "Variant '{}' has {} source fields, but only one is allowed",
+                variant.ident, source_count
+            ),
+        ));
+    }
+
+    if variant.from {
+        if variant.fields.len() != 1 {
+            return Err(Error::new(
+                variant.ident.span(),
+                format!(
+                    "Variant '{}' marked with #[yoshi(from)] must have exactly one field",
+                    variant.ident
+                ),
+            ));
         }
-    });
+        if !matches!(variant.fields.style, Style::Tuple) {
+            return Err(Error::new(
+                variant.ident.span(),
+                format!(
+                    "Variant '{}' marked with #[yoshi(from)] must be a tuple variant",
+                    variant.ident
+                ),
+            ));
+        }
+    }
 
-    let documentation = quote! {
-        impl #impl_generics #enum_name #ty_generics #where_clause {
-            /// Get comprehensive documentation for this error variant
-            pub fn documentation(&self) -> &'static str {
-                match self {
-                    #(#variant_match_arms,)*
+    for (idx, field) in variant.fields.iter().enumerate() {
+        if field.sensitive && field.shell {
+            return Err(Error::new(
+                variant.ident.span(),
+                format!(
+                    "Field {} in variant '{}' cannot be both sensitive and used in shell context",
+                    idx, variant.ident
+                ),
+            ));
+        }
+
+        if let Some(format_fn) = &field.format_with {
+            if !is_valid_rust_identifier(format_fn) {
+                return Err(Error::new(
+                    variant.ident.span(),
+                    format!(
+                        "Invalid format function name '{}' in variant '{}'",
+                        format_fn, variant.ident
+                    ),
+                ));
+            }
+        }
+
+        if let Some(transform_fn) = &field.transform {
+            if !is_valid_rust_identifier(transform_fn) {
+                return Err(Error::new(
+                    variant.ident.span(),
+                    format!(
+                        "Invalid transform function name '{}' in variant '{}'",
+                        transform_fn, variant.ident
+                    ),
+                ));
+            }
+        }
+    }
+
+    Ok(())
+}
+
+/// Enhanced display format validation
+fn validate_enhanced_display_format(display: &str, variant: &YoshiVariantOpts) -> Result<()> {
+    if display.len() > FORMAT_STRING_LENGTH_MODERATE {
+        return Err(Error::new(
+            variant.ident.span(),
+            format!(
+                "Display format too long ({} chars) in variant '{}'",
+                display.len(),
+                variant.ident
+            ),
+        ));
+    }
+
+    let placeholders = extract_placeholders(display);
+
+    if matches!(variant.fields.style, Style::Tuple) {
+        let field_count = variant.fields.len();
+        for placeholder in &placeholders {
+            if let Ok(index) = placeholder.parse::<usize>() {
+                if index >= field_count {
+                    return Err(Error::new(
+                        variant.ident.span(),
+                        format!(
+                            "Tuple variant '{}' has {} fields but format string references field {{{index}}}",
+                            variant.ident, field_count
+                        ),
+                    ));
                 }
             }
+        }
+    }
 
-            /// Get the error type name
-            pub fn error_type_name() -> &'static str {
-                stringify!(#enum_name)
-            }
+    if matches!(variant.fields.style, Style::Struct) {
+        let field_names: HashSet<_> = variant
+            .fields
+            .iter()
+            .filter_map(|f| f.ident.as_ref().map(ToString::to_string))
+            .collect();
 
-            /// Get the documentation prefix
-            pub fn doc_prefix() -> &'static str {
-                #doc_prefix
+        for placeholder in &placeholders {
+            let clean_placeholder = placeholder.trim();
+            if !clean_placeholder.is_empty()
+                && clean_placeholder != "source"
+                && !field_names.contains(clean_placeholder)
+                && clean_placeholder.parse::<usize>().is_err()
+            {
+                return Err(Error::new(
+                    variant.ident.span(),
+                    format!(
+                        "Display format references unknown field '{}' in variant '{}'",
+                        clean_placeholder, variant.ident
+                    ),
+                ));
             }
         }
-    };
+    }
 
-    Ok(documentation)
+    Ok(())
+}
+
+/// Validate cross-variant constraints
+fn validate_cross_variant_constraints(variants: &[&YoshiVariantOpts]) -> Result<()> {
+    let mut error_codes = HashMap::new();
+
+    for &variant in variants {
+        if let Some(code) = variant.code {
+            if let Some(existing) = error_codes.insert(code, &variant.ident) {
+                return Err(Error::new(
+                    variant.ident.span(),
+                    format!("Duplicate error code {code} (already used by variant '{existing}')"),
+                ));
+            }
+        }
+    }
+
+    Ok(())
+}
+
+//--------------------------------------------------------------------------------------------------
+// Enhanced Helper Functions
+//--------------------------------------------------------------------------------------------------
+
+/// Generate variant pattern for matching
+fn generate_variant_pattern(variant: &YoshiVariantOpts) -> TokenStream2 {
+    let variant_ident = &variant.ident;
+    match &variant.fields.style {
+        Style::Unit => quote! { Self::#variant_ident },
+        Style::Tuple => quote! { Self::#variant_ident(..) },
+        Style::Struct => quote! { Self::#variant_ident { .. } },
+    }
+}
+
+/// Enhanced identifier humanization
+fn humanize_identifier(ident: &str) -> String {
+    let mut result = String::new();
+    let mut chars = ident.chars().peekable();
+
+    while let Some(c) = chars.next() {
+        if result.is_empty() {
+            result.push(c.to_uppercase().next().unwrap_or(c));
+        } else if c.is_uppercase() {
+            if let Some(&next_char) = chars.peek() {
+                if next_char.is_lowercase() || result.chars().last().is_some_and(char::is_lowercase)
+                {
+                    result.push(' ');
+                }
+            } else {
+                result.push(' ');
+            }
+            result.push(c.to_lowercase().next().unwrap_or(c));
+        } else if c == '_' {
+            result.push(' ');
+        } else {
+            result.push(c);
+        }
+    }
+
+    result
+}
+
+/// Enhanced error type detection with comprehensive analysis
+fn is_enhanced_error_type(ty: &Type) -> bool {
+    is_enhanced_error_type_recursive(ty, 0)
+}
+
+/// Recursive error type detection with depth limiting
+fn is_enhanced_error_type_recursive(ty: &Type, depth: usize) -> bool {
+    if depth > MAX_TYPE_ANALYSIS_DEPTH {
+        return false;
+    }
+
+    match ty {
+        Type::Path(_) => {
+            let path_str = ty.to_token_stream().to_string();
+            is_path_error_type(&path_str) || contains_error_keywords(&path_str)
+        }
+        Type::TraitObject(trait_obj) => trait_obj.bounds.iter().any(|bound| {
+            if let syn::TypeParamBound::Trait(trait_bound) = bound {
+                contains_error_keywords(&trait_bound.to_token_stream().to_string())
+            } else {
+                false
+            }
+        }),
+        Type::Reference(type_ref) => is_enhanced_error_type_recursive(&type_ref.elem, depth + 1),
+        Type::Group(type_group) => is_enhanced_error_type_recursive(&type_group.elem, depth + 1),
+        Type::Paren(type_paren) => is_enhanced_error_type_recursive(&type_paren.elem, depth + 1),
+        _ => false,
+    }
+}
+
+/// Check if a path represents a known error type
+fn is_path_error_type(path_str: &str) -> bool {
+    static KNOWN_ERROR_TYPES: &[&str] = &[
+        "std::io::Error",
+        "std::error::Error",
+        "thiserror::Error",
+        "anyhow::Error",
+        "miette::Error",
+        "eyre::Error",
+        "yoshi::Oops",
+    ];
+
+    KNOWN_ERROR_TYPES
+        .iter()
+        .any(|&known_type| path_str.contains(known_type))
+        || (path_str.contains("Box<dyn") && path_str.contains("Error"))
+        || (path_str.contains("Arc<dyn") && path_str.contains("Error"))
 }

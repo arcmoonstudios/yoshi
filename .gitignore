@@ -22,7 +22,7 @@
 *.lib
 
 # Rust build artifacts
-/target/
+target/
 **/target/
 Cargo.lock
 
@@ -394,3 +394,8 @@ examples/target/
 # Keep test files but ignore their artifacts
 !tests/
 tests/target/
+
+# Files
+lib copy.rs
+deluxe.lib.rs.txt
+

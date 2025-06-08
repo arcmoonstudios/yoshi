@@ -135,13 +135,18 @@ fn bench_direct_conversions(c: &mut Criterion) {
         });
     });
 
-    // Custom error to Yoshi conversion using Yoshi::foreign
+    // Custom error to Yoshi conversion using proper source field
     group.bench_function("custom_error_to_yoshi", |b| {
         b.iter(|| {
             let custom_error = CustomError::Database {
                 message: black_box("Connection pool exhausted".to_string()),
             };
-            let error: Yoshi = Yoshi::foreign(black_box(custom_error));
+            // Use proper error type with source field
+            let error: Yoshi = Yoshi::new(YoshiKind::Internal {
+                message: "Database connection failed".into(),
+                source: Some(Box::new(Yoshi::foreign(custom_error))),
+                component: Some("connection_pool".into()),
+            });
             black_box(error);
         });
     });
@@ -178,8 +183,16 @@ fn bench_result_conversions(c: &mut Criterion) {
         b.iter(|| {
             let result: Result<i32> = black_box("Initial error")
                 .parse::<i32>()
-                // Fix: Use Yoshi::foreign for ParseIntError
-                .map_err(Yoshi::foreign)
+                // Use a better approach instead of foreign error
+                .map_err(|parse_err| {
+                    // First convert to Yoshi
+                    let base_err = Yoshi::foreign(parse_err);
+                    // Then add context
+                    base_err
+                        .context("Failed to parse integer".to_string())
+                        .with_metadata("field", "input")
+                        .with_metadata("expected", "A valid integer")
+                })
                 .and_then(|n| {
                     if n > 0 {
                         Ok(n * 2)
@@ -199,15 +212,21 @@ fn bench_foreign_error_integration(c: &mut Criterion) {
     let mut group = c.benchmark_group("foreign_error_integration");
     group.measurement_time(Duration::from_secs(8));
 
-    // Simple foreign error using std::fmt::Error via Yoshi::foreign
+    // Properly wrapped foreign error using error kinds with source fields
     group.bench_function("simple_foreign_error", |b| {
         b.iter(|| {
-            let error = Yoshi::foreign(black_box(std::fmt::Error));
+            let fmt_error = std::fmt::Error;
+            // Create a wrapper with proper source field
+            let error = Yoshi::new(YoshiKind::Internal {
+                message: "Formatting error occurred".into(),
+                source: Some(Box::new(Yoshi::foreign(fmt_error))),
+                component: Some("formatter".into()),
+            });
             black_box(error);
         });
     });
 
-    // Complex foreign error conversion via Yoshi::foreign()
+    // Complex foreign error conversion with proper source handling
     group.bench_function("complex_foreign_error", |b| {
         b.iter(|| {
             let complex_error = ComplexError {
@@ -218,7 +237,12 @@ fn bench_foreign_error_integration(c: &mut Criterion) {
                     "Circuit breaker open".to_string(),
                 ]),
             };
-            let error = Yoshi::foreign(black_box(complex_error));
+            // Use a proper error wrapper with source field
+            let error = Yoshi::new(YoshiKind::Network {
+                message: "Complex server error".into(),
+                source: Some(Box::new(Yoshi::foreign(complex_error))),
+                error_code: Some(500),
+            });
             black_box(error);
         });
     });
