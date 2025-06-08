@@ -113,24 +113,7 @@ FUNCTION generate_enterprise_code(context, requirements, language):
 /* src/path/to/file.rs */
 #![warn(missing_docs)]
 #![deny(unsafe_code)]
-//! **Brief:** [Ultra-specific module purpose with mathematical precision].
-//!
-//! **Module Classification:** [Performance-Critical|Safety-Critical|Standard|Utility]
-//! **Complexity Level:** [Low|Medium|High|Expert]
-//! **API Stability:** [Stable|Evolving|Experimental]
-//!
-//! ## Mathematical Properties
-//!
-//! **Algorithmic Complexity:**
-//! - Time Complexity: [Detailed analysis with mathematical proof]
-//! - Space Complexity: [Memory usage analysis with bounds]
-//! - Concurrency Safety: [Thread-safety guarantees with verification]
-//!
-//! **Performance Characteristics:**
-//! - Expected Performance: [Benchmark results with statistical analysis]
-//! - Worst-Case Scenarios: [Mathematical bounds on performance]
-//! - Optimization Opportunities: [Identified enhancements with strategies]
-//!
+//! **Brief:** [Ultra-specific module purpose with humanized humility].
 // ~=####====A===r===c===M===o===o===n====S===t===u===d===i===o===s====X|0|$>
 //! + [Primary component with architectural classification]
 //!  - [Sub-component with algorithmic complexity: O(n), O(log n), etc.]
@@ -141,12 +124,8 @@ FUNCTION generate_enterprise_code(context, requirements, language):
 // **GitHub:** [ArcMoon Studios](https://github.com/arcmoonstudios)
 // **Copyright:** (c) 2025 ArcMoon Studios
 // **License:** MIT OR Apache-2.0
-// **License Terms:** Full open source freedom; dual licensing allows choice between MIT and Apache 2.0.
-// **Effective Date:** 2025-05-30 | **Open Source Release**
-// **License File:** /LICENSE
 // **Contact:** LordXyn@proton.me
 // **Author:** Lord Xyn
-// **Last Validation:** [Automatic timestamp insertion]
 ```
 
 **Language-Specific Header Adaptations:**
@@ -165,13 +144,12 @@ FUNCTION generate_enterprise_code(context, requirements, language):
 GitHub: ArcMoon Studios (https://github.com/arcmoonstudios)
 Copyright: (c) 2025 ArcMoon Studios
 License: MIT OR Apache-2.0
-License File: /LICENSE
 Contact: LordXyn@proton.me
 Author: Lord Xyn
 """
 ```
 
-```rust
+```typescript
 /* src/path/to/file.ts */
 /**
  * **Brief:** [Ultra-specific module purpose with humanized humility].
