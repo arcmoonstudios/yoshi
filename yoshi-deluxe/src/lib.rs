@@ -79,7 +79,8 @@ pub mod types;
 
 // Re-export core types and functionality
 pub use ast::{ASTAnalysisEngine, ASTContext, NodeInfo, NodeType, SurroundingContext};
-pub use codegen::{CodeGenerationEngine, CorrectionProposal, CorrectionStrategy, SafetyLevel};
+pub use codegen::CodeGenerationEngine;
+pub use types::{CorrectionProposal, CorrectionStrategy, SafetyLevel};
 pub use constants::*;
 pub use diagnostics::CompilerDiagnosticProcessor;
 pub use docs::{DocsScrapingEngine, MethodSuggestion};
@@ -90,6 +91,7 @@ pub use types::*;
 
 // Re-export yoshi-std types for convenience
 pub use yoshi_std::{Hatch, Result as YoshiResult, Yoshi, YoshiKind};
+use yoshi_std::LayText;
 
 //--------------------------------------------------------------------------------------------------
 // Public API Convenience Functions
@@ -211,6 +213,7 @@ pub struct SystemCapabilities {
 #[cfg(test)]
 mod integration_tests {
     use super::*;
+    use yoshi_std::LayText;
     use std::path::PathBuf;
     use tempfile::TempDir;
     use tokio::fs;
@@ -584,169 +587,7 @@ pub mod benchmarks {
 // Module Implementation Files
 //==================================================================================================
 
-// errors.rs
-/// Error handling module using yoshi framework
-pub mod errors_impl {
-    use std::collections::HashMap;
-    use std::path::PathBuf;
-    use std::time::Duration;
-    use yoshi_derive::YoshiError;
-    use yoshi_std::{Result, Yoshi};
 
-    /// Comprehensive auto-correction system errors with yoshi integration
-    #[derive(Debug, YoshiError)]
-    #[yoshi(
-        default_severity = 128,
-        namespace = "yoshi_deluxe",
-        generate_helpers = true
-    )]
-    pub enum AutoCorrectionError {
-        /// Diagnostic processing failed with context
-        #[yoshi(
-            display = "Failed to process compiler diagnostic: {message}",
-            kind = "Validation",
-            severity = 160,
-            suggestion = "Verify cargo check output format and project structure"
-        )]
-        DiagnosticProcessing {
-            /// Error details
-            message: String,
-            /// Source diagnostic data if available
-            #[yoshi(context = "diagnostic_data")]
-            diagnostic_data: Option<String>,
-            /// Project path context
-            #[yoshi(context = "project_path")]
-            project_path: PathBuf,
-        },
-
-        /// AST analysis failed with precise location information
-        #[yoshi(
-            display = "AST analysis failed at {file_path}:{line}:{column}: {reason}",
-            kind = "Internal",
-            severity = 180,
-            suggestion = "Check source file syntax and ensure valid Rust code"
-        )]
-        AstAnalysis {
-            /// Reason for analysis failure
-            reason: String,
-            /// Source file path
-            file_path: PathBuf,
-            /// Line number (1-indexed)
-            line: usize,
-            /// Column number (1-indexed)
-            column: usize,
-            /// Byte offset if available
-            #[yoshi(context = "byte_offset")]
-            byte_offset: Option<usize>,
-            /// Source error if chained
-            #[yoshi(source)]
-            source_error: syn::Error,
-        },
-
-        /// Documentation scraping encountered issues
-        #[yoshi(
-            display = "Documentation scraping failed for {crate_name}::{type_name}: {error_type}",
-            kind = "Network",
-            severity = 120,
-            transient = true,
-            suggestion = "Check network connectivity and verify crate exists on docs.rs"
-        )]
-        DocumentationScraping {
-            /// Target crate name
-            crate_name: String,
-            /// Target type name
-            type_name: String,
-            /// Type of error encountered
-            error_type: String,
-            /// HTTP status code if available
-            #[yoshi(context = "http_status")]
-            http_status: Option<u16>,
-            /// Underlying network error
-            #[yoshi(source)]
-            network_error: reqwest::Error,
-        },
-
-        /// Code generation failed with correction context
-        #[yoshi(
-            display = "Code generation failed for {correction_type}: {details}",
-            kind = "Internal",
-            severity = 200,
-            suggestion = "Review correction logic and ensure valid Rust syntax generation"
-        )]
-        CodeGeneration {
-            /// Type of correction being attempted
-            correction_type: String,
-            /// Specific failure details
-            details: String,
-            /// Original problematic code
-            #[yoshi(context = "original_code")]
-            original_code: String,
-            /// Generation context metadata
-            #[yoshi(context = "generation_context")]
-            generation_context: HashMap<String, String>,
-        },
-
-        /// File operations failed with comprehensive context
-        #[yoshi(
-            display = "File operation failed: {operation} on {file_path}",
-            kind = "Io",
-            severity = 140,
-            suggestion = "Check file permissions, disk space, and file existence"
-        )]
-        FileOperation {
-            /// Type of file operation
-            operation: String,
-            /// Target file path
-            file_path: PathBuf,
-            /// File size if relevant
-            #[yoshi(context = "file_size")]
-            file_size: Option<u64>,
-            /// Underlying IO error
-            #[yoshi(source)]
-            io_error: std::io::Error,
-        },
-
-        /// Configuration issues with system setup
-        #[yoshi(
-            display = "Configuration error: {parameter} = {value}",
-            kind = "Config",
-            severity = 100,
-            suggestion = "Review system configuration and ensure valid parameter values"
-        )]
-        Configuration {
-            /// Configuration parameter name
-            parameter: String,
-            /// Invalid value
-            value: String,
-            /// Expected value format
-            #[yoshi(context = "expected_format")]
-            expected_format: Option<String>,
-        },
-
-        /// Resource exhaustion errors
-        #[yoshi(
-            display = "Resource exhausted: {resource_type} (limit: {limit}, requested: {requested})",
-            kind = "ResourceExhausted",
-            severity = 220,
-            transient = true,
-            suggestion = "Reduce resource usage or increase system limits"
-        )]
-        ResourceExhausted {
-            /// Type of resource
-            resource_type: String,
-            /// Resource limit
-            limit: u64,
-            /// Requested amount
-            requested: u64,
-        },
-    }
-
-    /// Convenient Result type alias using yoshi integration
-    pub type Result<T> = yoshi_std::Result<T>;
-}
-
-// Re-export the error implementation
-pub use errors_impl::{AutoCorrectionError, Result};
 
 //--------------------------------------------------------------------------------------------------
 // System Health and Monitoring
@@ -755,6 +596,7 @@ pub use errors_impl::{AutoCorrectionError, Result};
 /// System health monitoring and diagnostics
 pub mod health {
     use super::*;
+    use std::collections::HashMap;
     use std::time::{Duration, SystemTime};
 
     /// System health status
