@@ -23,7 +23,7 @@ use std::{
     time::{Duration, SystemTime},
 };
 use tokio::time::timeout;
-use yoshi_std::HatchExt;
+use yoshi_std::{HatchExt, LayText};
 
 //--------------------------------------------------------------------------------------------------
 // Documentation Scraping Engine with Structured API Support
