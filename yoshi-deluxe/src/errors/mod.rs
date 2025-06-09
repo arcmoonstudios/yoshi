@@ -719,9 +719,9 @@ pub mod recovery {
     use super::*;
 
     /// Attempt automatic error recovery
-    pub async fn attempt_recovery<T, F, Fut>(operation: F, max_retries: usize) -> Result<T>
+    pub async fn attempt_recovery<T, F, Fut>(mut operation: F, max_retries: usize) -> Result<T>
     where
-        F: Fn() -> Fut,
+        F: FnMut() -> Fut,
         Fut: std::future::Future<Output = Result<T>>,
     {
         let mut last_error = None;
@@ -749,12 +749,12 @@ pub mod recovery {
 
     /// Retry operation with specific error patterns
     pub async fn retry_on_pattern<T, F, Fut>(
-        operation: F,
+        mut operation: F,
         max_retries: usize,
         retry_patterns: &[&str],
     ) -> Result<T>
     where
-        F: Fn() -> Fut,
+        F: FnMut() -> Fut,
         Fut: std::future::Future<Output = Result<T>>,
     {
         for attempt in 0..=max_retries {
@@ -777,6 +777,18 @@ pub mod recovery {
         }
 
         unreachable!()
+    }
+}
+
+impl From<syn::Error> for Yoshi {
+    fn from(err: syn::Error) -> Self {
+        Yoshi::new(YoshiKind::Syntax, err.to_string())
+    }
+}
+
+impl From<reqwest::Error> for Yoshi {
+    fn from(err: reqwest::Error) -> Self {
+        Yoshi::new(YoshiKind::Network, err.to_string())
     }
 }
 
