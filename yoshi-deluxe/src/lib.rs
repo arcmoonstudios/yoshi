@@ -80,18 +80,20 @@ pub mod types;
 // Re-export core types and functionality
 pub use ast::{ASTAnalysisEngine, ASTContext, NodeInfo, NodeType, SurroundingContext};
 pub use codegen::CodeGenerationEngine;
-pub use types::{CorrectionProposal, CorrectionStrategy, SafetyLevel};
 pub use constants::*;
 pub use diagnostics::CompilerDiagnosticProcessor;
-pub use docs::{DocsScrapingEngine, MethodSuggestion};
+pub use docs::DocsScrapingEngine;
 pub use errors::{AutoCorrectionError, Result};
 pub use metrics::{SystemMetrics, SystemMetricsSnapshot};
-pub use system::{AutoCorrectionSystem, SystemConfig};
-pub use types::*;
+pub use system::AutoCorrectionSystem;
+pub use types::{
+    CorrectionProposal, CorrectionStrategy, MethodSuggestion, SafetyLevel, SystemConfig,
+};
 
 // Re-export yoshi-std types for convenience
+use std::collections::HashMap;
 pub use yoshi_std::{Hatch, Result as YoshiResult, Yoshi, YoshiKind};
-use yoshi_std::LayText;
+use yoshi_std::{Hatchable, LayText};
 
 //--------------------------------------------------------------------------------------------------
 // Public API Convenience Functions
@@ -213,10 +215,10 @@ pub struct SystemCapabilities {
 #[cfg(test)]
 mod integration_tests {
     use super::*;
-    use yoshi_std::LayText;
     use std::path::PathBuf;
     use tempfile::TempDir;
     use tokio::fs;
+    use yoshi_std::LayText;
 
     async fn create_test_project() -> Result<TempDir> {
         let temp_dir = tempfile::tempdir()
@@ -586,8 +588,6 @@ pub mod benchmarks {
 //==================================================================================================
 // Module Implementation Files
 //==================================================================================================
-
-
 
 //--------------------------------------------------------------------------------------------------
 // System Health and Monitoring
