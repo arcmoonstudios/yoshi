@@ -1,7 +1,16 @@
+# yoshi-benches/Cargo.toml
 [package]
 name = "yoshi-benches"
 version = "0.1.6"
 edition = "2021"
+rust-version = "1.87"                                                            # MSRV
+authors = ["Lord Xyn <LordXyn@proton.me>"]
+repository = "https://github.com/arcmoonstudios/yoshi"
+license = "MIT OR Apache-2.0"
+description = "Benchmark suite for the Yoshi error-handling framework ecosystem"
+keywords = ["error", "error-handling", "result", "yoshi", "benchmarks"]
+categories = ["development-tools", "rust-patterns", "api-bindings"]
+
 publish = false
 
 # Benchmark configurations
@@ -30,12 +39,11 @@ name = "error_formatting"
 harness = false
 
 [dependencies]
-# Local workspace dependencies - Yoshi framework components
-yoshi = { path = "../yoshi", version = "0.1.6" }
+# Local workspace dependencies - Yoshi framework facade (provides everything)
+yoshi = { path = "../yoshi", version = "0.1.6", features = ["full", "derive"] }
+
+# Required for YoshiError derive macro (until macro is updated to use facade paths)
 yoshi-std = { path = "../yoshi-std", version = "0.1.6" }
-yoshi-derive = { path = "../yoshi-derive", version = "0.1.6", default-features = true, features = [
-    "std",
-] }
 
 # Benchmarking infrastructure
 criterion = { version = "0.6", features = [
@@ -49,6 +57,9 @@ tokio = { version = "1.45.1", features = ["full"] }
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.140"
 rayon = "1.10.0"
+proc-macro2 = "1.0.95"
+syn = "2.0.103"
+quote = "1.0.40"
 
 # Comparison dependencies (ONLY for side-by-side performance comparison)
 anyhow = { version = "1.0.98", optional = true }
@@ -57,14 +68,40 @@ snafu = { version = "0.8.6", optional = true }
 thiserror = { version = "2.0.12", optional = true }
 
 [features]
-default = ["comparison"]
+default = ["comparison", "std"]
 comparison = ["dep:thiserror", "dep:anyhow", "dep:eyre", "dep:snafu"]
 # Standard library support (pass-through for compatibility)
 std = []
 
 [dev-dependencies]
+# Elite Testing Stack - Next-generation validation framework
 criterion = { version = "0.6.0", features = [
     "html_reports",
     "csv_output",
     "cargo_bench_support",
 ] }
+proptest = "1.4"
+rstest = "0.18"
+tokio-test = "0.4"
+
+# Elite-Level Lint Configuration - Zero Tolerance Quality Gates
+[lints.clippy]
+# Correctness enforcement (DENY level)
+all = "deny"
+correctness = "deny"
+suspicious = "deny"
+perf = "deny"
+# Style consistency (WARN level)
+style = "warn"
+complexity = "warn"
+# Pedantic analysis (selective WARN)
+pedantic = "warn"
+missing_docs_in_private_items = "warn"
+missing_errors_doc = "warn"
+missing_panics_doc = "warn"
+# Restriction enforcement (selective DENY)
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"
+unimplemented = "deny"
+todo = "deny"

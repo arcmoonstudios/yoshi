@@ -6,50 +6,48 @@ One of Yoshi's most powerful features is the ability to attach rich contextual i
 
 ### Using the `yoshi!` Macro
 
-The most common way to add metadata is directly in the `yoshi!` macro:
+The most common way to add metadata is using the `yoshi!` macro with structured error kinds:
 
 ```rust
 use yoshi::*;
 
-fn validate_user(user_id: u64, role: &str) -> Result<()> {
-    // Add metadata directly in the macro
+fn validate_user(user_id: u64, role: &str) -> Hatch<()> {
+    // Add metadata using structured YoshiKind
     if role == "guest" {
-        return Err(yoshi!(
-            YoshiKind::Permission,
-            "Insufficient permissions",
-            user_id: user_id,
-            requested_role: role,
-            required_role: "admin",
-            suggestion: "Request elevated permissions"
-        ));
+        return Err(yoshi!(kind: YoshiKind::Validation {
+            field: "role".into(),
+            message: "Insufficient permissions".into(),
+            expected: Some("admin".into()),
+            actual: Some(role.into()),
+        })
+        .with_metadata("user_id", user_id.to_string())
+        .with_signpost("Request elevated permissions"));
     }
 
     Ok(())
 }
 ```
 
-### Using the `.meta()` Method
+### Using the `.with_metadata()` Method
 
-You can also add metadata after creating an error using the `.meta()` method:
+You can also add metadata after creating an error using the `.with_metadata()` method:
 
 ```rust
 use yoshi::*;
 
-fn fetch_data(url: &str) -> Result<Data> {
+fn fetch_data(url: &str) -> Hatch<Data> {
     let response = make_request(url).map_err(|e| {
-        // Create base error
-        let error = yoshi!(
-            YoshiKind::Network,
-            "Failed to fetch data",
-            url: url,
-            source: e
-        );
-
-        // Add additional metadata
-        error
-            .meta("retry_count", 3)
-            .meta("timeout_ms", 5000)
-            .meta("protocol", if url.starts_with("https") { "https" } else { "http" })
+        // Create base error and add metadata
+        yoshi!(kind: YoshiKind::Network {
+            message: "Failed to fetch data".into(),
+            source: Some(Box::new(yoshi!(error: e))),
+            error_code: None,
+        })
+        .with_metadata("url", url)
+        .with_metadata("retry_count", "3")
+        .with_metadata("timeout_ms", "5000")
+        .with_metadata("protocol", if url.starts_with("https") { "https" } else { "http" })
+        .with_signpost("Check network connectivity and URL validity")
     })?;
 
     // Process response...
@@ -65,22 +63,29 @@ For complex scenarios, you can build metadata collections dynamically:
 use yoshi::*;
 use std::collections::HashMap;
 
-fn process_batch(items: &[Item]) -> Result<BatchResult> {
-    let mut failures = HashMap::new();
+fn process_batch(items: &[Item]) -> Hatch<BatchResult> {
+    let mut failures = Vec::new();
+    let mut error_details = Vec::new();
 
     for (idx, item) in items.iter().enumerate() {
         if let Err(e) = process_item(item) {
-            failures.insert(format!("item_{}", idx), e.to_string());
+            failures.push(format!("item_{}", idx));
+            error_details.push(e.to_string());
         }
     }
 
     if !failures.is_empty() {
-        return Err(yoshi!(
-            YoshiKind::Processing,
-            "Batch processing partially failed",
-            total_items: items.len(),
-            failed_items: failures.len()
-        ).meta("failures", failures));
+        let mut error = yoshi!(kind: YoshiKind::Multiple {
+            errors: error_details.into_iter().map(|msg| {
+                yoshi!(message: msg)
+            }).collect(),
+            primary_index: Some(0),
+        })
+        .with_metadata("total_items", items.len().to_string())
+        .with_metadata("failed_items", failures.len().to_string())
+        .with_metadata("failed_indices", failures.join(","));
+
+        return Err(error);
     }
 
     Ok(BatchResult::new(items.len()))
@@ -89,77 +94,165 @@ fn process_batch(items: &[Item]) -> Result<BatchResult> {
 
 ## Retrieving Metadata from Errors
 
-### Using the `.get_meta()` Method
+### Using the `yum!` Macro for Comprehensive Analysis
+
+The easiest way to see all error information is using the `yum!` macro:
+
+```rust
+use yoshi::*;
+
+fn handle_error(err: Yoshi) {
+    // Comprehensive error analysis with all metadata
+    yum!(err);
+}
+```
+
+### Manual Metadata Access
+
+For programmatic access to metadata, you can inspect the error structure:
 
 ```rust
 use yoshi::*;
 
 fn handle_error(err: &Yoshi) {
-    // Get basic metadata with type conversion
-    if let Some(user_id) = err.get_meta::<u64>("user_id") {
-        println!("Error occurred for user: {}", user_id);
-    }
-
-    // Get optional string values
-    if let Some(suggestion) = err.get_meta::<String>("suggestion") {
-        println!("Suggestion: {}", suggestion);
-    }
-
-    // Complex types (if serialized with serde feature enabled)
-    if let Some(failures) = err.get_meta::<HashMap<String, String>>("failures") {
-        println!("Failed items:");
-        for (item, reason) in failures {
-            println!("- {}: {}", item, reason);
+    // Access the error kind for structured information
+    match err.kind() {
+        YoshiKind::Validation { field, message, expected, actual } => {
+            println!("Validation error in field '{}': {}", field, message);
+            if let Some(exp) = expected {
+                println!("Expected: {}", exp);
+            }
+            if let Some(act) = actual {
+                println!("Actual: {}", act);
+            }
+        },
+        YoshiKind::Network { message, error_code, .. } => {
+            println!("Network error: {}", message);
+            if let Some(code) = error_code {
+                println!("Error code: {}", code);
+            }
+        },
+        _ => {
+            println!("Other error: {}", err);
         }
     }
 }
 ```
 
-### Checking for Metadata Existence
+### Error Categorization by Kind
 
 ```rust
 use yoshi::*;
 
 fn categorize_error(err: &Yoshi) -> ErrorCategory {
-    if err.has_meta("user_id") {
-        return ErrorCategory::UserRelated;
-    } else if err.has_meta("url") {
-        return ErrorCategory::NetworkRelated;
-    } else if err.has_meta("file") || err.has_meta("path") {
-        return ErrorCategory::FileSystemRelated;
+    match err.kind() {
+        YoshiKind::Validation { .. } => ErrorCategory::UserInput,
+        YoshiKind::Network { .. } => ErrorCategory::NetworkRelated,
+        YoshiKind::Io(_) => ErrorCategory::FileSystemRelated,
+        YoshiKind::Security { .. } => ErrorCategory::SecurityRelated,
+        YoshiKind::Timeout { .. } => ErrorCategory::PerformanceRelated,
+        _ => ErrorCategory::Other,
     }
+}
 
-    ErrorCategory::Other
+enum ErrorCategory {
+    UserInput,
+    NetworkRelated,
+    FileSystemRelated,
+    SecurityRelated,
+    PerformanceRelated,
+    Other,
 }
 ```
 
-### Accessing Error Context Chain
+### Context Chaining with `.lay()`
 
 ```rust
 use yoshi::*;
 
-fn log_error(err: &Yoshi) {
-    // Get full chain of error contexts
-    let context_chain = err.context_chain();
+fn process_user_request(user_id: u64) -> Hatch<String> {
+    // Chain context as errors propagate
+    let user_data = fetch_user_data(user_id)
+        .lay("Failed to fetch user data")?;
 
-    println!("Error: {}", err);
-    println!("Context chain:");
+    let processed_data = process_data(&user_data)
+        .lay("Failed to process user data")?;
 
-    for (idx, ctx) in context_chain.iter().enumerate() {
-        println!("  {}. {}", idx + 1, ctx);
+    let result = finalize_processing(&processed_data)
+        .lay("Failed to finalize processing")?;
 
-        // Print metadata for each context level
-        for (key, value) in ctx.metadata() {
-            println!("     - {}: {}", key, value);
-        }
-    }
+    Ok(result)
+}
+
+fn fetch_user_data(user_id: u64) -> Hatch<UserData> {
+    // This might fail with a network error
+    database_query(user_id)
+        .lay("Database query failed")
 }
 ```
 
 ## Best Practices for Error Context
 
-1. **Include Relevant IDs**: Always add identifiers like user IDs, request IDs, or document IDs
-2. **Include Input Values**: Add the values that caused the error (but be careful with sensitive data)
-3. **Add Suggestions**: When possible, include suggestions on how to fix the error
-4. **Be Consistent**: Use consistent names for common metadata (e.g., always use `user_id` not sometimes `userId`)
-5. **Context, Not State**: Use metadata for debugging context, not for passing program state
+1. **Use Structured Error Kinds**: Prefer structured `YoshiKind` variants over generic messages for better error categorization.
+
+2. **Include Relevant IDs**: Always add identifiers like user IDs, request IDs, or document IDs using `.with_metadata()`.
+
+3. **Add Suggestions**: When possible, include suggestions on how to fix the error using `.with_signpost()`.
+
+4. **Chain Context with `.lay()`**: Use the `.lay()` method to add context as errors propagate up the call stack.
+
+5. **Use `yum!` for Debugging**: Use the `yum!` macro during development to see comprehensive error information.
+
+6. **Be Consistent**: Use consistent names for common metadata (e.g., always use `user_id` not sometimes `userId`).
+
+7. **Security Considerations**: Be careful not to include sensitive data in error metadata that might be logged.
+
+8. **Performance**: Remember that error creation should be fast - avoid expensive operations in error construction.
+
+## Example: Complete Error Handling Pattern
+
+```rust
+use yoshi::*;
+
+fn complete_example() -> Hatch<String> {
+    let user_id = 12345;
+
+    // Structured error with comprehensive context
+    let result = risky_operation(user_id)
+        .lay("Failed during user operation")?;
+
+    Ok(result)
+}
+
+fn risky_operation(user_id: u64) -> Hatch<String> {
+    // Simulate a validation error with rich context
+    Err(yoshi!(kind: YoshiKind::Validation {
+        field: "user_permissions".into(),
+        message: "User lacks required permissions".into(),
+        expected: Some("admin".into()),
+        actual: Some("guest".into()),
+    })
+    .with_metadata("user_id", user_id.to_string())
+    .with_metadata("operation", "sensitive_data_access")
+    .with_signpost("Contact administrator to upgrade permissions"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_error_handling() {
+        match complete_example() {
+            Ok(_) => panic!("Expected error"),
+            Err(error) => {
+                // Use yum! for comprehensive error analysis in tests
+                yum!(error);
+
+                // Verify error structure
+                assert!(matches!(error.kind(), YoshiKind::Validation { .. }));
+            }
+        }
+    }
+}
+```

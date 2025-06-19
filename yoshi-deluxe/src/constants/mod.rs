@@ -374,19 +374,16 @@ pub fn get_memory_threshold(operation: &str) -> usize {
 //--------------------------------------------------------------------------------------------------
 
 /// Validate that all regex patterns compile correctly
-pub fn validate_regex_patterns() -> crate::Result<()> {
-    use crate::errors::AutoCorrectionError;
+pub fn validate_regex_patterns() -> crate::Hatch<()> {
+    use yoshi_std::{Yoshi, YoshiKind};
 
     for (name, regex) in REGEX_PATTERNS.iter() {
         if regex.as_str().is_empty() {
-            return Err(AutoCorrectionError::Configuration {
-                parameter: format!("regex_pattern_{name}"),
-                value: "empty".to_string(),
-                expected_format: Some("valid regex expression".to_string()),
-                config_source: None,
-                validation_rule: None,
-            }
-            .into());
+            return Err(Yoshi::new(YoshiKind::Config {
+                message: format!("Empty regex pattern: {name}").into(),
+                config_path: Some(format!("regex_pattern_{name}").into()),
+                source: None,
+            }));
         }
     }
 
@@ -394,7 +391,7 @@ pub fn validate_regex_patterns() -> crate::Result<()> {
 }
 
 /// Perform constants health check
-pub fn health_check_constants() -> crate::Result<ConstantsHealthReport> {
+pub fn health_check_constants() -> crate::Hatch<ConstantsHealthReport> {
     let mut warnings = Vec::new();
     let mut errors = Vec::new();
 

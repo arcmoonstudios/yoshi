@@ -1,0 +1,88 @@
+# yoshi-mcp/Cargo.toml
+[package]
+name = "yoshi-mcp"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.87"
+authors = ["Lord Xyn <LordXyn@proton.me>"]
+repository = "https://github.com/arcmoonstudios/yoshi"
+license = "MIT OR Apache-2.0"
+description = "VS Code extension with local LLM inference using Candle framework and MCP server architecture"
+keywords = ["vscode", "llm", "inference", "mcp", "candle"]
+categories = ["development-tools", "api-bindings", "wasm"]
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+# Yoshi framework integration
+yoshi-core = { path = "../yoshi-core", features = ["alloc"] }
+yoshi-std = { path = "../yoshi-std", features = ["std", "derive"] }
+yoshi-derive = { path = "../yoshi-derive" }
+
+# Candle ML framework for local inference - CPU-only for cross-platform compatibility
+candle-core = { version = "0.7.2", default-features = false }
+candle-transformers = { version = "0.7.2", default-features = false }
+candle-nn = { version = "0.7.2", default-features = false }
+rand = "0.8.5"
+rand_distr = "0.4.3"
+half = { version = "2.4.1", features = ["rand_distr"] }
+candle-kernels = { version = "0.4.0", optional = true }
+
+# Tokenization and model handling
+tokenizers = { version = "0.19.1", features = ["onig"] }
+hf-hub = "0.3.0"
+
+# WebAssembly bindings
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+js-sys = "0.3"
+web-sys = "0.3"
+
+# Async runtime and utilities
+tokio = { version = "1.35", features = ["full"] }
+futures = "0.3"
+
+# Serialization and data handling
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Caching and performance
+lru = "0.12"
+dashmap = "6.1"
+
+# Cryptographic verification
+sha2 = "0.10"
+hex = "0.4"
+
+# HTTP client for model downloads
+reqwest = { version = "0.11", features = ["json", "stream"] }
+
+# Additional dependencies
+uuid = { version = "1.0", features = ["v4"] }
+dirs = "5.0"
+
+# MCP (Model Context Protocol) dependencies
+# Note: These will be added when MCP SDK is available
+# mcp-sdk = "0.1"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+console_error_panic_hook = "0.1"
+wee_alloc = "0.4"
+
+[features]
+default = []
+cuda = ["candle-core/cuda", "candle-kernels"]
+metal = ["candle-core/metal"]
+mkl = ["candle-core/mkl"]
+accelerate = ["candle-core/accelerate"]
+
+[dev-dependencies]
+wasm-bindgen-test = "0.3"
+tempfile = "3.8"
+
+[package.metadata.wasm-pack.profile.release]
+wee-alloc = true
+
+[package.metadata.wasm-pack.profile.dev]
+debug-assertions = true

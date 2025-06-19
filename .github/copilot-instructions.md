@@ -23,12 +23,8 @@
 **GitHub:** [ArcMoon Studios](https://github.com/arcmoonstudios)
 **Copyright:** (c) 2025 ArcMoon Studios
 **License:** MIT OR Apache-2.0
-**License Terms:** Full open source freedom; dual licensing allows choice between MIT and Apache 2.0.
-**Effective Date:** 2025-05-30 | **Open Source Release**
-**License File:** /LICENSE
 **Contact:** LordXyn@proton.me
 **Author:** Lord Xyn
-**Last Validation:** 2025-05-29
 
 ---
 
@@ -109,10 +105,13 @@ FUNCTION generate_enterprise_code(context, requirements, language):
 
 **Universal Header Implementation:**
 
+- path/to/file should always be relative to the workspace root
+- unless its within src/, in which case it should be relative to src/
+
 ```rust
 /* src/path/to/file.rs */
-#![warn(missing_docs)]
 #![deny(unsafe_code)]
+#![warn(missing_docs)]
 //! **Brief:** [Ultra-specific module purpose with humanized humility].
 // ~=####====A===r===c===M===o===o===n====S===t===u===d===i===o===s====X|0|$>
 //! + [Primary component with architectural classification]

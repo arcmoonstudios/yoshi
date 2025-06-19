@@ -7,8 +7,19 @@
 
 use crate::{
     ast::ASTContext,
-    constants::{CODEGEN_MAX_ITERATIONS, REGEX_PATTERNS},
-    errors::{factory, Result, YoshiDeluxeExt},
+    compiler_internals::{
+        AdvancedASTAnalysisEngine, MachineApplicableSuggestion, SuggestionSource,
+    },
+    constants::REGEX_PATTERNS,
+    err::{Hatch, Hatchling, LayText, Yoshi, YoshiKind},
+    rust_analyzer_integration::{
+        AutonomousCorrection, EnhancedCodeAction, RustAnalyzerIntegrationEngine,
+    },
+    // Enhanced integrations for advanced code generation
+    rustc_integration::{
+        AdvancedDebugLocation, LayoutOptimization, MirScopeAnalysisEngine,
+        TypeInfo as RustcTypeInfo,
+    },
     types::{CachedDocsData, CorrectionProposal, CorrectionStrategy, SafetyLevel},
 };
 use std::{
@@ -21,7 +32,6 @@ use std::{
 };
 use syn::{parse_str, Expr, Item, Stmt};
 use tokio::sync::RwLock;
-use yoshi_std::LayText;
 
 //--------------------------------------------------------------------------------------------------
 // Code Generation Engine with Safe AST Modifications
@@ -41,13 +51,13 @@ pub struct CodeGenerationEngine {
 #[derive(Debug, Clone)]
 struct CorrectionTemplate {
     /// Template pattern
-    pattern: String,
+    _pattern: String,
     /// Replacement template with placeholders
-    replacement: String,
+    _replacement: String,
     /// Confidence score for this template
     confidence: f64,
     /// Required context for application
-    required_context: Vec<String>,
+    _required_context: Vec<String>,
     /// Safety level of this template
     safety_level: SafetyLevel,
     /// Usage count for popularity tracking
@@ -63,10 +73,10 @@ impl CorrectionTemplate {
         safety_level: SafetyLevel,
     ) -> Self {
         Self {
-            pattern: pattern.into(),
-            replacement: replacement.into(),
+            _pattern: pattern.into(),
+            _replacement: replacement.into(),
+            _required_context: Vec::new(),
             confidence,
-            required_context: Vec::new(),
             safety_level,
             usage_count: 0,
         }
@@ -100,9 +110,9 @@ struct ValidationResult {
     /// Whether code is valid
     is_valid: bool,
     /// Validation errors if any
-    errors: Vec<String>,
+    _errors: Vec<String>,
     /// Warnings
-    warnings: Vec<String>,
+    _warnings: Vec<String>,
     /// Validation timestamp
     validated_at: Instant,
 }
@@ -184,7 +194,7 @@ impl CodeValidator {
     }
 
     /// Validate that generated code is syntactically correct
-    fn validate_syntax(&mut self, code: &str) -> Result<()> {
+    fn validate_syntax(&mut self, code: &str) -> Hatch<()> {
         self.validation_count.fetch_add(1, Ordering::Relaxed);
 
         // Check cache first
@@ -194,11 +204,11 @@ impl CodeValidator {
                     self.successful_validations.fetch_add(1, Ordering::Relaxed);
                     Ok(())
                 } else {
-                    Err(factory::code_generation_error(
-                        "syntax_validation",
-                        "Cached validation failed",
-                        code,
-                    ))
+                    Err(Yoshi::new(YoshiKind::Internal {
+                        message: "Cached validation failed".into(),
+                        source: None,
+                        component: Some("syntax_validation".into()),
+                    }))
                 };
             }
         }
@@ -232,8 +242,8 @@ impl CodeValidator {
 
         let result = ValidationResult {
             is_valid,
-            errors: errors.clone(),
-            warnings,
+            _errors: errors.clone(),
+            _warnings: warnings.clone(),
             validated_at: Instant::now(),
         };
 
@@ -243,14 +253,15 @@ impl CodeValidator {
             self.successful_validations.fetch_add(1, Ordering::Relaxed);
             Ok(())
         } else {
-            Err(factory::code_generation_error(
-                "syntax_validation",
-                format!(
+            Err(Yoshi::new(YoshiKind::Internal {
+                message: format!(
                     "Generated code is not syntactically valid: {}",
                     errors.join("; ")
-                ),
-                code,
-            ))
+                )
+                .into(),
+                source: None,
+                component: Some("syntax_validation".into()),
+            }))
         }
     }
 
@@ -280,24 +291,24 @@ impl CodeValidator {
     }
 
     /// Validate semantic correctness where possible
-    fn validate_semantics(&mut self, code: &str, context: &ASTContext) -> Result<()> {
+    fn validate_semantics(&mut self, code: &str, context: &ASTContext) -> Hatch<()> {
         if code.trim().is_empty() {
-            return Err(factory::code_generation_error(
-                "semantic_validation",
-                "Generated code is empty",
-                code,
-            ))
+            return Err(Yoshi::new(YoshiKind::Internal {
+                message: "Generated code is empty".into(),
+                source: None,
+                component: Some("semantic_validation".into()),
+            }))
             .with_file_context(&context.file_path);
         }
 
         // Check if the generated code fits the context
         if let Some(func_context) = &context.surrounding_context.current_function {
             if code.contains("return") && func_context.return_type.is_none() {
-                return Err(factory::code_generation_error(
-                    "semantic_validation",
-                    "Generated return statement in function with no return type",
-                    code,
-                ))
+                return Err(Yoshi::new(YoshiKind::Internal {
+                    message: "Generated return statement in function with no return type".into(),
+                    source: None,
+                    component: Some("semantic_validation".into()),
+                }))
                 .with_file_context(&context.file_path);
             }
         }
@@ -345,15 +356,21 @@ impl CodeGenerationEngine {
     /// Creates a new code generation engine
     #[must_use]
     pub fn new() -> Self {
-        let mut engine = Self {
+        let engine = Self {
             template_cache: Arc::new(RwLock::new(HashMap::new())),
             validator: CodeValidator::new(),
             metrics: GenerationMetrics::default(),
         };
 
-        // Initialize with common templates
+        // Initialize with common templates in background
+        let template_cache = engine.template_cache.clone();
         tokio::spawn(async move {
-            engine.initialize_common_templates().await;
+            let temp_engine = CodeGenerationEngine {
+                template_cache,
+                validator: CodeValidator::new(),
+                metrics: GenerationMetrics::default(),
+            };
+            temp_engine.initialize_common_templates().await;
         });
 
         engine
@@ -414,10 +431,10 @@ impl CodeGenerationEngine {
     ///
     /// Returns a yoshi error if code generation fails for all strategies
     pub async fn generate_corrections(
-        &self,
+        &mut self,
         context: &ASTContext,
         docs_data: Option<&CachedDocsData>,
-    ) -> Result<Vec<CorrectionProposal>> {
+    ) -> Hatch<Vec<CorrectionProposal>> {
         let start_time = Instant::now();
         let mut proposals = Vec::new();
         let diagnostic_code = context.diagnostic_info.code.as_deref();
@@ -506,7 +523,7 @@ impl CodeGenerationEngine {
         &self,
         context: &ASTContext,
         docs_data: Option<&CachedDocsData>,
-    ) -> Result<Vec<CorrectionProposal>> {
+    ) -> Hatch<Vec<CorrectionProposal>> {
         let crate::ast::NodeType::MethodCall {
             receiver,
             method_name,
@@ -545,7 +562,7 @@ impl CodeGenerationEngine {
                         proposal.add_metadata("method_signature", method.canonical_signature());
                         proposal.add_metadata(
                             "method_docs",
-                            method.documentation.chars().take(200).collect(),
+                            method.documentation.chars().take(200).collect::<String>(),
                         );
 
                         proposals.push(proposal);
@@ -575,7 +592,7 @@ impl CodeGenerationEngine {
         &self,
         context: &ASTContext,
         target_method: &str,
-    ) -> Result<Vec<CorrectionProposal>> {
+    ) -> Hatch<Vec<CorrectionProposal>> {
         let mut proposals = Vec::new();
 
         // Check trait implementations in scope
@@ -659,7 +676,7 @@ impl CodeGenerationEngine {
     async fn generate_type_corrections(
         &self,
         context: &ASTContext,
-    ) -> Result<Vec<CorrectionProposal>> {
+    ) -> Hatch<Vec<CorrectionProposal>> {
         let Some(regex) = REGEX_PATTERNS.get("type_mismatch") else {
             return Ok(vec![]);
         };
@@ -681,7 +698,7 @@ impl CodeGenerationEngine {
         expected: &str,
         found: &str,
         context: &ASTContext,
-    ) -> Result<Vec<CorrectionProposal>> {
+    ) -> Hatch<Vec<CorrectionProposal>> {
         let conversions = self.get_type_conversion_patterns();
         let original_code = &context.problematic_node.content;
         let mut proposals = Vec::new();
@@ -742,7 +759,7 @@ impl CodeGenerationEngine {
                 0.75,
                 SafetyLevel::RequiresReview,
             ),
-            // Result conversions
+            // Hatch conversions
             (("T", "Result<T, E>"), "Ok({})", 0.85, SafetyLevel::Safe),
             (
                 ("Result<T, E>", "T"),
@@ -786,7 +803,7 @@ impl CodeGenerationEngine {
     async fn generate_unresolved_name_corrections(
         &self,
         context: &ASTContext,
-    ) -> Result<Vec<CorrectionProposal>> {
+    ) -> Hatch<Vec<CorrectionProposal>> {
         let mut proposals = Vec::new();
         let message = &context.diagnostic_info.message;
 
@@ -862,7 +879,7 @@ impl CodeGenerationEngine {
     async fn generate_struct_field_corrections(
         &self,
         context: &ASTContext,
-    ) -> Result<Vec<CorrectionProposal>> {
+    ) -> Hatch<Vec<CorrectionProposal>> {
         let mut proposals = Vec::new();
         let message = &context.diagnostic_info.message;
 
@@ -1038,7 +1055,7 @@ impl CodeGenerationEngine {
     async fn generate_generic_corrections(
         &self,
         context: &ASTContext,
-    ) -> Result<Vec<CorrectionProposal>> {
+    ) -> Hatch<Vec<CorrectionProposal>> {
         let mut proposals = Vec::new();
         let message = &context.diagnostic_info.message;
 
@@ -1153,7 +1170,7 @@ impl CodeGenerationEngine {
             return 0.0;
         }
         let mut column: Vec<usize> = (0..=a_len).collect();
-        for (j, b_char) in b.chars().enumerate() {
+        for (_j, b_char) in b.chars().enumerate() {
             let mut last_diag = column[0];
             column[0] += 1;
             for (i, a_char) in a.chars().enumerate() {
@@ -1251,17 +1268,6 @@ impl Default for CodeGenerationEngine {
 
 /// Field suggestion helper
 use crate::types::FieldSuggestion;
-
-impl FieldSuggestion {
-    /// Create new field suggestion
-    pub fn new(name: impl Into<String>, confidence: f64, description: impl Into<String>) -> Self {
-        Self {
-            name: name.into(),
-            confidence,
-            description: description.into(),
-        }
-    }
-}
 
 /// Template cache statistics
 #[derive(Debug, Clone)]
@@ -1397,7 +1403,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_correction_generation() {
-        let generator = CodeGenerationEngine::new();
+        let mut generator = CodeGenerationEngine::new();
         let context = create_test_context();
 
         let corrections = generator.generate_corrections(&context, None).await;

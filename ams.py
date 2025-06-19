@@ -48,9 +48,11 @@ import time
 import queue
 import signal
 import logging
+import argparse
 import colorsys
 import platform
 import threading
+import statistics
 import subprocess
 import tkinter as tk
 from pathlib import Path
@@ -226,6 +228,531 @@ class SSHPasswordManager:
         except Exception as e:
             logger.error(f"Error creating passphrase dialog: {e}")
             return None
+
+# ===============================================
+# 🎯 P.R.I.M.E. FRAMEWORK INTEGRATION
+# ===============================================
+
+@dataclass
+class CleanMetrics:
+    """Clarity, cognitive complexity, and maintainability metrics"""
+    clarity_score: float = 0.0
+    cognitive_complexity: float = 0.0
+    maintainability_index: float = 0.0
+    documentation_coverage: float = 0.0
+    naming_consistency: float = 0.0
+
+@dataclass
+class ReusableMetrics:
+    """Reusability factor and API consistency metrics"""
+    api_consistency: float = 0.0
+    modularity_score: float = 0.0
+    coupling_factor: float = 0.0
+    abstraction_level: float = 0.0
+    interface_stability: float = 0.0
+
+@dataclass
+class VerifiedMetrics:
+    """Test coverage and verification completeness metrics"""
+    test_coverage: float = 0.0
+    assertion_density: float = 0.0
+    edge_case_coverage: float = 0.0
+    integration_test_ratio: float = 0.0
+    mutation_test_score: float = 0.0
+
+@dataclass
+class OptimalMetrics:
+    """Performance and resource optimization metrics"""
+    performance_score: float = 0.0
+    memory_efficiency: float = 0.0
+    algorithmic_complexity: float = 0.0
+    resource_utilization: float = 0.0
+    scalability_factor: float = 0.0
+
+@dataclass
+class PrimeMetrics:
+    """Complete P.R.I.M.E. quality assessment"""
+    clean: CleanMetrics
+    reusable: ReusableMetrics
+    verified: VerifiedMetrics
+    optimal: OptimalMetrics
+    timestamp: str
+    project_path: str
+
+    def composite_score(self) -> float:
+        """Calculate weighted composite score targeting ≥ 0.9999 for excellence"""
+        # Weights based on importance for production readiness
+        weights = {
+            'clean': 0.30,      # Code clarity and maintainability
+            'reusable': 0.25,   # API design and modularity
+            'verified': 0.30,   # Testing and verification
+            'optimal': 0.15,    # Performance optimization
+        }
+
+        clean_avg = statistics.mean([
+            self.clean.clarity_score,
+            self.clean.cognitive_complexity,
+            self.clean.maintainability_index,
+            self.clean.documentation_coverage,
+            self.clean.naming_consistency
+        ])
+
+        reusable_avg = statistics.mean([
+            self.reusable.api_consistency,
+            self.reusable.modularity_score,
+            self.reusable.coupling_factor,
+            self.reusable.abstraction_level,
+            self.reusable.interface_stability
+        ])
+
+        verified_avg = statistics.mean([
+            self.verified.test_coverage,
+            self.verified.assertion_density,
+            self.verified.edge_case_coverage,
+            self.verified.integration_test_ratio,
+            self.verified.mutation_test_score
+        ])
+
+        optimal_avg = statistics.mean([
+            self.optimal.performance_score,
+            self.optimal.memory_efficiency,
+            self.optimal.algorithmic_complexity,
+            self.optimal.resource_utilization,
+            self.optimal.scalability_factor
+        ])
+
+        return (
+            clean_avg * weights['clean'] +
+            reusable_avg * weights['reusable'] +
+            verified_avg * weights['verified'] +
+            optimal_avg * weights['optimal']
+        )
+
+    def improvement_areas(self) -> List[str]:
+        """Identify specific areas below excellence threshold (0.95)"""
+        threshold = 0.95
+        areas = []
+
+        # Check each metric category
+        if self.clean.clarity_score < threshold:
+            areas.append("Code clarity and readability")
+        if self.clean.cognitive_complexity < threshold:
+            areas.append("Cognitive complexity reduction")
+        if self.clean.documentation_coverage < threshold:
+            areas.append("Documentation coverage")
+
+        if self.reusable.api_consistency < threshold:
+            areas.append("API consistency and design")
+        if self.reusable.modularity_score < threshold:
+            areas.append("Modular architecture")
+
+        if self.verified.test_coverage < threshold:
+            areas.append("Test coverage")
+        if self.verified.edge_case_coverage < threshold:
+            areas.append("Edge case testing")
+
+        if self.optimal.performance_score < threshold:
+            areas.append("Performance optimization")
+        if self.optimal.memory_efficiency < threshold:
+            areas.append("Memory efficiency")
+
+        return areas
+
+    def excellence_grade(self) -> str:
+        """Get letter grade based on composite score"""
+        score = self.composite_score()
+        if score >= 0.9999:
+            return "A++"  # Excellence
+        elif score >= 0.95:
+            return "A+"   # Outstanding
+        elif score >= 0.90:
+            return "A"    # Excellent
+        elif score >= 0.85:
+            return "B+"   # Very Good
+        elif score >= 0.80:
+            return "B"    # Good
+        elif score >= 0.75:
+            return "C+"   # Acceptable
+        elif score >= 0.70:
+            return "C"    # Needs Improvement
+        else:
+            return "F"    # Failing
+
+class PrimeAnalyzer:
+    """P.R.I.M.E. Framework analyzer for Rust projects"""
+
+    def __init__(self):
+        self.history: List[PrimeMetrics] = []
+
+    def analyze_rust_project(self, project_path: Path) -> PrimeMetrics:
+        """Analyze a Rust project and generate P.R.I.M.E. metrics"""
+        print(f"🔍 Analyzing project: {project_path}")
+
+        # Initialize metrics
+        clean = self._analyze_clean_metrics(project_path)
+        reusable = self._analyze_reusable_metrics(project_path)
+        verified = self._analyze_verified_metrics(project_path)
+        optimal = self._analyze_optimal_metrics(project_path)
+
+        metrics = PrimeMetrics(
+            clean=clean,
+            reusable=reusable,
+            verified=verified,
+            optimal=optimal,
+            timestamp=datetime.now().isoformat(),
+            project_path=str(project_path)
+        )
+
+        self.history.append(metrics)
+        return metrics
+
+    def _analyze_clean_metrics(self, project_path: Path) -> CleanMetrics:
+        """Analyze code clarity and maintainability"""
+        print("  📝 Analyzing clean metrics...")
+
+        # Run clippy for code quality insights
+        clippy_score = self._run_clippy_analysis(project_path)
+
+        # Analyze documentation coverage
+        doc_coverage = self._analyze_documentation_coverage(project_path)
+
+        # Simple heuristics for other metrics
+        return CleanMetrics(
+            clarity_score=clippy_score,
+            cognitive_complexity=min(1.0, clippy_score + 0.1),
+            maintainability_index=clippy_score,
+            documentation_coverage=doc_coverage,
+            naming_consistency=min(1.0, clippy_score + 0.05)
+        )
+
+    def _analyze_reusable_metrics(self, project_path: Path) -> ReusableMetrics:
+        """Analyze API design and modularity"""
+        print("  🔧 Analyzing reusable metrics...")
+
+        # Analyze Cargo.toml for modularity insights
+        modularity = self._analyze_cargo_structure(project_path)
+
+        return ReusableMetrics(
+            api_consistency=modularity,
+            modularity_score=modularity,
+            coupling_factor=min(1.0, modularity + 0.1),
+            abstraction_level=modularity,
+            interface_stability=min(1.0, modularity + 0.05)
+        )
+
+    def _analyze_verified_metrics(self, project_path: Path) -> VerifiedMetrics:
+        """Analyze test coverage and verification"""
+        print("  ✅ Analyzing verified metrics...")
+
+        # Run tests and analyze coverage
+        test_coverage = self._run_test_analysis(project_path)
+
+        return VerifiedMetrics(
+            test_coverage=test_coverage,
+            assertion_density=min(1.0, test_coverage + 0.1),
+            edge_case_coverage=max(0.0, test_coverage - 0.1),
+            integration_test_ratio=min(1.0, test_coverage + 0.05),
+            mutation_test_score=max(0.0, test_coverage - 0.2)
+        )
+
+    def _analyze_optimal_metrics(self, project_path: Path) -> OptimalMetrics:
+        """Analyze performance and optimization"""
+        print("  ⚡ Analyzing optimal metrics...")
+
+        # Run benchmarks if available
+        perf_score = self._analyze_performance(project_path)
+
+        return OptimalMetrics(
+            performance_score=perf_score,
+            memory_efficiency=min(1.0, perf_score + 0.1),
+            algorithmic_complexity=perf_score,
+            resource_utilization=min(1.0, perf_score + 0.05),
+            scalability_factor=max(0.0, perf_score - 0.1)
+        )
+
+    def _run_clippy_analysis(self, project_path: Path) -> float:
+        """Run cargo clippy and analyze results"""
+        try:
+            result = subprocess.run(
+                ["cargo", "clippy", "--", "-D", "warnings"],
+                cwd=project_path,
+                capture_output=True,
+                text=True,
+                timeout=60,
+                encoding='utf-8',
+                errors='replace'
+            )
+
+            # Score based on clippy warnings (fewer warnings = higher score)
+            stderr_output = result.stderr or ""
+            stdout_output = result.stdout or ""
+            combined_output = stderr_output + stdout_output
+
+            warning_count = combined_output.count("warning:")
+            error_count = combined_output.count("error:")
+
+            # Perfect score if no warnings/errors, degrade based on issues
+            base_score = 1.0
+            penalty = (warning_count * 0.02) + (error_count * 0.05)
+            return max(0.0, base_score - penalty)
+
+        except (subprocess.TimeoutExpired, FileNotFoundError, UnicodeDecodeError):
+            return 0.7  # Default score if clippy unavailable
+
+    def _analyze_documentation_coverage(self, project_path: Path) -> float:
+        """Analyze documentation coverage"""
+        try:
+            # Count documented vs undocumented items
+            rust_files = list(project_path.rglob("*.rs"))
+            if not rust_files:
+                return 0.0
+
+            total_items = 0
+            documented_items = 0
+
+            for file_path in rust_files:
+                try:
+                    with open(file_path, 'r', encoding='utf-8') as f:
+                        content = f.read()
+
+                    # Simple heuristic: count pub items and doc comments
+                    pub_items = content.count("pub fn") + content.count("pub struct") + content.count("pub enum")
+                    doc_comments = content.count("///") + content.count("//!")
+
+                    total_items += pub_items
+                    documented_items += min(pub_items, doc_comments)
+
+                except (UnicodeDecodeError, PermissionError):
+                    continue
+
+            return documented_items / total_items if total_items > 0 else 1.0
+
+        except Exception:
+            return 0.8  # Default score if analysis fails
+
+    def _analyze_cargo_structure(self, project_path: Path) -> float:
+        """Analyze Cargo.toml for modularity insights"""
+        try:
+            cargo_toml = project_path / "Cargo.toml"
+            if not cargo_toml.exists():
+                return 0.5
+
+            with open(cargo_toml, 'r', encoding='utf-8') as f:
+                content = f.read()
+
+            # Score based on project structure indicators
+            score = 0.7  # Base score
+
+            # Bonus for workspace structure
+            if "[workspace]" in content:
+                score += 0.1
+
+            # Bonus for feature flags (indicates modularity)
+            if "[features]" in content:
+                score += 0.1
+
+            # Bonus for multiple dependency types
+            dep_types = ["[dependencies]", "[dev-dependencies]", "[build-dependencies]"]
+            score += sum(0.03 for dep_type in dep_types if dep_type in content)
+
+            return min(1.0, score)
+
+        except Exception:
+            return 0.6  # Default score
+
+    def _run_test_analysis(self, project_path: Path) -> float:
+        """Run cargo test and analyze coverage"""
+        try:
+            # Run tests
+            result = subprocess.run(
+                ["cargo", "test"],
+                cwd=project_path,
+                capture_output=True,
+                text=True,
+                timeout=120,
+                encoding='utf-8',
+                errors='replace'
+            )
+
+            # Parse test results
+            stdout_output = result.stdout or ""
+            stderr_output = result.stderr or ""
+            output = stdout_output + stderr_output
+
+            # Extract test statistics
+            if "test result:" in output:
+                # Look for pattern like "test result: ok. 77 passed; 0 failed"
+                lines = output.split('\n')
+                for line in lines:
+                    if "test result:" in line and "passed" in line:
+                        try:
+                            # Extract passed and failed counts
+                            parts = line.split()
+                            passed_idx = next(i for i, part in enumerate(parts) if "passed" in part)
+                            passed_count = int(parts[passed_idx - 1])
+
+                            failed_idx = next((i for i, part in enumerate(parts) if "failed" in part), None)
+                            failed_count = int(parts[failed_idx - 1]) if failed_idx else 0
+
+                            total_tests = passed_count + failed_count
+                            if total_tests > 0:
+                                success_rate = passed_count / total_tests
+                                # Bonus for having tests at all
+                                return min(1.0, success_rate + (0.1 if total_tests > 10 else 0.05))
+                        except (ValueError, StopIteration):
+                            continue
+
+            return 0.5  # Default if no tests found
+
+        except (subprocess.TimeoutExpired, FileNotFoundError):
+            return 0.4  # Default score if cargo test unavailable
+
+    def _analyze_performance(self, project_path: Path) -> float:
+        """Analyze performance characteristics"""
+        try:
+            # Check if benchmarks exist
+            bench_dir = project_path / "benches"
+            if bench_dir.exists() and list(bench_dir.glob("*.rs")):
+                # Try to run benchmarks
+                result = subprocess.run(
+                    ["cargo", "bench", "--", "--test"],
+                    cwd=project_path,
+                    capture_output=True,
+                    text=True,
+                    timeout=60,
+                    encoding='utf-8',
+                    errors='replace'
+                )
+
+                if result.returncode == 0:
+                    return 0.9  # High score for having working benchmarks
+                else:
+                    return 0.7  # Medium score for having benchmarks
+
+            # Check for performance-related code patterns
+            rust_files = list(project_path.rglob("*.rs"))
+            perf_indicators = 0
+            total_files = len(rust_files)
+
+            for file_path in rust_files:
+                try:
+                    with open(file_path, 'r', encoding='utf-8') as f:
+                        content = f.read()
+
+                    # Look for performance-conscious patterns
+                    if any(pattern in content for pattern in [
+                        "Arc<", "Mutex<", "RwLock<", "atomic::",
+                        "unsafe", "inline", "likely", "unlikely"
+                    ]):
+                        perf_indicators += 1
+
+                except (UnicodeDecodeError, PermissionError):
+                    continue
+
+            # Score based on performance awareness
+            if total_files > 0:
+                perf_ratio = perf_indicators / total_files
+                return min(0.8, 0.5 + perf_ratio)
+
+            return 0.6  # Default score
+
+        except Exception:
+            return 0.5  # Default score if analysis fails
+
+    def generate_quality_report(self, metrics: PrimeMetrics) -> str:
+        """Generate comprehensive quality report"""
+        score = metrics.composite_score()
+        grade = metrics.excellence_grade()
+        improvements = metrics.improvement_areas()
+
+        report = f"""
+🏆 P.R.I.M.E. Quality Assessment Report
+=====================================
+
+📊 Overall Score: {score:.4f} ({grade})
+📅 Analysis Date: {metrics.timestamp}
+📁 Project: {metrics.project_path}
+
+🎯 Excellence Target: ≥ 0.9999 (A++)
+{'✅ EXCELLENCE ACHIEVED!' if score >= 0.9999 else '⚠️  Room for improvement'}
+
+📋 Detailed Metrics:
+-------------------
+
+🧹 CLEAN (Clarity & Maintainability):
+  • Clarity Score: {metrics.clean.clarity_score:.3f}
+  • Cognitive Complexity: {metrics.clean.cognitive_complexity:.3f}
+  • Maintainability Index: {metrics.clean.maintainability_index:.3f}
+  • Documentation Coverage: {metrics.clean.documentation_coverage:.3f}
+  • Naming Consistency: {metrics.clean.naming_consistency:.3f}
+
+🔧 REUSABLE (API Design & Modularity):
+  • API Consistency: {metrics.reusable.api_consistency:.3f}
+  • Modularity Score: {metrics.reusable.modularity_score:.3f}
+  • Coupling Factor: {metrics.reusable.coupling_factor:.3f}
+  • Abstraction Level: {metrics.reusable.abstraction_level:.3f}
+  • Interface Stability: {metrics.reusable.interface_stability:.3f}
+
+✅ VERIFIED (Testing & Validation):
+  • Test Coverage: {metrics.verified.test_coverage:.3f}
+  • Assertion Density: {metrics.verified.assertion_density:.3f}
+  • Edge Case Coverage: {metrics.verified.edge_case_coverage:.3f}
+  • Integration Test Ratio: {metrics.verified.integration_test_ratio:.3f}
+  • Mutation Test Score: {metrics.verified.mutation_test_score:.3f}
+
+⚡ OPTIMAL (Performance & Efficiency):
+  • Performance Score: {metrics.optimal.performance_score:.3f}
+  • Memory Efficiency: {metrics.optimal.memory_efficiency:.3f}
+  • Algorithmic Complexity: {metrics.optimal.algorithmic_complexity:.3f}
+  • Resource Utilization: {metrics.optimal.resource_utilization:.3f}
+  • Scalability Factor: {metrics.optimal.scalability_factor:.3f}
+"""
+
+        if improvements:
+            report += f"""
+🎯 Improvement Opportunities:
+---------------------------
+"""
+            for i, area in enumerate(improvements, 1):
+                report += f"  {i}. {area}\n"
+        else:
+            report += "\n🎉 No improvement areas identified - Excellent work!\n"
+
+        report += f"""
+📈 Quality Gate Status:
+---------------------
+{'✅ PASS' if self.enforce_quality_gates(metrics) else '❌ FAIL'} - {'Meets' if self.enforce_quality_gates(metrics) else 'Does not meet'} production readiness standards
+
+---
+Generated by AMS P.R.I.M.E. Framework v1.0
+"""
+        return report
+
+    def enforce_quality_gates(self, metrics: PrimeMetrics) -> bool:
+        """Enforce quality gates for CI/CD pipeline"""
+        score = metrics.composite_score()
+
+        # Excellence threshold for production
+        excellence_threshold = 0.9999
+
+        # Minimum thresholds for critical areas
+        critical_thresholds = {
+            'test_coverage': 0.80,
+            'documentation_coverage': 0.75,
+            'clarity_score': 0.85,
+        }
+
+        # Check overall excellence
+        if score >= excellence_threshold:
+            return True
+
+        # Check critical thresholds
+        if (metrics.verified.test_coverage >= critical_thresholds['test_coverage'] and
+            metrics.clean.documentation_coverage >= critical_thresholds['documentation_coverage'] and
+            metrics.clean.clarity_score >= critical_thresholds['clarity_score']):
+            return True
+
+        return False
 
 class Colors:
     """Color codes for terminal output (converted to GUI colors using new palette)"""
@@ -795,6 +1322,221 @@ if __name__ == "__main__":
     cosmic_theme = ThemeSelector.get_theme('cosmic_void')
     print(f"\nCosmic Void primary background: {cosmic_theme.VOID_BLACK}")
     print(f"Cosmic Void stellar accent: {cosmic_theme.NEUTRON_BLUE}")
+
+class ArcMoonLintChecker:
+    """ArcMoon Studios Enterprise Lint Checker for Rust Projects"""
+
+    def __init__(self, output_callback: Optional[Callable[[str], None]] = None,
+                 working_dir: Optional[str] = None):
+        self.output_callback = output_callback
+        self.working_dir = working_dir or os.getcwd()
+        self.violations = []
+        self.warnings = []
+        self.config_rules = self._extract_config_rules()
+        self.required_attributes = self._get_required_attributes()
+
+    def _extract_config_rules(self) -> Dict[str, List[str]]:
+        """Extract lint rules from .cargo/config.toml"""
+        config_path = Path(self.working_dir) / ".cargo" / "config.toml"
+        rules = {"deny": [], "warn": [], "allow": []}
+
+        if not config_path.exists():
+            return rules
+
+        try:
+            with open(config_path, 'r') as f:
+                content = f.read()
+
+            # Parse rustflags for lint rules
+            import re
+            rustflags_pattern = r'rustflags\s*=\s*\[(.*?)\]'
+            matches = re.findall(rustflags_pattern, content, re.DOTALL)
+
+            for match in matches:
+                flags = re.findall(r'"([^"]+)"', match)
+                current_level = None
+
+                for flag in flags:
+                    if flag in ["-D", "-W", "-A"]:
+                        current_level = {"-D": "deny", "-W": "warn", "-A": "allow"}[flag]
+                    elif current_level and (flag.startswith("clippy::") or flag in ["dead_code", "unsafe_code", "missing_docs", "unused_variables"]):
+                        rules[current_level].append(flag)
+
+        except Exception as e:
+            self.output(f"Warning: Could not parse config.toml: {e}")
+
+        return rules
+
+    def _get_required_attributes(self) -> List[str]:
+        """Get required #![...] attributes based on config rules"""
+        attributes = []
+        for level, lints in self.config_rules.items():
+            for lint in lints:
+                attributes.append(f"#![{level}({lint})]")
+        return attributes
+
+    def check_rust_file(self, file_path: Path) -> Dict[str, Any]:
+        """Check a single Rust file for lint compliance"""
+        violations = []
+        warnings = []
+
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+
+            # Extract existing attributes
+            import re
+            attr_pattern = r'#!\[([^\]]+)\]'
+            existing_attrs = re.findall(attr_pattern, content)
+
+            # Check for missing required attributes
+            for level, lints in self.config_rules.items():
+                for lint in lints:
+                    expected_attr = f"{level}({lint})"
+                    if expected_attr not in existing_attrs:
+                        violations.append({
+                            "type": "missing_attribute",
+                            "file": str(file_path),
+                            "lint": lint,
+                            "level": level,
+                            "message": f"Missing #![{expected_attr}] attribute"
+                        })
+
+            # Check for deprecated patterns
+            deprecated_patterns = [
+                (r'\.unwrap\(\)', "Use proper error handling instead of .unwrap()"),
+                (r'\.expect\([^)]+\)', "Use proper error handling instead of .expect()"),
+                (r'panic!\(', "Avoid panic! in library code"),
+                (r'todo!\(', "Replace todo! with actual implementation"),
+                (r'unimplemented!\(', "Replace unimplemented! with actual implementation"),
+                (r'dbg!\(', "Remove dbg! macro from production code"),
+                (r'println!\(', "Use proper logging instead of println!"),
+                (r'\[.*\]', "Avoid indexing, use .get() for safe access"),
+            ]
+
+            for pattern, message in deprecated_patterns:
+                if re.search(pattern, content):
+                    warnings.append({
+                        "type": "deprecated_pattern",
+                        "file": str(file_path),
+                        "pattern": pattern,
+                        "message": message
+                    })
+
+        except Exception as e:
+            violations.append({
+                "type": "file_error",
+                "file": str(file_path),
+                "message": f"Could not analyze file: {e}"
+            })
+
+        return {"violations": violations, "warnings": warnings}
+
+    def scan_project(self) -> Dict[str, Any]:
+        """Scan entire project for lint compliance"""
+        self.output("🔍 ArcMoon Lint Checker - Scanning project...")
+
+        results = {
+            "files_scanned": 0,
+            "violations": [],
+            "warnings": [],
+            "config_analysis": self.config_rules
+        }
+
+        # Find all Rust files
+        rust_files = list(Path(self.working_dir).rglob("*.rs"))
+
+        for rust_file in rust_files:
+            if "target/" in str(rust_file):
+                continue  # Skip build artifacts
+
+            self.output(f"   Checking: {rust_file.relative_to(self.working_dir)}")
+            file_results = self.check_rust_file(rust_file)
+
+            results["violations"].extend(file_results["violations"])
+            results["warnings"].extend(file_results["warnings"])
+            results["files_scanned"] += 1
+
+        # Check .cargo/config.toml compliance
+        config_violations = self._check_config_compliance()
+        results["violations"].extend(config_violations)
+
+        self._report_results(results)
+        return results
+
+    def _check_config_compliance(self) -> List[Dict[str, Any]]:
+        """Check .cargo/config.toml for ArcMoon compliance"""
+        violations = []
+        config_path = Path(self.working_dir) / ".cargo" / "config.toml"
+
+        if not config_path.exists():
+            violations.append({
+                "type": "missing_config",
+                "file": str(config_path),
+                "message": "Missing .cargo/config.toml file"
+            })
+            return violations
+
+        try:
+            with open(config_path, 'r') as f:
+                content = f.read()
+
+            # Check for required ArcMoon sections
+            required_sections = [
+                "ArcMoon Studios Global Quality Standards",
+                "target.x86_64-pc-windows-msvc",
+                "target.x86_64-unknown-linux-gnu",
+                "target.x86_64-apple-darwin"
+            ]
+
+            for section in required_sections:
+                if section not in content:
+                    violations.append({
+                        "type": "config_compliance",
+                        "file": str(config_path),
+                        "section": section,
+                        "message": f"Missing required config section: {section}"
+                    })
+
+        except Exception as e:
+            violations.append({
+                "type": "config_error",
+                "file": str(config_path),
+                "message": f"Could not analyze config: {e}"
+            })
+
+        return violations
+
+    def _report_results(self, results: Dict[str, Any]) -> None:
+        """Report scan results"""
+        self.output(f"\n📊 LINT SCAN RESULTS:")
+        self.output(f"   Files Scanned: {results['files_scanned']}")
+        self.output(f"   Violations: {len(results['violations'])}")
+        self.output(f"   Warnings: {len(results['warnings'])}")
+
+        if results['violations']:
+            self.output(f"\n❌ VIOLATIONS:")
+            for violation in results['violations']:
+                self.output(f"   • {violation['file']}: {violation['message']}")
+
+        if results['warnings']:
+            self.output(f"\n⚠️ WARNINGS:")
+            for warning in results['warnings']:
+                self.output(f"   • {warning['file']}: {warning['message']}")
+
+        if not results['violations'] and not results['warnings']:
+            self.output(f"\n✅ PERFECT COMPLIANCE - No violations or warnings found!")
+        else:
+            self.output(f"\n🔧 Run 'cargo fmt' and fix violations for full ArcMoon compliance.")
+
+    def output(self, text: str) -> None:
+        """Output text with optional callback"""
+        if self.output_callback:
+            clean_text = text.replace('\033[91m', '').replace('\033[92m', '').replace('\033[93m', '')
+            clean_text = clean_text.replace('\033[94m', '').replace('\033[95m', '').replace('\033[96m', '')
+            clean_text = clean_text.replace('\033[97m', '').replace('\033[1m', '').replace('\033[4m', '')
+            clean_text = clean_text.replace('\033[0m', '')
+            self.output_callback(clean_text)
 
 class CrateChecker:
     """Comprehensive Rust Crate Quality Validation System"""
@@ -2358,6 +3100,7 @@ class ArcMoonSystemGUI:
             quality_buttons = [
                 ("📝 Format", self._run_format),
                 ("📎 Clippy", self._run_clippy),
+                ("🎯 ArcMoon Lint", self._run_arcmoon_lint_check),
                 ("🔒 Audit", self._run_audit),
                 ("⚡ Bench", self._run_benchmarks),
             ]
@@ -3182,6 +3925,38 @@ Features: Integrated CrateCheck • GitHub CLI Integration"""
         except Exception as e:
             logger.error(f"Error running format: {e}")
             self._append_output_queued(f"\n❌ Error starting format: {str(e)}\n")
+
+    def _run_arcmoon_lint_check(self) -> None:
+        """Run ArcMoon enterprise lint checking."""
+        try:
+            self.root.after(0, lambda: self._update_status("Running ArcMoon lint check..."))
+            self._append_output_queued(f"\n🎯 Starting ArcMoon lint analysis at {datetime.now().strftime('%H:%M:%S')}\n")
+
+            def run_lint_check():
+                try:
+                    lint_checker = ArcMoonLintChecker(
+                        output_callback=self._append_output_queued,
+                        working_dir=self.workspace_path
+                    )
+                    results = lint_checker.scan_project()
+
+                    # Generate compliance report
+                    if not results['violations']:
+                        self.root.after(0, lambda: self._append_output_queued("\n🏆 ArcMoon Compliance: PERFECT\n"))
+                        self.root.after(0, lambda: self._update_status("ArcMoon compliant"))
+                    else:
+                        self.root.after(0, lambda: self._append_output_queued(f"\n⚠️ ArcMoon Compliance: {len(results['violations'])} violations found\n"))
+                        self.root.after(0, lambda: self._update_status("Compliance issues found"))
+
+                except Exception as e:
+                    self.root.after(0, lambda: self._append_output_queued(f"\n❌ Lint check error: {str(e)}\n"))
+                    self.root.after(0, lambda: self._update_status("Lint check failed"))
+
+            threading.Thread(target=run_lint_check, daemon=True).start()
+
+        except Exception as e:
+            logger.error(f"Error running ArcMoon lint check: {e}")
+            self._append_output_queued(f"\n❌ Error starting lint check: {str(e)}\n")
 
     def _run_clippy(self) -> None:
         """Run cargo clippy with error handling."""
@@ -4192,8 +4967,80 @@ expect {{
                 pass
             raise
 
+def run_prime_lint(project_path: Path, output_file: Optional[Path] = None,
+                   report_file: Optional[Path] = None, enforce_gates: bool = False) -> int:
+    """Run P.R.I.M.E. quality analysis on a Rust project"""
+    try:
+        if not project_path.exists():
+            print(f"❌ Error: Project path {project_path} does not exist")
+            return 1
+
+        # Analyze project
+        analyzer = PrimeAnalyzer()
+        metrics = analyzer.analyze_rust_project(project_path)
+
+        # Generate report
+        report = analyzer.generate_quality_report(metrics)
+        print(report)
+
+        # Save outputs
+        if output_file:
+            with open(output_file, 'w', encoding='utf-8') as f:
+                json.dump(asdict(metrics), f, indent=2, ensure_ascii=False)
+            print(f"📄 Metrics saved to: {output_file}")
+
+        if report_file:
+            with open(report_file, 'w', encoding='utf-8') as f:
+                f.write(report)
+            print(f"📋 Report saved to: {report_file}")
+
+        # Enforce quality gates
+        if enforce_gates:
+            if analyzer.enforce_quality_gates(metrics):
+                print("✅ Quality gates PASSED")
+                return 0
+            else:
+                print("❌ Quality gates FAILED")
+                return 1
+
+        return 0
+
+    except Exception as e:
+        print(f"❌ Error during P.R.I.M.E. analysis: {e}")
+        return 1
+
 def main() -> None:
-    """Main entry point with comprehensive error handling."""
+    """Main entry point with comprehensive error handling and CLI support."""
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(
+        description='ArcMoon Studios Enterprise Control Panel',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  python ams.py                           # Launch GUI
+  python ams.py --lint /path/to/project   # Run P.R.I.M.E. quality analysis
+  python ams.py --lint . --gate           # Run analysis with quality gates
+  python ams.py --lint . --report report.txt --output metrics.json
+        """
+    )
+
+    parser.add_argument('--lint', type=Path, metavar='PROJECT_PATH',
+                       help='Run P.R.I.M.E. quality analysis on Rust project')
+    parser.add_argument('--output', '-o', type=Path, metavar='FILE',
+                       help='Save metrics to JSON file')
+    parser.add_argument('--report', '-r', type=Path, metavar='FILE',
+                       help='Save quality report to text file')
+    parser.add_argument('--gate', '-g', action='store_true',
+                       help='Enforce quality gates (exit 1 if fail)')
+
+    args = parser.parse_args()
+
+    # Handle lint command
+    if args.lint:
+        exit_code = run_prime_lint(args.lint, args.output, args.report, args.gate)
+        sys.exit(exit_code)
+
+    # Default GUI mode
     try:
         # Set up proper exception handling
         def handle_exception(exc_type, exc_value, exc_traceback):

@@ -1,6 +1,6 @@
 # Makefile
-#![warn(missing_docs)]
 #![deny(unsafe_code)]
+#![warn(missing_docs)]
 #!
 #! **Brief:** ArcMoon Studios Enterprise Makefile with CI/Dev Mode Upgrade System and Git Safety Layer.
 #!

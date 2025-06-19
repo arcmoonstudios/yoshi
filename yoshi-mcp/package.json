@@ -1,0 +1,138 @@
+{
+  "name": "yoshi-mcp",
+  "displayName": "Yoshi MCP - Local LLM Assistant",
+  "description": "VS Code extension with local LLM inference using Yoshi error framework and MCP server architecture",
+  "version": "0.1.0",
+  "publisher": "arcmoon-studios",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "AI",
+    "Programming Languages",
+    "Machine Learning",
+    "Snippets"
+  ],
+  "keywords": [
+    "ai",
+    "llm",
+    "local",
+    "inference",
+    "code-generation",
+    "yoshi",
+    "mcp"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "yoshiMcp.generateText",
+        "title": "Generate Text with Local LLM",
+        "category": "Yoshi MCP"
+      },
+      {
+        "command": "yoshiMcp.selectModel",
+        "title": "Select Local Model",
+        "category": "Yoshi MCP"
+      },
+      {
+        "command": "yoshiMcp.downloadModel",
+        "title": "Download Model",
+        "category": "Yoshi MCP"
+      },
+      {
+        "command": "yoshiMcp.showStatus",
+        "title": "Show Status",
+        "category": "Yoshi MCP"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "yoshiMcp.generateText",
+        "key": "ctrl+shift+g",
+        "mac": "cmd+shift+g",
+        "when": "editorTextFocus"
+      }
+    ],
+    "configuration": {
+      "title": "Yoshi MCP",
+      "properties": {
+        "yoshiMcp.modelPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to local GGUF model file"
+        },
+        "yoshiMcp.maxTokens": {
+          "type": "number",
+          "default": 200,
+          "minimum": 1,
+          "maximum": 4096,
+          "description": "Maximum tokens to generate"
+        },
+        "yoshiMcp.temperature": {
+          "type": "number",
+          "default": 0.7,
+          "minimum": 0.0,
+          "maximum": 2.0,
+          "description": "Sampling temperature for generation"
+        },
+        "yoshiMcp.enableGPU": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable GPU acceleration if available"
+        },
+        "yoshiMcp.cacheSize": {
+          "type": "number",
+          "default": 100,
+          "minimum": 10,
+          "maximum": 1000,
+          "description": "Number of cached inference results"
+        },
+        "yoshiMcp.autoDownloadModels": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically download recommended models"
+        }
+      }
+    },
+    "menus": {
+      "editor/context": [
+        {
+          "command": "yoshiMcp.generateText",
+          "when": "editorHasSelection",
+          "group": "1_modification"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "webpack --mode production",
+    "compile:dev": "webpack --mode development --watch",
+    "build:wasm": "./scripts/build-wasm.sh",
+    "test": "node ./out/test/runTest.js",
+    "package": "vsce package",
+    "publish": "vsce publish",
+    "lint": "eslint src --ext ts",
+    "pretest": "npm run compile && npm run lint"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.85.0",
+    "@types/node": "18.x",
+    "@typescript-eslint/eslint-plugin": "^6.13.0",
+    "@typescript-eslint/parser": "^6.13.0",
+    "@vscode/test-electron": "^2.3.8",
+    "@vscode/vsce": "^2.22.0",
+    "eslint": "^8.54.0",
+    "typescript": "^5.3.0",
+    "webpack": "^5.89.0",
+    "webpack-cli": "^5.1.4",
+    "ts-loader": "^9.5.1"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.13.0"
+  }
+}

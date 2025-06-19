@@ -5,17 +5,12 @@
 //! and system health tracking capabilities. It integrates with the yoshi error
 //! framework to provide structured error tracking and analysis.
 
-use crate::errors::{Result, YoshiDeluxeExt};
 use std::{
     collections::{HashMap, VecDeque},
-    sync::{
-        atomic::{AtomicU64, Ordering},
-        Arc,
-    },
+    sync::Arc,
     time::{Duration, SystemTime},
 };
 use tokio::sync::RwLock;
-use yoshi_std::{HatchExt, LayText};
 
 //--------------------------------------------------------------------------------------------------
 // System Metrics Collection
@@ -66,7 +61,7 @@ struct PerformanceMetrics {
     /// Cache performance
     cache_performance: HashMap<String, CachePerformanceData>,
     /// Concurrent operation counts
-    concurrent_operations: HashMap<String, u64>,
+    _concurrent_operations: HashMap<String, u64>,
 }
 
 /// Error tracking and categorization
@@ -81,7 +76,7 @@ struct ErrorMetrics {
     /// Error recovery success rate
     recovery_success_rate: f64,
     /// Error frequency over time
-    error_frequency: VecDeque<(SystemTime, u64)>,
+    _error_frequency: VecDeque<(SystemTime, u64)>,
 }
 
 /// Resource utilization tracking
@@ -92,20 +87,20 @@ struct ResourceMetrics {
     /// Cache sizes
     cache_sizes: HashMap<String, usize>,
     /// Concurrent operation limits
-    concurrency_limits: HashMap<String, usize>,
+    _concurrency_limits: HashMap<String, usize>,
     /// Resource exhaustion events
     resource_exhaustion_events: u64,
 }
 
 /// Throughput measurement
 #[derive(Debug, Clone)]
-struct ThroughputMeasurement {
+pub struct ThroughputMeasurement {
     /// Timestamp of measurement
-    timestamp: SystemTime,
+    _timestamp: SystemTime,
     /// Operations per second
-    ops_per_second: f64,
+    _ops_per_second: f64,
     /// Operation type
-    operation_type: String,
+    _operation_type: String,
 }
 
 /// Cache performance data
@@ -116,7 +111,7 @@ struct CachePerformanceData {
     /// Miss count
     misses: u64,
     /// Eviction count
-    evictions: u64,
+    _evictions: u64,
     /// Average lookup time
     avg_lookup_time: Duration,
 }
@@ -152,7 +147,7 @@ struct ErrorEvent {
 
 /// Memory usage measurement
 #[derive(Debug, Clone)]
-struct MemoryMeasurement {
+pub struct MemoryMeasurement {
     /// Timestamp
     timestamp: SystemTime,
     /// Total memory usage in bytes
@@ -330,7 +325,7 @@ impl SystemMetricsCollector {
             .or_insert_with(|| CachePerformanceData {
                 hits: 0,
                 misses: 0,
-                evictions: 0,
+                _evictions: 0,
                 avg_lookup_time: Duration::ZERO,
             });
 
@@ -356,9 +351,9 @@ impl SystemMetricsCollector {
         let mut metrics = self.performance_metrics.write().await;
 
         metrics.throughput_data.push_back(ThroughputMeasurement {
-            timestamp: SystemTime::now(),
-            ops_per_second,
-            operation_type: operation_type.to_string(),
+            _timestamp: SystemTime::now(),
+            _ops_per_second: ops_per_second,
+            _operation_type: operation_type.to_string(),
         });
 
         // Keep only recent measurements (last 1000)
@@ -548,7 +543,7 @@ impl SystemMetricsCollector {
                     .calculate_efficiency_score(&snapshot.analysis_summary)
                     .await,
             },
-            component_performance: snapshot.performance_summary.component_performance,
+            component_performance: snapshot.performance_summary.component_performance.clone(),
             cache_efficiency: snapshot
                 .performance_summary
                 .cache_performance
@@ -584,7 +579,7 @@ impl SystemMetricsCollector {
         // Factor in error rate
         let error_rate = snapshot.error_summary.total_errors as f64
             / snapshot.analysis_summary.total_analyses.max(1) as f64;
-        score *= (1.0 - error_rate.min(1.0));
+        score *= 1.0 - error_rate.min(1.0);
 
         // Factor in cache performance
         let avg_cache_hit_ratio = if snapshot.performance_summary.cache_performance.is_empty() {
@@ -1047,7 +1042,7 @@ mod tests {
         let mut cache_data = CachePerformanceData {
             hits: 8,
             misses: 2,
-            evictions: 0,
+            _evictions: 0,
             avg_lookup_time: Duration::from_millis(5),
         };
 

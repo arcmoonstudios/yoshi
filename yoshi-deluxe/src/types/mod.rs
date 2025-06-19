@@ -38,6 +38,8 @@ pub struct CompilerDiagnostic {
     pub children: Vec<CompilerDiagnostic>,
     /// Suggested replacements from compiler
     pub suggested_replacement: Option<String>,
+    /// Machine-applicable signpost from clippy --fix for autonomous corrections
+    pub machine_applicable_signpost: Option<String>,
     /// Additional metadata for correction context
     pub metadata: HashMap<String, String>,
     /// Diagnostic creation timestamp
@@ -58,6 +60,7 @@ impl CompilerDiagnostic {
             spans: Vec::new(),
             children: Vec::new(),
             suggested_replacement: None,
+            machine_applicable_signpost: None,
             metadata: HashMap::new(),
             created_at: SystemTime::now(),
             processed: false,
@@ -160,6 +163,8 @@ pub struct DiagnosticSpan {
     pub is_primary: bool,
     /// Span label if available
     pub label: Option<String>,
+    /// Suggested replacement text for this span
+    pub suggested_replacement: Option<String>,
     /// Expansion information for macro spans
     pub expansion: Option<Box<DiagnosticSpan>>,
 }
@@ -188,6 +193,7 @@ impl DiagnosticSpan {
             text,
             is_primary: false,
             label: None,
+            suggested_replacement: None,
             expansion: None,
         }
     }
@@ -1104,35 +1110,38 @@ impl Default for SystemConfig {
 
 impl SystemConfig {
     /// Create a new system configuration with validation
-    pub fn new() -> crate::Result<Self> {
+    pub fn new() -> crate::Hatch<Self> {
         let config = Self::default();
         config.validate()?;
         Ok(config)
     }
 
     /// Validate configuration parameters
-    pub fn validate(&self) -> crate::Result<()> {
-        use crate::errors::factory;
+    pub fn validate(&self) -> crate::Hatch<()> {
+        use crate::err::YoshiACE;
 
         if self.max_proposals_per_diagnostic == 0 {
-            return Err(factory::configuration_error(
-                "max_proposals_per_diagnostic",
-                "0",
-            ));
+            return Err(YoshiACE::Configuration {
+                _parameter: "max_proposals_per_diagnostic".to_string(),
+                _value: "0".to_string(),
+            }
+            .into());
         }
 
         if !(0.0..=1.0).contains(&self.min_confidence_threshold) {
-            return Err(factory::configuration_error(
-                "min_confidence_threshold",
-                self.min_confidence_threshold.to_string(),
-            ));
+            return Err(YoshiACE::Configuration {
+                _parameter: "min_confidence_threshold".to_string(),
+                _value: self.min_confidence_threshold.to_string(),
+            }
+            .into());
         }
 
         if self.max_concurrent_operations == 0 {
-            return Err(factory::configuration_error(
-                "max_concurrent_operations",
-                "0",
-            ));
+            return Err(YoshiACE::Configuration {
+                _parameter: "max_concurrent_operations".to_string(),
+                _value: "0".to_string(),
+            }
+            .into());
         }
 
         Ok(())
@@ -1169,6 +1178,330 @@ impl SystemConfig {
             enable_metrics: false,
             auto_apply_safe_corrections: false,
             create_backup_files: true,
+        }
+    }
+}
+
+//--------------------------------------------------------------------------------------------------
+// Performance and Optimization Types
+//--------------------------------------------------------------------------------------------------
+
+/// **Performance Impact Classification**
+///
+/// Categorizes the performance impact level of optimizations and corrections.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum PerformanceImpact {
+    /// High performance impact - significant improvement expected
+    High,
+    /// Medium performance impact - moderate improvement expected
+    Medium,
+    /// Low performance impact - minimal improvement expected
+    Low,
+}
+
+impl PerformanceImpact {
+    /// Get the impact level as a numeric score (0.0 to 1.0)
+    #[must_use]
+    pub fn score(&self) -> f64 {
+        match self {
+            Self::High => 1.0,
+            Self::Medium => 0.6,
+            Self::Low => 0.3,
+        }
+    }
+
+    /// Get the impact level as a descriptive string
+    #[must_use]
+    pub fn description(&self) -> &'static str {
+        match self {
+            Self::High => "High performance impact",
+            Self::Medium => "Medium performance impact",
+            Self::Low => "Low performance impact",
+        }
+    }
+}
+
+impl std::fmt::Display for PerformanceImpact {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.description())
+    }
+}
+
+/// **Optimization Opportunity**
+///
+/// Represents a specific optimization opportunity detected in code.
+#[derive(Debug, Clone)]
+pub struct OptimizationOpportunity {
+    /// Description of the optimization opportunity
+    pub description: String,
+    /// Location in the code where the optimization can be applied
+    pub location: CodeLocation,
+    /// Expected performance impact of applying this optimization
+    pub performance_impact: PerformanceImpact,
+    /// Confidence level of the optimization (0.0 to 1.0)
+    pub confidence: f64,
+    /// Type of optimization (e.g., "vec_allocation", "error_handling")
+    pub optimization_type: String,
+    /// Suggested code replacement
+    pub suggested_fix: Option<String>,
+}
+
+/// **Code Location**
+///
+/// Represents a specific location in source code.
+#[derive(Debug, Clone)]
+pub struct CodeLocation {
+    /// Line number (1-based)
+    pub line: usize,
+    /// Column number (1-based)
+    pub column: usize,
+    /// Byte offset in the file
+    pub byte_offset: Option<usize>,
+    /// Length of the code span
+    pub length: Option<usize>,
+}
+
+/// **Optimization Engine**
+///
+/// Core engine for detecting and applying code optimizations.
+#[derive(Debug, Clone)]
+pub struct OptimizationEngine {
+    /// Engine configuration
+    config: OptimizationConfig,
+    /// Cache of previously analyzed patterns
+    pattern_cache: std::collections::HashMap<String, Vec<OptimizationOpportunity>>,
+}
+
+impl OptimizationEngine {
+    /// Create a new optimization engine with default configuration
+    #[must_use]
+    pub fn new() -> Self {
+        Self {
+            config: OptimizationConfig::default(),
+            pattern_cache: std::collections::HashMap::new(),
+        }
+    }
+
+    /// Create a new optimization engine with custom configuration
+    #[must_use]
+    pub fn with_config(config: OptimizationConfig) -> Self {
+        Self {
+            config,
+            pattern_cache: std::collections::HashMap::new(),
+        }
+    }
+
+    /// Detect optimization opportunities in the given code
+    #[must_use]
+    pub fn detect_optimization_opportunities(&self, code: &str) -> Vec<OptimizationOpportunity> {
+        let mut opportunities = Vec::new();
+
+        // Check for Vec allocation patterns
+        if code.contains("Vec::new()") && code.contains(".push(") {
+            let push_count = code.matches(".push(").count();
+            if push_count > 3 {
+                opportunities.push(OptimizationOpportunity {
+                    description: format!(
+                        "Consider using Vec::with_capacity({}) to pre-allocate",
+                        push_count
+                    ),
+                    location: CodeLocation {
+                        line: 1, // Simplified - would need proper parsing
+                        column: 1,
+                        byte_offset: None,
+                        length: None,
+                    },
+                    performance_impact: if push_count > 10 {
+                        PerformanceImpact::High
+                    } else {
+                        PerformanceImpact::Medium
+                    },
+                    confidence: 0.8,
+                    optimization_type: "vec_allocation".to_string(),
+                    suggested_fix: Some(format!("Vec::with_capacity({})", push_count)),
+                });
+            }
+        }
+
+        // Check for unwrap() usage
+        if code.contains(".unwrap()") {
+            opportunities.push(OptimizationOpportunity {
+                description: "Replace .unwrap() with proper error handling".to_string(),
+                location: CodeLocation {
+                    line: 1, // Simplified - would need proper parsing
+                    column: 1,
+                    byte_offset: None,
+                    length: None,
+                },
+                performance_impact: PerformanceImpact::Low,
+                confidence: 0.9,
+                optimization_type: "error_handling".to_string(),
+                suggested_fix: Some("Use .map_err() or ? operator".to_string()),
+            });
+        }
+
+        // Check for string concatenation in loops
+        if code.contains("for ") && code.contains(" + ") && code.contains("String") {
+            opportunities.push(OptimizationOpportunity {
+                description: "Consider using String::with_capacity() or format! macro".to_string(),
+                location: CodeLocation {
+                    line: 1, // Simplified - would need proper parsing
+                    column: 1,
+                    byte_offset: None,
+                    length: None,
+                },
+                performance_impact: PerformanceImpact::High,
+                confidence: 0.7,
+                optimization_type: "string_allocation".to_string(),
+                suggested_fix: Some("Use String::with_capacity() or collect()".to_string()),
+            });
+        }
+
+        opportunities
+    }
+
+    /// Apply optimizations to the given code
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if optimization application fails
+    pub fn apply_optimizations(
+        &self,
+        code: &str,
+        opportunities: &[OptimizationOpportunity],
+    ) -> Result<String, String> {
+        let mut optimized_code = code.to_string();
+
+        for opportunity in opportunities {
+            match opportunity.optimization_type.as_str() {
+                "vec_allocation" => {
+                    if let Some(fix) = &opportunity.suggested_fix {
+                        optimized_code = optimized_code.replace("Vec::new()", fix);
+                    }
+                }
+                "error_handling" => {
+                    // For demo purposes, just add a comment
+                    optimized_code = optimized_code
+                        .replace(".unwrap()", ".expect(\"TODO: Handle this error properly\")");
+                }
+                "string_allocation" => {
+                    // For demo purposes, just add a comment
+                    if optimized_code.contains("String::new()") {
+                        optimized_code =
+                            optimized_code.replace("String::new()", "String::with_capacity(64)");
+                    }
+                }
+                _ => {
+                    // Unknown optimization type - skip
+                }
+            }
+        }
+
+        Ok(optimized_code)
+    }
+
+    /// Get engine configuration
+    #[must_use]
+    pub fn config(&self) -> &OptimizationConfig {
+        &self.config
+    }
+}
+
+impl Default for OptimizationEngine {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// **Optimization Engine Configuration**
+///
+/// Configuration options for the optimization engine.
+#[derive(Debug, Clone)]
+pub struct OptimizationConfig {
+    /// Enable aggressive optimizations that may change semantics
+    pub aggressive_mode: bool,
+    /// Maximum number of optimization passes
+    pub max_passes: usize,
+    /// Minimum confidence threshold for applying optimizations
+    pub confidence_threshold: f64,
+    /// Enable experimental optimizations
+    pub experimental: bool,
+    /// Maximum number of opportunities to detect per file
+    pub max_opportunities: usize,
+}
+
+impl Default for OptimizationConfig {
+    fn default() -> Self {
+        Self {
+            aggressive_mode: false,
+            max_passes: 3,
+            confidence_threshold: 0.7,
+            experimental: false,
+            max_opportunities: 50,
+        }
+    }
+}
+
+/// **Clippy Strategy Trait**
+///
+/// Trait for implementing different clippy lint strategies.
+pub trait ClippyStrategy {
+    /// Get the name of the lint this strategy handles
+    fn lint_name(&self) -> &str;
+
+    /// Get a description of what this strategy does
+    fn description(&self) -> &str;
+
+    /// Check if this strategy can handle the given lint
+    fn can_handle(&self, lint_name: &str) -> bool;
+
+    /// Apply the strategy to fix the lint in the given code
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the strategy cannot be applied
+    fn apply(&self, code: &str, lint_info: &LintInfo) -> Result<String, String>;
+
+    /// Get the confidence level of this strategy (0.0 to 1.0)
+    fn confidence(&self) -> f64;
+}
+
+/// **Lint Information**
+///
+/// Information about a specific lint violation.
+#[derive(Debug, Clone)]
+pub struct LintInfo {
+    /// Name of the lint (e.g., "unused_variables")
+    pub lint_name: String,
+    /// Lint message
+    pub message: String,
+    /// Location of the lint violation
+    pub location: CodeLocation,
+    /// Suggested fix from clippy (if available)
+    pub suggested_fix: Option<String>,
+    /// Severity level
+    pub severity: LintSeverity,
+}
+
+/// **Lint Severity**
+///
+/// Severity levels for lint violations.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LintSeverity {
+    /// Error - must be fixed
+    Error,
+    /// Warning - should be fixed
+    Warning,
+    /// Note - informational
+    Note,
+}
+
+impl std::fmt::Display for LintSeverity {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Error => write!(f, "error"),
+            Self::Warning => write!(f, "warning"),
+            Self::Note => write!(f, "note"),
         }
     }
 }

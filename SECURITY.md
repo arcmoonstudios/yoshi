@@ -16,7 +16,7 @@ The Yoshi error framework is designed with security and robustness in mind, part
 **Best Practices:**
 
 * **Always use `YOSHI_PRODUCTION_MODE` in Production:** Set this environment variable to `1` or `true` in your production deployments.
-* **Avoid Sensitive Data in Error Messages**: Design your error messages (`message`, `suggestion`, `YoContext` messages) to be as generic as possible. If sensitive details are needed for debugging, attach them as **typed payloads** rather than directly in human-readable strings.
+* **Avoid Sensitive Data in Error Messages**: Design your error messages (`message`, `suggestion`, `Nest` messages) to be as generic as possible. If sensitive details are needed for debugging, attach them as **typed payloads** rather than directly in human-readable strings.
 * **Leverage Typed Shells for Internal Debugging**: Typed payloads are `#[serde(skip)]` by default. This means they are not serialized to JSON or other formats unless you explicitly extract and serialize them. This makes them safer for storing sensitive debug data that should only be accessed programmatically within the application or a secure debugger.
 * **Custom Sanitization Hooks**: If Yoshi's default sanitization is insufficient, you can implement custom formatting logic or middleware that inspects and sanitizes error fields before logging or displaying.
 * **Logging Levels**: Integrate Yoshi with `tracing` and adjust logging levels based on environment. `DEBUG` or `TRACE` level might include more verbose error details only in development.
@@ -41,8 +41,8 @@ The Yoshi error framework is designed with security and robustness in mind, part
 **Yoshi's Safeguards:**
 
 * **Structured `YoshiKind`:** By providing a structured `YoshiKind` enum with distinct fields for different error categories, Yoshi enforces type safety at the definition level. This reduces ambiguity compared to unstructured string errors.
-* **Strongly-Typed Shells:** `YoContext::shell::<T>()` relies on Rust's `Any` trait and `downcast_ref()`, which are type-safe. You can only retrieve a shell if its type matches the one you expect, preventing misinterpretations.
-* **`Arc<str>` for Shared Strings:** Using `Arc<str>` for string fields in `YoshiKind` and `YoContext` ensures immutable, shared ownership, preventing accidental modification of error messages after creation.
+* **Strongly-Typed Shells:** `Nest::shell::<T>()` relies on Rust's `Any` trait and `downcast_ref()`, which are type-safe. You can only retrieve a shell if its type matches the one you expect, preventing misinterpretations.
+* **`Arc<str>` for Shared Strings:** Using `Arc<str>` for string fields in `YoshiKind` and `Nest` ensures immutable, shared ownership, preventing accidental modification of error messages after creation.
 * **Procedural Macro Validation (`yoshi-derive`):** The `yoshi-derive` macro performs compile-time validation of attribute usage and field mappings, catching many common errors before runtime. This includes checking placeholder usage in `display` formats and uniqueness of error codes.
 
 **Best Practices:**
@@ -57,8 +57,8 @@ The Yoshi error framework is designed with security and robustness in mind, part
 
 **Yoshi's Safeguards:**
 
-* **String Interning**: Yoshi employs a global string interning pool (`StringInternPool`) for `Arc<str>` values in `YoshiKind` and `YoContext`. This dramatically reduces memory allocations for frequently repeated strings (e.g., common error messages, metadata keys).
-* **`Arc` for Costly Clones:** `Yoshi` and `YoContext` use `Arc` for fields like `message`, `metadata` values, and `payloads`. Cloning a `Yoshi` error or `YoContext` creates shallow copies of these `Arc`s, significantly reducing memory and CPU overhead compared to deep cloning.
+* **String Interning**: Yoshi employs a global string interning pool (`StringInternPool`) for `Arc<str>` values in `YoshiKind` and `Nest`. This dramatically reduces memory allocations for frequently repeated strings (e.g., common error messages, metadata keys).
+* **`Arc` for Costly Clones:** `Yoshi` and `Nest` use `Arc` for fields like `message`, `metadata` values, and `payloads`. Cloning a `Yoshi` error or `Nest` creates shallow copies of these `Arc`s, significantly reducing memory and CPU overhead compared to deep cloning.
 * **Conditional Backtrace Capture**: Backtraces are only captured when enabled by environment variables, preventing performance overhead in production by default.
 * **`OptimizedFormatBuffer`**: The internal formatting logic uses a pre-allocated and intelligently growing `OptimizedFormatBuffer` to minimize reallocations during error display.
 * **Memory Usage Statistics (`memory::get_memory_stats`):** You can query global statistics on string interning hits/misses and estimated memory savings, helping to identify and address allocation hotspots.

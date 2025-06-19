@@ -1,6 +1,6 @@
 # scripts/arcmoon-upgrade.ps1
-#![warn(missing_docs)]
 #![deny(unsafe_code)]
+#![warn(missing_docs)]
 #!
 #! **Brief:** ArcMoon Studios Enterprise PowerShell Upgrade Script with Git Safety Layer.
 #!

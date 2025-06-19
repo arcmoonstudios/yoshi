@@ -1,212 +1,245 @@
-<!-- markdownlint-disable MD018 -->
-<!--
-  Disabling the following rules:
-  - MD018/no-missing-space-atx: No space after hash on atx style heading
--->
 # Troubleshooting the Yoshi Error Framework
 
-This document provides solutions to common issues and debugging tips when working with the Yoshi error handling framework. Yoshi is designed for robustness and performance, but like any complex library, understanding its nuances can streamline your development process.
+This document provides solutions to common issues and debugging tips when working with the Yoshi error handling framework.
 
 ## General Troubleshooting Steps
 
 Before diving into specific issues, consider these general steps:
 
 1. **Verify Feature Flags**: Ensure you have enabled the necessary features in your `Cargo.toml`.
-    * `std`: For standard library features (I/O errors, backtraces, `std::collections::HashMap`, etc.).
-    * `derive`: To use the `#[derive(YoshiError)]` procedural macro.
-    * `serde`: For `serde::Serialize` and `serde::Deserialize` implementations on `YoContext`.
-    * `tracing`: For integration with the `tracing` crate.
-    * `simd-optimized`: For SIMD-accelerated string processing (requires `x86_64` target and appropriate Rust compilation flags).
+   * `std`: For standard library features (backtraces, std::io integration, etc.).
+   * `derive`: To use the `yoshi_af!` macro and procedural macros.
+   * `serde`: For `serde::Serialize` and `serde::Deserialize` implementations.
+   * `full`: For complete feature set (recommended for most users).
 
-2.**Check Yoshi Version**: Make sure your `yoshi`, `yoshi-std`, and `yoshi-derive` crate versions are compatible and up-to-date.
+2. **Check Yoshi Version**: Make sure your `yoshi`, `yoshi-core`, `yoshi-std`, `yoshi-derive`, and `yoshi-deluxe` crate versions are compatible and up-to-date.
 
-3.*Read Compiler Errors Carefully**: Rust's compiler diagnostics are usually very informative. Pay close attention to suggested fixes and `note:` lines.
+3. **Read Compiler Errors Carefully**: Rust's compiler diagnostics are usually very informative. Pay close attention to suggested fixes and `note:` lines.
 
-4.*Consult Documentation**: Refer to the crate's `docs.rs` documentation for detailed API usage.
+4. **Consult Documentation**: Refer to the crate's `docs.rs` documentation for detailed API usage.
+
+5. **Use the `yum!` macro**: For comprehensive error analysis and debugging output.
 
 ## Common Compilation Errors and Solutions
 
 ### 1. `no method named ... found` or `trait not in scope`
 
-**Problem:** You're trying to use a method like `.context()`, `.meta()`, `.help()`, or `.with_shell()` on a `Result` type, but the compiler complains the method doesn't exist.
+**Problem:** You're trying to use a method like `.lay()` on a `Result` type, but the compiler complains the method doesn't exist.
 
-**Reason:** These methods are provided by the `HatchExt` trait, which needs to be in scope.
+**Reason:** The `.lay()` method is provided by importing the yoshi prelude.
 
-**Solution:** Import the `HatchExt` trait:
-
-```rust
-use yoshi::HatchExt; // For your facade crate usage
-// or
-use yoshi_std::HatchExt; // For direct yoshi-std usage
-
-2. mismatched types in YoshiKind fields
-
-Problem: When constructing a YoshiKind variant (e.g., YoshiKind::Network), the compiler reports type mismatches for fields like message, source, error_code, etc.
-
-Reason: YoshiKind fields typically expect Arc<str>, Option<Box<Yoshi>>, or specific primitive types (u32, Duration). You might be providing a String, &str, or an incompatible type.
-
-Solution: Ensure correct types and use .into() where appropriate for Arc<str> conversion.
+**Solution:** Import the yoshi prelude:
 
 ```rust
-// Incorrect
-// let err = Yoshi::new(YoshiKind::Network {
-// message: "Connection failed", // &str needs .into()
-// source: my_io_error, // std::io::Error needs to be converted to Yoshi and Boxed
-// error_code: "HTTP_500", // String literal needs to be parsed or converted to u32
-// });
+use yoshi::*; // Recommended - imports everything needed
 
-// Correct
-use yoshi_std::{Yoshi, YoshiKind};
-use std::io;
+// The .lay() method is now available:
+fn example() -> Hatch<String> {
+    some_operation()
+        .lay("Additional context")?;
+    Ok("success".to_string())
+}
+```
 
-let my_io_error = io::Error::new(io::ErrorKind::ConnectionRefused, "socket error");
-let err = Yoshi::new(YoshiKind::Network {
-message: "Connection failed".into(), // Convert &str to Arc<str>
-source: Some(Box::new(Yoshi::from(my_io_error))), // Convert io::Error to Yoshi, then box it
-error_code: Some(500), // Provide as u32
+### 2. Mismatched types in YoshiKind fields
+
+**Problem:** When constructing a YoshiKind variant (e.g., YoshiKind::Network), the compiler reports type mismatches for fields like message, source, error_code, etc.
+
+**Reason:** YoshiKind fields typically expect `Arc<str>`, `Option<Box<Yoshi>>`, or specific primitive types (u32, Duration). You might be providing a String, &str, or an incompatible type.
+
+**Solution:** Ensure correct types and use .into() where appropriate for `Arc<str>` conversion.
+
+```rust
+use yoshi::*;
+
+// Correct usage with proper type conversions
+let err = yoshi!(kind: YoshiKind::Network {
+    message: "Connection failed".into(), // Convert &str to Arc<str>
+    source: None, // Or Some(Box::new(other_yoshi_error))
+    error_code: Some(500), // Provide as u32
 });
+
+// Alternative using the yoshi! macro for simpler syntax
+let err = yoshi!(message: "Connection failed")
+    .with_metadata("error_code", "500")
+    .with_signpost("Check network connectivity");
 ```
 
-3.the trait bound ... is not satisfied for Send/Sync/'static
+### 3. Send/Sync/'static trait bound errors
 
-Problem: You're trying to use a custom error type as a source for YoshiKind::Foreign or attach a custom struct as a shell, but the compiler complains about missing Send, Sync, or 'static bounds.
+**Problem:** You're trying to use a custom error type as a source or attach a custom struct, but the compiler complains about missing Send, Sync, or 'static bounds.
 
-Reason: For thread safety and long-term storage, Yoshi requires Error sources and Any payloads to be Send + Sync + 'static. Your custom type might not implicitly satisfy these or might contain non-Send/Sync fields (e.g., Rc, RefCell).
+**Reason:** For thread safety and long-term storage, Yoshi requires Error sources and payloads to be Send + Sync + 'static.
 
-Solution:
-
-For Custom Error Types as Sources: Ensure your custom error struct or enum derives Send and Sync (if applicable) and its fields are also Send + Sync + 'static.
-
-For Shells: Ensure the type you're passing to with_shell() is Send + Sync + 'static. If it's not, you might need to wrap it in Arc or Mutex if sharing across threads, or consider if it truly needs to be part of the error shell.
+**Solution:** Ensure your custom types satisfy these bounds:
 
 ```rust
-// Assume MyCustomData is NOT Send + Sync + 'static
-// struct MyCustomData { non_send_field: std::rc::Rc<()> } // Example
+use yoshi::*;
 
-// Incorrect usage if MyCustomData doesn't meet bounds:
-// let error = Yoshi::new(YoshiKind::Internal { message: "Internal".into(), source: None, component: None })
-// .with_shell(MyCustomData { non_send_field: std::rc::Rc::new(()) }); // Compile error
+// Ensure your custom types are Send + Sync + 'static
+#[derive(Debug, Clone)]
+struct MyCustomData {
+    value: String, // String is Send + Sync + 'static
+}
 
-// If it's genuinely needed, consider its design. If it's just for debugging, Debug impl might be enough.
+// This will work
+let error = yoshi!(message: "Custom error")
+    .with_metadata("custom_data", "some value");
 ```
 
-4.Macro-related errors (yoshi!, #[derive(YoshiError)])
+### 4. Macro-related errors (yoshi!, yoshi_af!)
 
-Problem: macro-error: unexpected token in input, no rules expected ... or missing derive implementations.
+**Problem:** `macro-error: unexpected token in input`, `no rules expected ...` or missing derive implementations.
 
-Reason:
+**Reason:**
 
-yoshi! macro: Incorrect argument format (e.g., passing with_metadata = "key", "value" instead of ("key", "value")), or attempting to chain methods not supported by the macro's apply_attr rule.
+* **yoshi! macro**: Incorrect argument format or attempting to chain methods not supported by the macro.
+* **yoshi_af! macro**: Missing yoshi-derive feature in Cargo.toml, or syntax errors in the `#[yoshi(...)]` attributes.
 
-#[derive(YoshiError)]: Missing yoshi-derive feature in Cargo.toml, or syntax errors in the #[yoshi(...)] attributes (e.g., invalid kind string, missing fields in display format string).
+**Solution:**
 
-Solution:
+**yoshi! macro:**
 
-yoshi! macro:
+* Ensure attribute values are tuples for with_metadata: `with_metadata = ("key", "value")`.
+* Ensure string arguments are &str or String: `with_signpost = "my suggestion"`.
+* Use correct syntax patterns:
 
-Ensure attribute values are tuples for with_metadata: with_metadata = ("key", "value").
+```rust
+use yoshi::*;
 
-Ensure string arguments are &str or String: with_suggestion = "my suggestion" or my_string_var.to_string().
+// Correct yoshi! macro usage
+let error = yoshi!(message: "Something went wrong");
+let error = yoshi!(kind: YoshiKind::Network {
+    message: "Connection failed".into(),
+    source: None,
+    error_code: Some(503),
+});
+let error = yoshi!(
+    message: "Database error",
+    with_metadata = ("host", "localhost"),
+    with_signpost = "Check database connection"
+);
+```
 
-Review the macro's documentation for exact syntax.
+**yoshi_af! macro:**
 
-#[derive(YoshiError)]:
-
-Add yoshi-derive = { version = "...", optional = true } and derive = ["yoshi-derive"] to your crate's Cargo.toml dependencies, and enable the derive feature for yoshi.
-
-Double-check attribute syntax (e.g., #[yoshi(display = "{field_name}")]).
-
-Ensure all placeholders in display strings correspond to actual fields in the enum variant.
+* Enable the derive feature in your Cargo.toml:
 
 ```toml
-
-Cargo.toml
-
 [dependencies]
-yoshi = { version = "0.1", features = ["derive", "std"] } # Enable the derive feature
-yoshi-std = { version = "0.1", optional = true } # Optional, if you use yoshi-std directly
-yoshi-derive = { version = "0.1", optional = true } # Optional, if you use yoshi-derive directly
+yoshi = { version = "0.1", features = ["derive", "std"] }
+```
 
-### 5. `type annotations needed` for `Arc<str>` in HashMap lookups
+* Use correct yoshi_af! syntax:
 
-**Problem:** When retrieving values from `YoContext.metadata` (which is `HashMap<Arc<str>, Arc<str>>`), the compiler might ask for type annotations, especially if you try to `get()` with `&str`.
+```rust
+use yoshi::*;
 
-**Reason:** `HashMap::get` takes a `Q: ?Sized + Hash + Eq` where `K: Borrow<Q>`. While `Arc<str>` implements `Borrow<str>`, the compiler sometimes needs help inferring this.
+yoshi_af! {
+    #[derive(Debug)]
+    pub enum MyError {
+        #[yoshi(display = "User {user_id} not found")]
+        UserNotFound { user_id: u64 },
+    }
+}
+```
 
-**Solution:** Explicitly convert your lookup key to `Arc<str>` using `.into()` or use `&Arc::from("key")` for the lookup.
+### 5. Using the `yum!` macro for debugging
 
-\```rust
-use yoshi_std::YoContext;
-use std::sync::Arc;
+**Problem:** You want to get comprehensive error information for debugging purposes.
 
-let mut ctx = YoContext::new("Test context");
-ctx = ctx.with_metadata("user_id", "123");
+**Solution:** Use the `yum!` macro for enhanced error output:
 
-// Corrected lookup
-let user_id = ctx.metadata.get(&Arc::from("user_id")).map(|s| s.as_ref());
-println!("User ID: {:?}", user_id);
-\```
+```rust
+use yoshi::*;
+
+fn example_function() -> Hatch<String> {
+    // Some operation that might fail
+    Err(yoshi!(kind: YoshiKind::Network {
+        message: "Connection timeout".into(),
+        source: None,
+        error_code: Some(408),
+    })
+    .with_metadata("host", "api.example.com")
+    .with_signpost("Check network connectivity"))
+}
+
+fn main() {
+    match example_function() {
+        Ok(result) => println!("Success: {}", result),
+        Err(error) => {
+            yum!(error);  // Comprehensive error analysis output
+        }
+    }
+}
+```
 
 ## Common Runtime Issues and Debugging Tips
 
 ### 1. Errors not displaying as expected
 
-**Problem:** Your formatted error output (`println!("{}", err)`) doesn't show all the context, metadata, or structured details you added.
+**Problem:** Your formatted error output doesn't show all the context, metadata, or structured details you added.
 
 **Reason:**
-*   You might be using `{:?}` (Debug format) instead of `{}` (Display format). While Debug shows internal structure, Display is controlled by `fmt::Display` implementation and is designed for human readability.
-*   Context messages, metadata, and suggestions are tied to `YoContext` objects. If they are not correctly added to the `Yoshi` error, they won't appear.
-*   Some `YoshiKind` variants (like `Foreign` or `Io`) might display their source directly, which can sometimes overshadow additional context unless formatted specifically.
+
+* You might be using `{:?}` (Debug format) instead of `{}` (Display format).
+* Context messages and metadata might not be properly attached to the error.
 
 **Solution:**
-*   Always use `println!("{}", my_error)` for the user-friendly formatted output.
-*   Ensure you are chaining `Yoshi::context()`, `with_metadata()`, `with_suggestion()`, etc., correctly. Remember these methods apply to the `Yoshi` instance itself, which manages its internal `contexts` vector. Calling `my_yoshi_context.with_metadata()` on a standalone `YoContext` won't add it to a `Yoshi` error unless that context is then added to the `Yoshi` error. The convenience methods on `Yoshi` (e.g., `error.with_metadata(...)`) ensure the additions are correctly applied to the error's primary context.
-*   Inspect `println!("{:?}", my_error)` to see the internal `contexts` vector and confirm data is present.
+
+* Always use `println!("{}", my_error)` for user-friendly formatted output.
+* Use the `yum!` macro for comprehensive error analysis:
+
+```rust
+use yoshi::*;
+
+fn main() {
+    let error = yoshi!(message: "Something went wrong")
+        .with_metadata("component", "database")
+        .with_signpost("Check database connection");
+
+    // Comprehensive error output
+    yum!(error);
+
+    // Or simple display
+    println!("{}", error);
+}
+```
 
 ### 2. Backtraces are missing or incomplete
 
 **Problem:** Your `Yoshi` errors don't include backtraces, even though you expect them.
 
 **Reason:**
-*   Backtrace capture is typically controlled by the `RUST_BACKTRACE` or `RUST_LIB_BACKTRACE` environment variable (`Yoshi` uses `std::backtrace::Backtrace` which respects these).
-*   The `std` feature for `yoshi-std` might not be enabled, which is required for `std::backtrace::Backtrace`.
-*   In `no_std` environments, full backtraces are not available; `YoshiBacktrace` in `no_std` mode provides minimal location info.
+
+* Backtrace capture is controlled by the `RUST_BACKTRACE` environment variable.
+* The `std` feature might not be enabled, which is required for backtrace support.
+* In `no_std` environments, full backtraces are not available.
 
 **Solution:**
-*   **Enable `std` feature**: Make sure your `Cargo.toml` has `yoshi = { version = "...", features = ["std"] }`.
-*   **Set `RUST_BACKTRACE`**: Before running your program, set `RUST_BACKTRACE=1` or `RUST_BACKTRACE=full`.
-    * `RUST_BACKTRACE=1`: basic backtrace.
-    * `RUST_BACKTRACE=full`: more verbose backtrace (with more symbols).
-    * `RUST_LIB_BACKTRACE`: similar to `RUST_BACKTRACE` but specifically for library tracing.
-*   **Production vs. Development**: Remember that Yoshi's `YoshiBacktrace` capture is designed to be zero-cost in production unless explicitly enabled via these environment variables, to avoid performance overhead.
 
-### 3. Unexpected performance regressions or high memory usage
+* **Enable `std` feature**: Make sure your `Cargo.toml` has `yoshi = { version = "...", features = ["std"] }`.
+* **Set `RUST_BACKTRACE`**: Before running your program, set `RUST_BACKTRACE=1` or `RUST_BACKTRACE=full`.
+  * `RUST_BACKTRACE=1`: basic backtrace.
+  * `RUST_BACKTRACE=full`: more verbose backtrace with symbols.
+* **Production vs. Development**: Backtrace capture is designed to be zero-cost in production unless explicitly enabled.
+
+### 3. Performance issues
 
 **Problem:** After integrating Yoshi, your application experiences slower error handling or increased memory footprint.
 
 **Reason:**
-*   **Excessive allocations**: While Yoshi uses string interning and `Arc<str>` to reduce allocations, frequent creation of unique long strings or deep context chains can still cause overhead.
-*   **Backtrace capture**: If `RUST_BACKTRACE` is inadvertently enabled in a performance-critical benchmark or production environment, backtrace capture is a significant overhead.
-*   **Debugging features**: Using `Debug` formatting in performance-sensitive logging can be slower than `Display` format.
-*   **SIMD optimization**: If `simd-optimized` is enabled, ensure your build environment supports and uses AVX2 instructions (`RUSTFLAGS="-C target-cpu=native"` or similar).
+
+* Excessive allocations from frequent creation of unique long strings.
+* Backtrace capture enabled in performance-critical environments.
+* Using `Debug` formatting in performance-sensitive logging.
 
 **Solution:**
-*   **Profile your application**: Use Rust's built-in `perf` tools or external profilers to pinpoint bottlenecks.
-*   **Manage `RUST_BACKTRACE`**: Always ensure `RUST_BACKTRACE` is unset or `0` in performance-sensitive environments.
-*   **Optimize strings**: For highly repetitive string data in contexts/kinds, ensure you're leveraging Yoshi's `intern_string()` utility directly where applicable, or relying on `Arc<str>` conversions.
-*   **Limit context depth**: While Yoshi has cycle detection, extremely deep context chains are inherently more expensive to traverse and format. Design your error propagation to keep context chains concise.
-*   **Disable unnecessary features**: If `simd-optimized` is not actively beneficial for your specific performance goals, consider disabling it to reduce potential overheads from generated code paths.
 
-### 4. `YoshiKind` mapping logic in `yoshi-derive` not as expected
-
-**Problem:** Your derived error variants don't map to the `YoshiKind` you intend, or auto-inference behaves unexpectedly.
-
-**Reason:** Yoshi's derive macro uses a set of auto-inference rules based on variant names and field types. If you don't explicitly specify `#[yoshi(kind = "...")]`, it will infer one. If your variant name is ambiguous (e.g., "GeneralError"), it might default to `Foreign` or `Internal`.
-
-**Solution:**
-*   **Explicit is best**: Always use `#[yoshi(kind = "MyDesiredKind")]` to explicitly define the `YoshiKind` for each variant. This overrides auto-inference.
-*   **Review auto-inference rules**: Consult the `yoshi-derive` documentation for how inference works if you rely on it.
-*   **Inspect generated code**: For complex derives, you can inspect the code generated by procedural macros. Use `cargo expand` or `cargo rustc -- -Zunpretty=expanded` to see the actual Rust code that the derive macro produces. This can reveal unexpected mappings or missing implementations.
+* **Profile your application**: Use Rust's built-in profiling tools to pinpoint bottlenecks.
+* **Manage `RUST_BACKTRACE`**: Ensure `RUST_BACKTRACE` is unset or `0` in performance-sensitive environments.
+* **Optimize strings**: Leverage Yoshi's `Arc<str>` usage for string deduplication.
+* **Limit context depth**: Keep context chains concise for better performance.
 
 ## Integration-Specific Troubleshooting
 
@@ -214,101 +247,47 @@ println!("User ID: {:?}", user_id);
 
 **Problem:** My `no_std` project isn't compiling with Yoshi.
 
-**Reason:** The `std` feature is likely implicitly enabled. Yoshi's default features often include `std`.
+**Reason:** The `std` feature is likely implicitly enabled.
 
 **Solution:**
-*   Explicitly disable default features for Yoshi in your `Cargo.toml`:
-    \```toml
-    # Cargo.toml
-    [dependencies]
-    yoshi = { version = "0.1", default-features = false }
-    yoshi-std = { version = "0.1", default-features = false } # If using yoshi-std directly
-    yoshi-derive = { version = "0.1", default-features = false } # If using yoshi-derive directly
-    # Also ensure any other features you NEED (like 'derive') are re-enabled
-    yoshi = { version = "0.1", default-features = false, features = ["derive"] }
-    \```
-*   In `no_std`, `std::io::Error` is replaced by `yoshi_std::NoStdIo`. Ensure your code adapts accordingly for `Io` kinds.
-*   Yoshi provides `SystemTime` and `ThreadId` replacements for `no_std` environments. Their behavior is different (e.g., `SystemTime::now()` is monotonic, not wall-clock).
+
+* Explicitly disable default features for Yoshi in your `Cargo.toml`:
+
+```toml
+[dependencies]
+yoshi-core = { version = "0.1", default-features = false }
+# Use yoshi-core for no_std environments
+```
+
+* In `no_std`, use `yoshi-core` which provides the essential error handling without std dependencies.
 
 ### 2. `serde` Integration
 
-**Problem:** `Yoshi` errors cannot be serialized/deserialized, or some fields are missing.
+**Problem:** `Yoshi` errors cannot be serialized/deserialized.
 
-**Reason:**
-*   The `serde` feature is not enabled for `yoshi-std`.
-*   `YoContext` contains fields that are intentionally skipped from serialization (`location`, `payloads`) because they are not easily serializable or are meant for runtime introspection only.
+**Reason:** The `serde` feature is not enabled.
 
 **Solution:**
-*   Enable the `serde` feature in your `Cargo.toml`:
-    \```toml
-    # Cargo.toml
-    [dependencies]
-    yoshi = { version = "0.1", features = ["serde", "std"] }
-    # Or specifically for yoshi-std if used directly:
-    yoshi-std = { version = "0.1", features = ["serde"] }
-    \```
-*   Understand that `location` and `payloads` fields in `YoContext` are marked `#[serde(skip)]` by design. If you need to serialize custom payloads, you'll need to extract them manually and serialize them separately.
 
-### 3. `tracing` Integration
+* Enable the `serde` feature in your `Cargo.toml`:
 
-**Problem:** `Yoshi`'s `make_event()` or `create_span()` methods are not available or not logging.
-
-**Reason:**
-*   The `tracing` feature is not enabled for `yoshi-std`.
-*   A `tracing` subscriber is not initialized in your application's `main` function or test setup.
-
-**Solution:**
-*   Enable the `tracing` feature in `Cargo.toml`:
-    \```toml
-    # Cargo.toml
-    [dependencies]
-    yoshi = { version = "0.1", features = ["tracing", "std"] }
-    # Or specifically for yoshi-std:
-    yoshi-std = { version = "0.1", features = ["tracing"] }
-    tracing = "0.1" # Also add tracing dependency
-    tracing-subscriber = "0.3" # For example, to enable logging
-    \```
-*   Initialize a tracing subscriber at the start of your application:
-    \```rust
-    // In your main.rs or lib.rs
-    #[cfg(feature = "tracing")]
-    fn setup_tracing() {
-        tracing_subscriber::fmt::init();
-    }
-
-    fn main() {
-        #[cfg(feature = "tracing")]
-        setup_tracing();
-
-        // Your application logic
-    }
-    \```
+```toml
+[dependencies]
+yoshi = { version = "0.1", features = ["serde", "std"] }
+```
 
 ## Debugging Yoshi Errors
 
 Yoshi provides powerful introspection tools for debugging complex error scenarios:
 
-1.*`println!("{}", error)` vs. `println!("{:?}", error)`**:
-    * `{}` (Display): Provides a human-readable, formatted error message designed for end-users or logs. It prioritizes clarity and follows the `Display` trait implementation.
-    * `{:?}` (Debug): Prints the raw internal structure of the `Yoshi` struct, including all `YoshiKind` fields, the entire `contexts` vector, and `backtrace` (if captured). This is invaluable for developers debugging error propagation.
+1. **`println!("{}", error)` vs. `println!("{:?}", error)`**:
+   * `{}` (Display): Provides a human-readable, formatted error message.
+   * `{:?}` (Debug): Prints the raw internal structure of the `Yoshi` struct.
 
-2.*`Yoshi::instance_id()`**: Each `Yoshi` error gets a unique `u64` ID. This is extremely useful for correlating specific error instances across distributed logs or concurrent systems.
+2. **`yum!` macro**: Provides comprehensive error analysis with metadata, suggestions, and context.
 
-3.*`Yoshi::kind()`**: Access the root `YoshiKind` enum to programmatically inspect the high-level error classification and its structured fields.
+3. **`Yoshi::kind()`**: Access the root `YoshiKind` enum to inspect the error classification.
 
-4.*`Yoshi::contexts()` and `Yoshi::primary_context()`**:
-    * `error.contexts()`: Returns an iterator over all `YoContext` objects attached to the error, in the order they were added (or reverse for display order).
-    * `error.primary_context()`: Returns the `YoContext` with the highest `priority`, or the most recently added if priorities are equal. This is often the most relevant context for a given error.
+4. **Error metadata**: Access attached metadata for debugging context.
 
-5.*`YoContext::metadata`**: Access the `HashMap<Arc<str>, Arc<str>>` to inspect all key-value metadata attached to a specific context.
-
-6.*`Yoshi::shell::<T>()` or `YoContext::shell::<T>()`**: Retrieve custom typed data attached as payloads. This is crucial for passing structured debugging information or recovery instructions.
-
-7.*`Yoshi::analyze_context()`**: Returns a `ContextAnalysis` struct with aggregated statistics about the error's contexts (total contexts, depth, metadata entries, etc.).
-
-By combining these tools, you can effectively trace the origin, path, and detailed state of any error within your Yoshi-powered application.
-IGNORE_WHEN_COPYING_START
-content_copy
-download
-Use code with caution.
-IGNORE_WHEN_COPYING_END
+By combining these tools, you can effectively trace the origin and detailed state of any error within your Yoshi-powered application.

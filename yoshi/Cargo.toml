@@ -1,8 +1,9 @@
+# yoshi/Cargo.toml
 [package]
 name = "yoshi"
 version = "0.1.6"
 edition = "2021"
-rust-version = "1.87.0"                                               # MSRV
+rust-version = "1.87"                                                 # MSRV
 authors = ["Lord Xyn <LordXyn@proton.me>"]
 repository = "https://github.com/arcmoonstudios/yoshi"
 license = "MIT OR Apache-2.0"
@@ -11,9 +12,10 @@ keywords = ["error", "error-handling", "result", "yoshi", "std-only"]
 categories = ["development-tools", "rust-patterns", "api-bindings"]
 
 [dependencies]
+yoshi-core = { version = "0.1.6", path = "../yoshi-core", default-features = false }
 yoshi-std = { version = "0.1.6", path = "../yoshi-std", default-features = false }
-yoshi-derive = { version = "0.1.6", path = "../yoshi-derive", optional = true }
-yoshi-deluxe = { version = "0.1.6", path = "../yoshi-deluxe", optional = true }
+yoshi-derive = { version = "0.1.6", path = "../yoshi-derive", optional = true, default-features = false }
+yoshi-deluxe = { version = "0.1.6", path = "../yoshi-deluxe", optional = true, default-features = false }
 serde = { version = "1.0.219", optional = true, features = ["derive"] }
 tokio = { version = "1.42.0", optional = true, features = ["full"] }
 serde_json = { version = "1.0.140", optional = true }
@@ -21,19 +23,75 @@ once_cell = { version = "1.21.3", optional = true }
 tracing = { version = "0.1.41", optional = true }
 miette = { version = "7.6.0", optional = true }
 
+# Best-in-class convenience dependencies
+dashmap = { version = "6.1.0", optional = true } # Best concurrent HashMap
+smallvec = { version = "1.13.2", optional = true } # Best memory-efficient Vec
+chrono = { version = "0.4.39", optional = true, features = [
+    "serde",
+] } # Best wall-clock time
+futures = { version = "0.3.31", optional = true } # Best async utilities
+regex = { version = "1.11.1", optional = true } # Best string processing
+uuid = { version = "1.11.0", optional = true, features = [
+    "v4",
+    "serde",
+] } # Best UUID generation
+
+# Cargo integration and semantic analysis
+cargo_metadata = { version = "0.18", optional = true }
+syn = { version = "2.0", optional = true, features = [
+    "full",
+    "visit",
+    "visit-mut",
+] }
+quote = { version = "1.0", optional = true }
+clap = { version = "4.0", optional = true, features = ["derive"] }
+colored = { version = "2.0", optional = true }
+indicatif = { version = "0.17", optional = true }
+walkdir = { version = "2.0", optional = true }
+
 [features]
-default = ["std", "rust-1-87"]
-std = ["yoshi-std/std"]
-derive = ["yoshi-derive", "yoshi-std/derive"]
+default = ["full"]
+std = ["yoshi-core/std", "yoshi-std/std"]
+derive = [
+    "dep:yoshi-derive",
+    "yoshi-derive/std",
+    "yoshi-std/derive",
+    "yoshi-core/alloc",
+]
+yoshi-deluxe = [
+    "dep:yoshi-deluxe",
+    "yoshi-deluxe/runtime-analysis",
+    "derive",
+    "async",
+]
 serde = ["dep:serde", "dep:serde_json", "yoshi-std/serde"]
 tracing = ["dep:tracing", "yoshi-std/tracing"]
 # Enhanced Rust 1.87 features
 rust-1-87 = ["dep:once_cell", "simd-optimized", "precise-capturing"]
-async = ["dep:tokio", "rust-1-87"]
+async = ["dep:tokio", "dep:futures", "rust-1-87"]
 simd-optimized = ["yoshi-std/simd-optimized"]
 precise-capturing = []
+# Best-in-class convenience layer
+convenience = [
+    "dep:dashmap",  # Best concurrent HashMap
+    "dep:smallvec", # Best memory-efficient Vec
+    "dep:chrono",   # Best wall-clock time
+    "dep:regex",    # Best string processing
+    "dep:uuid",     # Best UUID generation
+    "async",        # Include async features
+]
 # convenience
-full = ["std", "derive", "serde", "tracing", "rust-1-87", "async"]
+full = [
+    "std",
+    "derive",
+    "yoshi-deluxe",
+    "serde",
+    "tracing",
+    "rust-1-87",
+    "async",
+    "convenience",
+    "cargo-integration",
+]
 # Enhanced feature flags
 pipe = ["rust-1-87"]
 cross-process = ["pipe", "serde"]
@@ -41,12 +99,38 @@ performance-monitoring = ["rust-1-87"]
 cli = ["std"]
 # LSP integration support (pass-through to yoshi-deluxe)
 lsp-integration = ["yoshi-deluxe/lsp-integration"]
+# Cargo integration for automated error correction
+cargo-integration = [
+    "dep:cargo_metadata",
+    "dep:syn",
+    "dep:quote",
+    "dep:clap",
+    "dep:colored",
+    "dep:indicatif",
+    "dep:walkdir",
+    "yoshi-deluxe",
+    "async",
+]
+
+[dev-dependencies]
+tempfile = "3.8"
+tokio = { version = "1.35", features = ["full"] }
+yoshi-deluxe = { path = "../yoshi-deluxe" }
+syn = { version = "2.0", features = ["full"] }
 
 # docs.rs specific configuration for robust builds
 [package.metadata.docs.rs]
 rustc-args = ["--cap-lints=warn"]
 # CRITICAL FIX: Use stable feature set for nightly compatibility
-features = ["std", "derive", "serde", "tracing", "rust-1-87"]
+features = ["std", "derive", "serde", "tracing", "rust-1-87", "convenience"]
 no-default-features = false
 rustdoc-args = ["--cfg", "docsrs"]
 targets = ["x86_64-unknown-linux-gnu"]
+
+# Binary targets
+[[bin]]
+name = "yum"
+path = "src/main.rs"
+
+# Real-world usage examples are in the standard examples/ directory
+# Cargo will automatically discover them

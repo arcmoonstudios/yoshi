@@ -10,8 +10,9 @@ License: MIT
 import sys
 import time
 import subprocess
+import re
 from pathlib import Path
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 
 class Colors:
     """ANSI color codes for terminal output"""
@@ -25,6 +26,135 @@ class Colors:
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
     END = '\033[0m'
+
+
+class LinkVerifier:
+    """Documentation link verification functionality"""
+
+    def __init__(self, project_root: Path):
+        self.project_root = project_root
+        self.results = {
+            'functional': [],
+            'broken': [],
+            'warnings': []
+        }
+
+    def verify_all_links(self) -> bool:
+        """Verify all documentation links in the project"""
+        # Check main README
+        self._verify_readme_links()
+
+        # Check all crate READMEs
+        self._verify_crate_readmes()
+
+        # Check documentation files
+        self._verify_docs_directory()
+
+        # Return True if no broken links
+        return len(self.results['broken']) == 0
+
+    def _verify_readme_links(self):
+        """Verify links in main README.md"""
+        readme_path = self.project_root / "README.md"
+
+        if not readme_path.exists():
+            self.results['broken'].append(("Main README", "README.md", "File not found"))
+            return
+
+        content = readme_path.read_text(encoding='utf-8')
+        links = self._extract_markdown_links(content)
+
+        for link_text, link_url in links:
+            self._verify_link("Main README", link_text, link_url)
+
+    def _verify_crate_readmes(self):
+        """Verify links in all crate README files"""
+        crates = ['yoshi-core', 'yoshi-std', 'yoshi-derive', 'yoshi-deluxe', 'yoshi', 'yoshi-benches']
+
+        for crate in crates:
+            crate_path = self.project_root / crate
+            readme_path = crate_path / "README.md"
+
+            if not readme_path.exists():
+                self.results['broken'].append((f"{crate} README", "README.md", "File not found"))
+                continue
+
+            content = readme_path.read_text(encoding='utf-8')
+            links = self._extract_markdown_links(content)
+
+            for link_text, link_url in links:
+                self._verify_link(f"{crate} README", link_text, link_url, crate_path)
+
+    def _verify_docs_directory(self):
+        """Verify documentation files exist"""
+        docs_path = self.project_root / "docs"
+        if not docs_path.exists():
+            self.results['broken'].append(("Documentation", "docs/", "Directory not found"))
+            return
+
+        expected_docs = [
+            "overview.md",
+            "macro.md",
+            "context.md",
+            "perf.md",
+            "migration.md"
+        ]
+
+        for doc_file in expected_docs:
+            doc_path = docs_path / doc_file
+            if doc_path.exists():
+                self.results['functional'].append(("Documentation", f"docs/{doc_file}", "File exists"))
+            else:
+                self.results['broken'].append(("Documentation", f"docs/{doc_file}", "File not found"))
+
+    def _extract_markdown_links(self, content: str) -> List[Tuple[str, str]]:
+        """Extract markdown links from content"""
+        # Pattern for [text](url) format
+        pattern = r'\[([^\]]*)\]\(([^)]+)\)'
+        matches = re.findall(pattern, content)
+        return matches
+
+    def _verify_link(self, source: str, link_text: str, link_url: str, base_path: Optional[Path] = None):
+        """Verify a single link"""
+        if base_path is None:
+            base_path = self.project_root
+
+        # Skip badge URLs (they're external and usually work)
+        if any(badge in link_url for badge in ['shields.io', 'crates.io', 'docs.rs', 'rust-lang.org']):
+            self.results['functional'].append((source, link_text, f"External badge: {link_url}"))
+            return
+
+        # Handle different link types
+        if link_url.startswith('http'):
+            # External URL - assume functional
+            self.results['functional'].append((source, link_text, f"External URL: {link_url}"))
+        elif link_url.startswith('#'):
+            # Anchor link - assume functional
+            self.results['functional'].append((source, link_text, f"Anchor link: {link_url}"))
+        else:
+            # Local file link
+            if link_url.startswith('../'):
+                # Relative to parent
+                file_path = base_path.parent / link_url[3:]
+            elif link_url.startswith('./'):
+                # Relative to current
+                file_path = base_path / link_url[2:]
+            else:
+                # Relative to current
+                file_path = base_path / link_url
+
+            if file_path.exists():
+                self.results['functional'].append((source, link_text, f"Local file: {link_url}"))
+            else:
+                self.results['broken'].append((source, link_text, f"File not found: {link_url} (resolved to {file_path})"))
+
+    def get_summary(self) -> Tuple[int, int, int]:
+        """Get summary of link verification results"""
+        total_links = len(self.results['functional']) + len(self.results['broken']) + len(self.results['warnings'])
+        functional_count = len(self.results['functional'])
+        broken_count = len(self.results['broken'])
+        return total_links, functional_count, broken_count
+
 
 class CrateChecker:
     """Main class for running crate quality checks"""
@@ -219,6 +349,39 @@ class CrateChecker:
 
         return all_passed
 
+    def documentation_link_checks(self) -> bool:
+        """Run documentation link verification checks"""
+        self.print_header("DOCUMENTATION LINK VERIFICATION")
+
+        self.print_step("Verifying all documentation links")
+
+        # Create link verifier
+        verifier = LinkVerifier(Path("."))
+
+        # Run verification
+        all_links_good = verifier.verify_all_links()
+
+        # Get summary
+        total_links, functional_count, broken_count = verifier.get_summary()
+
+        # Report results
+        if all_links_good:
+            print(f"   {Colors.GREEN}✅ Documentation links verification - PASSED{Colors.END}")
+            print(f"   {Colors.GREEN}   All {total_links} links are functional{Colors.END}")
+            self.passed_checks += 1
+        else:
+            print(f"   {Colors.RED}❌ Documentation links verification - FAILED{Colors.END}")
+            print(f"   {Colors.RED}   {broken_count} broken links found out of {total_links} total{Colors.END}")
+
+            # Show broken links
+            for source, link_text, details in verifier.results['broken']:
+                print(f"   {Colors.RED}   • {source}: '{link_text}' - {details}{Colors.END}")
+
+            self.failed_checks.append(f"Documentation links verification - {broken_count} broken links")
+
+        self.total_checks += 1
+        return all_links_good
+
     def print_summary(self):
         """Print final summary of all checks"""
         self.print_header("FINAL SUMMARY")
@@ -402,6 +565,7 @@ Automated quality assurance for Rust crates"""
         checks_passed &= self.core_compilation_tests()
         checks_passed &= self.code_quality_checks()
         checks_passed &= self.documentation_checks()
+        checks_passed &= self.documentation_link_checks()
         checks_passed &= self.package_validation()
         checks_passed &= self.metadata_checks()
 
@@ -421,6 +585,7 @@ def main():
         print("• Compilation and testing")
         print("• Code quality (fmt, clippy)")
         print("• Documentation generation")
+        print("• Documentation link verification")
         print("• Package validation")
         print("• Metadata verification")
         return

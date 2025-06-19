@@ -7,7 +7,7 @@
 
 use crate::{
     constants::{DOCS_CACHE, DOCS_SCRAPING_RETRY_COUNT, HTTP_CLIENT, REGEX_PATTERNS},
-    errors::{factory, Result, YoshiDeluxeExt},
+    err::{Hatch, Hatchling},
     types::{
         CachedDocsData, CodeExample, CrateInfo, DataSource, MethodSignature, MethodSuggestion,
         Parameter, StabilityInfo, StabilityLevel, TraitImplementation,
@@ -20,10 +20,10 @@ use std::{
         atomic::{AtomicU64, Ordering},
         Arc,
     },
-    time::{Duration, SystemTime},
+    time::Duration,
 };
 use tokio::time::timeout;
-use yoshi_std::{HatchExt, LayText};
+use yoshi_std::{LayText, Yoshi, YoshiKind};
 
 //--------------------------------------------------------------------------------------------------
 // Documentation Scraping Engine with Structured API Support
@@ -133,7 +133,7 @@ impl DocsScrapingEngine {
         &self,
         crate_name: &str,
         type_name: &str,
-    ) -> Result<CachedDocsData> {
+    ) -> Hatch<CachedDocsData> {
         let cache_key = format!("{crate_name}::{type_name}");
 
         // Check cache first
@@ -160,7 +160,7 @@ impl DocsScrapingEngine {
         &self,
         crate_name: &str,
         type_name: &str,
-    ) -> Result<CachedDocsData> {
+    ) -> Hatch<CachedDocsData> {
         let mut last_error = None;
 
         for attempt in 0..=DOCS_SCRAPING_RETRY_COUNT {
@@ -180,20 +180,16 @@ impl DocsScrapingEngine {
 
         self.metrics.record_failure();
         Err(last_error.unwrap_or_else(|| {
-            factory::docs_scraping_error(
-                crate_name,
-                type_name,
-                "max_retries_exceeded",
-                reqwest::Error::from(std::io::Error::new(
-                    std::io::ErrorKind::TimedOut,
-                    "Maximum retry attempts exceeded",
-                )),
-            )
+            Yoshi::new(YoshiKind::Timeout {
+                operation: "max_retries_exceeded".into(),
+                duration: crate::constants::HTTP_TIMEOUT,
+                expected_max: Some(crate::constants::HTTP_TIMEOUT),
+            })
         }))
     }
 
     /// HTML scraping with robust error handling and multiple URL attempts
-    async fn try_html_scraping(&self, crate_name: &str, type_name: &str) -> Result<CachedDocsData> {
+    async fn try_html_scraping(&self, crate_name: &str, type_name: &str) -> Hatch<CachedDocsData> {
         let urls = self.generate_documentation_urls(crate_name, type_name);
         let mut last_error = None;
 
@@ -214,15 +210,11 @@ impl DocsScrapingEngine {
         }
 
         Err(last_error.unwrap_or_else(|| {
-            factory::docs_scraping_error(
-                crate_name,
-                type_name,
-                "no_valid_urls",
-                reqwest::Error::from(std::io::Error::new(
-                    std::io::ErrorKind::NotFound,
-                    "No valid URLs found",
-                )),
-            )
+            Yoshi::new(YoshiKind::Config {
+                message: "No valid URLs found".into(),
+                config_path: Some("documentation_urls".into()),
+                source: None,
+            })
         }))
     }
 
@@ -246,37 +238,35 @@ impl DocsScrapingEngine {
     }
 
     /// Scrape a specific URL with timeout and error handling
-    async fn scrape_url(&self, url: &str) -> Result<String> {
+    async fn scrape_url(&self, url: &str) -> Hatch<String> {
         let request_future = self.client.get(url).send();
 
         let response = timeout(crate::constants::HTTP_TIMEOUT, request_future)
             .await
             .map_err(|_| {
-                factory::docs_scraping_error(
-                    "unknown",
-                    "unknown",
-                    "request_timeout",
-                    reqwest::Error::from(std::io::Error::new(
-                        std::io::ErrorKind::TimedOut,
-                        "Request timed out",
-                    )),
-                )
+                Yoshi::new(YoshiKind::Timeout {
+                    operation: "request_timeout".into(),
+                    duration: crate::constants::HTTP_TIMEOUT,
+                    expected_max: Some(crate::constants::HTTP_TIMEOUT),
+                })
             })
             .lay("Awaiting HTTP response")?
-            .map_err(|e| factory::docs_scraping_error("unknown", "unknown", "network_error", e))
+            .map_err(|e| {
+                Yoshi::new(YoshiKind::Network {
+                    message: format!("Network error: {}", e).into(),
+                    source: None,
+                    error_code: None,
+                })
+            })
             .lay("Sending HTTP request")?;
 
         if !response.status().is_success() {
             let status = response.status().as_u16();
-            return Err(factory::docs_scraping_error(
-                "unknown",
-                "unknown",
-                &format!("http_error_{status}"),
-                reqwest::Error::from(std::io::Error::new(
-                    std::io::ErrorKind::Other,
-                    format!("HTTP {status}"),
-                )),
-            ))
+            return Err(Yoshi::new(YoshiKind::Config {
+                message: format!("HTTP {status}").into(),
+                config_path: Some("http_status".into()),
+                source: None,
+            }))
             .lay("Checking HTTP response status");
         }
 
@@ -293,8 +283,8 @@ impl DocsScrapingEngine {
         html: &str,
         url: &str,
         crate_name: &str,
-        type_name: &str,
-    ) -> Result<CachedDocsData> {
+        _type_name: &str,
+    ) -> Hatch<CachedDocsData> {
         let document = Html::parse_document(html);
 
         // Use fallback selectors for robustness
@@ -333,7 +323,7 @@ impl DocsScrapingEngine {
     }
 
     /// Extract methods with multiple selector fallbacks
-    fn extract_methods_robust(&self, document: &Html) -> Result<Vec<MethodSignature>> {
+    fn extract_methods_robust(&self, document: &Html) -> Hatch<Vec<MethodSignature>> {
         let selectors = [
             ".method",
             ".impl-items .method",
@@ -417,7 +407,7 @@ impl DocsScrapingEngine {
     }
 
     /// Generic method extraction when specific selectors fail
-    fn extract_methods_generic(&self, document: &Html) -> Result<Vec<MethodSignature>> {
+    fn extract_methods_generic(&self, document: &Html) -> Hatch<Vec<MethodSignature>> {
         let mut methods = Vec::new();
 
         // Look for function signatures in any code blocks
@@ -534,7 +524,7 @@ impl DocsScrapingEngine {
     }
 
     /// Extract trait implementations with fallback selectors
-    fn extract_implementations_robust(&self, document: &Html) -> Result<Vec<TraitImplementation>> {
+    fn extract_implementations_robust(&self, document: &Html) -> Hatch<Vec<TraitImplementation>> {
         let selectors = [
             ".impl-items",
             ".trait-implementations",
@@ -569,7 +559,7 @@ impl DocsScrapingEngine {
                 let implementing_type = captures.get(2)?.as_str().to_string();
 
                 let method_selector = Selector::parse(".method, .method-name").ok()?;
-                let methods = element
+                let _methods: Vec<String> = element
                     .select(&method_selector)
                     .map(|el| el.text().collect::<String>().trim().to_string())
                     .filter(|s| !s.is_empty())
@@ -612,7 +602,7 @@ impl DocsScrapingEngine {
     }
 
     /// Extract code examples with multiple selector strategies
-    fn extract_examples_robust(&self, document: &Html) -> Result<Vec<CodeExample>> {
+    fn extract_examples_robust(&self, document: &Html) -> Hatch<Vec<CodeExample>> {
         let selectors = [
             ".example-wrap pre",
             ".docblock pre",
@@ -706,7 +696,7 @@ impl DocsScrapingEngine {
         if let Some(start) = url.find("/docs.rs/") {
             let remaining = &url[start + 9..];
             if let Some(slash_pos) = remaining.find('/') {
-                let crate_part = &remaining[..slash_pos];
+                let _crate_part = &remaining[..slash_pos];
                 if let Some(version_start) = remaining[slash_pos + 1..].find('/') {
                     let version = &remaining[slash_pos + 1..slash_pos + 1 + version_start];
                     if version != "latest" {
@@ -763,7 +753,7 @@ impl DocsScrapingEngine {
         crate_name: &str,
         type_name: &str,
         target_method: &str,
-    ) -> Result<Vec<MethodSuggestion>> {
+    ) -> Hatch<Vec<MethodSuggestion>> {
         let docs_data = self
             .scrape_type_documentation(crate_name, type_name)
             .await
@@ -815,7 +805,7 @@ impl DocsScrapingEngine {
         }
 
         let mut column: Vec<usize> = (0..=a_len).collect();
-        for (j, b_char) in b.chars().enumerate() {
+        for (_j, b_char) in b.chars().enumerate() {
             let mut last_diag = column[0];
             column[0] += 1;
             for (i, a_char) in a.chars().enumerate() {
@@ -889,8 +879,13 @@ impl DocsScrapingEngine {
         if cache.len() >= crate::constants::MAX_CACHE_ENTRIES {
             let mut entries: Vec<_> = cache.iter().collect();
             entries.sort_by_key(|(_, data)| data.access_count());
-            for (key, _) in entries.iter().take(100) {
-                cache.remove(*key);
+            let keys_to_remove: Vec<_> = entries
+                .iter()
+                .take(100)
+                .map(|(key, _)| (*key).clone())
+                .collect();
+            for key in keys_to_remove {
+                cache.remove(&key);
             }
         }
         cache.insert(key, data);
@@ -990,10 +985,10 @@ mod tests {
             Some("bool".to_string())
         );
 
-        let signature2 = "fn test() -> Result<String, Error> where";
+        let signature2 = "fn test() -> Hatch<String, Error> where";
         assert_eq!(
             engine.extract_return_type_from_signature(signature2),
-            Some("Result<String, Error>".to_string())
+            Some("Hatch<String, Error>".to_string())
         );
 
         let signature3 = "fn test()";

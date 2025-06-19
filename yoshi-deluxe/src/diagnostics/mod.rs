@@ -7,7 +7,7 @@
 
 use crate::{
     constants::MAX_DIAGNOSTIC_BATCH_SIZE,
-    errors::{factory, Result, YoshiDeluxeExt},
+    err::{Hatch, Hatchling},
     types::{CompilerDiagnostic, DiagnosticLevel, DiagnosticSpan},
 };
 use std::{
@@ -22,7 +22,7 @@ use std::{
     time::{Duration, SystemTime},
 };
 use tokio::sync::RwLock;
-use yoshi_std::{HatchExt, LayText};
+use yoshi_std::LayText;
 
 //--------------------------------------------------------------------------------------------------
 // Diagnostic Processor with Enhanced JSON Parsing
@@ -162,7 +162,7 @@ impl CompilerDiagnosticProcessor {
     /// # Errors
     ///
     /// Returns a yoshi error if cargo commands fail or diagnostics cannot be parsed
-    pub async fn analyze_project(&self, project_path: &Path) -> Result<Vec<CompilerDiagnostic>> {
+    pub async fn analyze_project(&self, project_path: &Path) -> Hatch<Vec<CompilerDiagnostic>> {
         let cache_key = project_path.to_string_lossy().to_string();
 
         if let Some(cached) = self.get_cached_diagnostics(&cache_key, project_path).await {
@@ -193,7 +193,7 @@ impl CompilerDiagnosticProcessor {
     }
 
     /// Run cargo check with robust error handling
-    async fn run_cargo_check(&self, project_path: &Path) -> Result<Vec<CompilerDiagnostic>> {
+    async fn run_cargo_check(&self, project_path: &Path) -> Hatch<Vec<CompilerDiagnostic>> {
         let output = Command::new("cargo")
             .current_dir(project_path)
             .args([
@@ -220,8 +220,8 @@ impl CompilerDiagnosticProcessor {
             .lay("Parsing cargo check output")
     }
 
-    /// Run cargo clippy with comprehensive lints
-    async fn run_cargo_clippy(&self, project_path: &Path) -> Result<Vec<CompilerDiagnostic>> {
+    /// Run cargo clippy with comprehensive lints and machine-applicable suggestions
+    async fn run_cargo_clippy(&self, project_path: &Path) -> Hatch<Vec<CompilerDiagnostic>> {
         let output = Command::new("cargo")
             .current_dir(project_path)
             .args([
@@ -238,6 +238,23 @@ impl CompilerDiagnosticProcessor {
                 "clippy::pedantic",
                 "-W",
                 "clippy::nursery",
+                "-W",
+                "clippy::cargo",
+                "-W",
+                "clippy::complexity",
+                "-W",
+                "clippy::correctness",
+                "-W",
+                "clippy::perf",
+                "-W",
+                "clippy::style",
+                "-W",
+                "clippy::suspicious",
+                // Enable machine-applicable suggestions
+                "-A",
+                "clippy::manual_let_else", // Allow manual patterns for better suggestions
+                "-A",
+                "clippy::redundant_closure", // Allow for better closure analysis
             ])
             .output()
             .with_operation_context("cargo_clippy")
@@ -250,9 +267,105 @@ impl CompilerDiagnosticProcessor {
             // Don't fail on non-zero exit code, as lints are expected
         }
 
-        self.parse_cargo_output(&output.stdout, "cargo-clippy")
+        let mut diagnostics = self
+            .parse_cargo_output(&output.stdout, "cargo-clippy")
             .await
-            .lay("Parsing cargo clippy output")
+            .lay("Parsing cargo clippy output")?;
+
+        // Enhance diagnostics with machine-applicable suggestions
+        self.enhance_with_machine_applicable_suggestions(&mut diagnostics, project_path)
+            .await
+            .lay("Enhancing diagnostics with machine-applicable suggestions")?;
+
+        Ok(diagnostics)
+    }
+
+    /// Extract machine-applicable suggestions from clippy output
+    async fn enhance_with_machine_applicable_suggestions(
+        &self,
+        diagnostics: &mut Vec<CompilerDiagnostic>,
+        project_path: &Path,
+    ) -> Hatch<()> {
+        // Run clippy with --fix to get machine-applicable suggestions
+        let fix_output = Command::new("cargo")
+            .current_dir(project_path)
+            .args([
+                "clippy",
+                "--fix",
+                "--allow-dirty",
+                "--allow-staged",
+                "--message-format=json",
+                "--all-targets",
+                "--all-features",
+                "--workspace",
+                "--color=never",
+                "--",
+                "-W",
+                "clippy::all",
+                "-W",
+                "clippy::pedantic",
+                "-W",
+                "clippy::nursery",
+            ])
+            .output()
+            .with_operation_context("cargo_clippy_fix")
+            .lay("Executing cargo clippy --fix command")?;
+
+        // Parse the fix suggestions and integrate them into diagnostics
+        let fix_diagnostics = self
+            .parse_cargo_output(&fix_output.stdout, "cargo-clippy-fix")
+            .await
+            .lay("Parsing cargo clippy --fix output")?;
+
+        // Merge machine-applicable suggestions into original diagnostics
+        self.merge_machine_applicable_suggestions(diagnostics, &fix_diagnostics)
+            .lay("Merging machine-applicable suggestions")?;
+
+        Ok(())
+    }
+
+    /// Merge machine-applicable suggestions from clippy --fix into diagnostics
+    fn merge_machine_applicable_suggestions(
+        &self,
+        original_diagnostics: &mut Vec<CompilerDiagnostic>,
+        fix_diagnostics: &[CompilerDiagnostic],
+    ) -> Hatch<()> {
+        for original in original_diagnostics.iter_mut() {
+            // Find corresponding fix diagnostic
+            if let Some(fix_diagnostic) = fix_diagnostics.iter().find(|fix| {
+                fix.code == original.code
+                    && fix
+                        .message
+                        .contains(&original.message[..std::cmp::min(50, original.message.len())])
+            }) {
+                // Extract machine-applicable signpost from the fix diagnostic
+                if let Some(signpost) = self.extract_machine_applicable_signpost(fix_diagnostic) {
+                    original.machine_applicable_signpost = Some(signpost);
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Extract machine-applicable signpost from a clippy fix diagnostic
+    fn extract_machine_applicable_signpost(
+        &self,
+        diagnostic: &CompilerDiagnostic,
+    ) -> Option<String> {
+        // Look for "suggestion" field in the diagnostic JSON
+        // This would contain the exact code replacement that clippy suggests
+        diagnostic
+            .spans
+            .iter()
+            .find_map(|span| span.suggested_replacement.clone())
+            .or_else(|| {
+                // Fallback: extract from diagnostic message if it contains code suggestions
+                if diagnostic.message.contains("try:") || diagnostic.message.contains("help:") {
+                    Some(diagnostic.message.clone())
+                } else {
+                    None
+                }
+            })
     }
 
     /// Parse cargo JSON output with robust error handling
@@ -260,7 +373,7 @@ impl CompilerDiagnosticProcessor {
         &self,
         output: &[u8],
         source: &str,
-    ) -> Result<Vec<CompilerDiagnostic>> {
+    ) -> Hatch<Vec<CompilerDiagnostic>> {
         let output_str = String::from_utf8_lossy(output);
         let lines: Vec<&str> = output_str
             .lines()
@@ -293,11 +406,7 @@ impl CompilerDiagnosticProcessor {
     }
 
     /// Parse individual diagnostic line with comprehensive error recovery
-    fn parse_diagnostic_line(
-        &self,
-        line: &str,
-        source: &str,
-    ) -> Result<Option<CompilerDiagnostic>> {
+    fn parse_diagnostic_line(&self, line: &str, source: &str) -> Hatch<Option<CompilerDiagnostic>> {
         let json_value: serde_json::Value = serde_json::from_str(line)
             .with_operation_context("json_parsing")
             .lay("Parsing JSON diagnostic line")?;
@@ -315,7 +424,7 @@ impl CompilerDiagnosticProcessor {
         &self,
         json: &serde_json::Value,
         source: &str,
-    ) -> Result<CompilerDiagnostic> {
+    ) -> Hatch<CompilerDiagnostic> {
         let message = json["message"].as_str().unwrap_or("").to_string();
         let code = json["code"]["code"].as_str().map(String::from);
 
@@ -337,7 +446,7 @@ impl CompilerDiagnosticProcessor {
             })
             .unwrap_or_default();
 
-        let children = json["children"]
+        let children: Vec<CompilerDiagnostic> = json["children"]
             .as_array()
             .map(|children| {
                 children
@@ -521,7 +630,7 @@ impl CompilerDiagnosticProcessor {
         project_path: &Path,
         command: &str,
         args: &[&str],
-    ) -> Result<Vec<CompilerDiagnostic>> {
+    ) -> Hatch<Vec<CompilerDiagnostic>> {
         let mut cmd = Command::new("cargo");
         cmd.current_dir(project_path)
             .arg(command)
@@ -548,7 +657,7 @@ impl CompilerDiagnosticProcessor {
         &self,
         project_path: &Path,
         file_path: &Path,
-    ) -> Result<Vec<CompilerDiagnostic>> {
+    ) -> Hatch<Vec<CompilerDiagnostic>> {
         // Use cargo check with specific file focus
         let output = Command::new("cargo")
             .current_dir(project_path)
@@ -859,12 +968,13 @@ pub struct DiagnosticCacheStats {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::err::Hatchling;
     use tempfile::TempDir;
     use tokio::fs;
 
-    async fn create_test_project() -> Result<TempDir> {
+    async fn _create_test_project() -> Hatch<TempDir> {
         let temp_dir = tempfile::tempdir()
-            .hatch()
+            .with_file_context(&std::env::temp_dir())
             .lay("Creating temporary test directory")?;
 
         let cargo_toml = r#"

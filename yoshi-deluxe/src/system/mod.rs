@@ -1,16 +1,16 @@
 /* yoshi-deluxe/src/system.rs */
 //! **Brief:** Main auto-correction system orchestrating all components for yoshi-deluxe.
 //!
-//! This module provides the main `AutoCorrectionSystem` that coordinates between the
+//! This module provides the main `YoshiACSystem` that coordinates between the
 //! diagnostic processor, AST analyzer, documentation scraper, and code generator to
 //! provide comprehensive auto-correction capabilities with yoshi error integration.
 
+use crate::err::{Hatch, Hatchling, LayText, Yoshi, YoshiKind};
 use crate::{
     ast::ASTAnalysisEngine,
     codegen::CodeGenerationEngine,
     diagnostics::CompilerDiagnosticProcessor,
     docs::DocsScrapingEngine,
-    errors::{factory, Result, YoshiDeluxeExt},
     metrics::SystemMetricsCollector,
     types::{
         AppliedCorrection, CachedDocsData, CompilerDiagnostic, CorrectionProposal,
@@ -20,18 +20,15 @@ use crate::{
 use std::{
     fs,
     path::{Path, PathBuf},
-    sync::Arc,
     time::{Duration, SystemTime},
 };
-use yoshi_std::LayText;
-use tokio::task::JoinSet;
 
 //--------------------------------------------------------------------------------------------------
 // Main Auto-Correction System Integration
 //--------------------------------------------------------------------------------------------------
 
 /// Production-grade auto-correction system orchestrator
-pub struct AutoCorrectionSystem {
+pub struct YoshiACSystem {
     /// Diagnostic processor
     diagnostic_processor: CompilerDiagnosticProcessor,
     /// AST analysis engine
@@ -46,7 +43,7 @@ pub struct AutoCorrectionSystem {
     metrics_collector: SystemMetricsCollector,
 }
 
-impl AutoCorrectionSystem {
+impl YoshiACSystem {
     /// Creates a new auto-correction system with production defaults
     #[must_use]
     pub fn new() -> Self {
@@ -71,15 +68,16 @@ impl AutoCorrectionSystem {
     /// # Errors
     ///
     /// Returns a yoshi error if project analysis fails
-    pub async fn analyze_and_correct(&self, project_path: &Path) -> Result<Vec<ProjectCorrection>> {
+    pub async fn analyze_and_correct(&self, project_path: &Path) -> Hatch<Vec<ProjectCorrection>> {
         let start_time = SystemTime::now();
 
         // Validate project path
         if !project_path.exists() || !project_path.is_dir() {
-            return Err(factory::configuration_error(
-                "project_path",
-                project_path.display().to_string(),
-            ))
+            return Err(Yoshi::new(YoshiKind::Config {
+                message: format!("Project path does not exist: {}", project_path.display()).into(),
+                config_path: Some("project_path".into()),
+                source: None,
+            }))
             .with_file_context(project_path)
             .lay("Validating project path");
         }
@@ -87,10 +85,11 @@ impl AutoCorrectionSystem {
         // Check for Cargo.toml to ensure it's a Rust project
         let cargo_toml = project_path.join("Cargo.toml");
         if !cargo_toml.exists() {
-            return Err(factory::configuration_error(
-                "cargo_project",
-                "Missing Cargo.toml file",
-            ))
+            return Err(Yoshi::new(YoshiKind::Config {
+                message: "Missing Cargo.toml file".into(),
+                config_path: Some("cargo_project".into()),
+                source: None,
+            }))
             .with_file_context(project_path)
             .lay("Validating Rust project structure");
         }
@@ -135,72 +134,21 @@ impl AutoCorrectionSystem {
     }
 
     /// Process diagnostics in parallel with controlled concurrency
+    /// Note: Currently processes sequentially due to Send/Sync constraints with AST data
     async fn process_diagnostics_parallel(
         &self,
         diagnostics: &[CompilerDiagnostic],
-    ) -> Result<Vec<ProjectCorrection>> {
-        let mut join_set = JoinSet::new();
-        let semaphore = Arc::new(tokio::sync::Semaphore::new(
-            self.config.max_concurrent_operations,
-        ));
-
-        for diagnostic in diagnostics {
-            let diagnostic = diagnostic.clone();
-            let permit = semaphore
-                .clone()
-                .acquire_owned()
-                .await
-                .map_err(|e| {
-                    factory::resource_exhausted_error(
-                        "concurrency_semaphore",
-                        self.config.max_concurrent_operations as u64,
-                        1,
-                    )
-                })
-                .lay("Acquiring concurrency permit")?;
-
-            let ast_analyzer = ASTAnalysisEngine::new();
-            let docs_scraper = DocsScrapingEngine::new();
-            let code_generator = CodeGenerationEngine::new();
-            let config = self.config.clone();
-
-            join_set.spawn(async move {
-                let _permit = permit;
-                Self::process_single_diagnostic_static(
-                    diagnostic,
-                    ast_analyzer,
-                    docs_scraper,
-                    code_generator,
-                    config,
-                )
-                .await
-            });
-        }
-
-        let mut corrections = Vec::new();
-        while let Some(result) = join_set.join_next().await {
-            match result {
-                Ok(Ok(Some(correction))) => corrections.push(correction),
-                Ok(Ok(None)) => {} // No correction generated
-                Ok(Err(e)) => {
-                    tracing::warn!("Failed to process diagnostic: {}", e);
-                    self.metrics_collector.record_processing_error().await;
-                }
-                Err(e) => {
-                    tracing::error!("Task join error: {}", e);
-                    self.metrics_collector.record_processing_error().await;
-                }
-            }
-        }
-
-        Ok(corrections)
+    ) -> Hatch<Vec<ProjectCorrection>> {
+        // For now, process sequentially to avoid Send/Sync issues with syn::File
+        // TODO: Implement proper parallel processing with thread-safe AST representation
+        self.process_diagnostics_sequential(diagnostics).await
     }
 
     /// Process diagnostics sequentially
     async fn process_diagnostics_sequential(
         &self,
         diagnostics: &[CompilerDiagnostic],
-    ) -> Result<Vec<ProjectCorrection>> {
+    ) -> Hatch<Vec<ProjectCorrection>> {
         let mut corrections = Vec::new();
 
         for diagnostic in diagnostics {
@@ -221,12 +169,17 @@ impl AutoCorrectionSystem {
     async fn process_single_diagnostic(
         &self,
         diagnostic: &CompilerDiagnostic,
-    ) -> Result<Option<ProjectCorrection>> {
+    ) -> Hatch<Option<ProjectCorrection>> {
+        // Create new instances to avoid Send/Sync issues with cached AST data
+        let ast_analyzer = ASTAnalysisEngine::new();
+        let docs_scraper = DocsScrapingEngine::new();
+        let code_generator = CodeGenerationEngine::new();
+
         Self::process_single_diagnostic_static(
             diagnostic.clone(),
-            self.ast_analyzer.clone(),
-            self.docs_scraper.clone(),
-            self.code_generator.clone(),
+            ast_analyzer,
+            docs_scraper,
+            code_generator,
             self.config.clone(),
         )
         .await
@@ -237,9 +190,9 @@ impl AutoCorrectionSystem {
         diagnostic: CompilerDiagnostic,
         mut ast_analyzer: ASTAnalysisEngine,
         docs_scraper: DocsScrapingEngine,
-        code_generator: CodeGenerationEngine,
+        mut code_generator: CodeGenerationEngine,
         config: SystemConfig,
-    ) -> Result<Option<ProjectCorrection>> {
+    ) -> Hatch<Option<ProjectCorrection>> {
         let ast_context = ast_analyzer
             .analyze_diagnostic(&diagnostic)
             .await
@@ -287,7 +240,7 @@ impl AutoCorrectionSystem {
     async fn scrape_relevant_documentation_static(
         context: &crate::ast::ASTContext,
         docs_scraper: &DocsScrapingEngine,
-    ) -> Result<CachedDocsData> {
+    ) -> Hatch<CachedDocsData> {
         let (crate_name, type_name) = Self::extract_crate_and_type_info(context)
             .lay("Extracting crate and type information from context")?;
 
@@ -298,7 +251,7 @@ impl AutoCorrectionSystem {
     }
 
     /// Extract crate and type info from context
-    fn extract_crate_and_type_info(context: &crate::ast::ASTContext) -> Result<(String, String)> {
+    fn extract_crate_and_type_info(context: &crate::ast::ASTContext) -> Hatch<(String, String)> {
         if let crate::ast::NodeType::MethodCall {
             receiver_type: Some(recv_type),
             ..
@@ -349,7 +302,7 @@ impl AutoCorrectionSystem {
         &self,
         corrections: &[ProjectCorrection],
         auto_apply: bool,
-    ) -> Result<Vec<AppliedCorrection>> {
+    ) -> Hatch<Vec<AppliedCorrection>> {
         let start_time = SystemTime::now();
         let mut applied = Vec::new();
 
@@ -394,7 +347,7 @@ impl AutoCorrectionSystem {
         &self,
         correction: &ProjectCorrection,
         proposal: &CorrectionProposal,
-    ) -> Result<AppliedCorrection> {
+    ) -> Hatch<AppliedCorrection> {
         let file_path = &correction.file_path;
 
         let content = fs::read_to_string(file_path)
@@ -404,11 +357,14 @@ impl AutoCorrectionSystem {
         // Validate file hasn't changed since analysis
         let current_size = content.len();
         if current_size > crate::constants::MAX_FILE_SIZE {
-            return Err(factory::resource_exhausted_error(
-                "file_size",
-                crate::constants::MAX_FILE_SIZE as u64,
-                current_size as u64,
-            ))
+            return Err(Yoshi::new(YoshiKind::ResourceExhausted {
+                resource: "file_size".into(),
+                limit: format!("{} bytes", crate::constants::MAX_FILE_SIZE).into(),
+                current: format!("{} bytes", current_size).into(),
+                usage_percentage: Some(
+                    (current_size as f64 / crate::constants::MAX_FILE_SIZE as f64) * 100.0,
+                ),
+            }))
             .with_file_context(file_path);
         }
 
@@ -419,11 +375,11 @@ impl AutoCorrectionSystem {
         // Validate the corrected file parses correctly
         syn::parse_file(&updated_content)
             .map_err(|e| {
-                factory::code_generation_error(
-                    "file_validation",
-                    format!("Corrected file is not valid Rust: {e}"),
-                    proposal.original_code.clone(),
-                )
+                Yoshi::new(YoshiKind::Internal {
+                    message: format!("Corrected file is not valid Rust: {e}").into(),
+                    source: None,
+                    component: Some("file_validation".into()),
+                })
             })
             .with_file_context(file_path)
             .lay("Validating corrected file syntax")?;
@@ -464,24 +420,26 @@ impl AutoCorrectionSystem {
         content: &str,
         corrected_code: &str,
         (start, end): (usize, usize),
-    ) -> Result<String> {
+    ) -> Hatch<String> {
         if start > end || end > content.len() {
-            return Err(factory::code_generation_error(
-                "byte_range_validation",
-                format!(
+            return Err(Yoshi::new(YoshiKind::Validation {
+                field: "byte_range".into(),
+                message: format!(
                     "Invalid byte range: {start}..{end} for content length {}",
                     content.len()
-                ),
-                content[start.min(content.len())..end.min(content.len())].to_string(),
-            ));
+                )
+                .into(),
+                expected: Some(format!("0..{}", content.len()).into()),
+                actual: Some(format!("{start}..{end}").into()),
+            }));
         }
 
-        let mut result = String::with_capacity(content.len() + corrected_code.len());
-        result.push_str(&content[..start]);
-        result.push_str(corrected_code);
-        result.push_str(&content[end..]);
+        let mut hatch = String::with_capacity(content.len() + corrected_code.len());
+        hatch.push_str(&content[..start]);
+        hatch.push_str(corrected_code);
+        hatch.push_str(&content[end..]);
 
-        Ok(result)
+        Ok(hatch)
     }
 
     /// Analyze a specific file instead of the entire project
@@ -493,12 +451,13 @@ impl AutoCorrectionSystem {
         &self,
         project_path: &Path,
         file_path: &Path,
-    ) -> Result<Vec<ProjectCorrection>> {
+    ) -> Hatch<Vec<ProjectCorrection>> {
         if !file_path.exists() {
-            return Err(factory::configuration_error(
-                "file_path",
-                file_path.display().to_string(),
-            ))
+            return Err(Yoshi::new(YoshiKind::Config {
+                message: format!("File does not exist: {}", file_path.display()).into(),
+                config_path: Some("file_path".into()),
+                source: None,
+            }))
             .with_file_context(file_path);
         }
 
@@ -530,7 +489,7 @@ impl AutoCorrectionSystem {
     pub async fn revert_corrections(
         &self,
         applied_corrections: &[AppliedCorrection],
-    ) -> Result<Vec<RevertedCorrection>> {
+    ) -> Hatch<Vec<RevertedCorrection>> {
         let mut reverted = Vec::new();
 
         for correction in applied_corrections {
@@ -643,7 +602,7 @@ impl AutoCorrectionSystem {
     }
 
     /// Perform system maintenance tasks
-    pub async fn perform_maintenance(&self) -> Result<MaintenanceReport> {
+    pub async fn perform_maintenance(&self) -> Hatch<MaintenanceReport> {
         let start_time = SystemTime::now();
         let mut actions_performed = Vec::new();
 
@@ -679,7 +638,7 @@ impl AutoCorrectionSystem {
     /// # Errors
     ///
     /// Returns a yoshi error if configuration is invalid
-    pub fn update_config(&mut self, new_config: SystemConfig) -> Result<()> {
+    pub fn update_config(&mut self, new_config: SystemConfig) -> Hatch<()> {
         new_config
             .validate()
             .lay("Validating new system configuration")?;
@@ -694,7 +653,7 @@ impl AutoCorrectionSystem {
     }
 }
 
-impl Default for AutoCorrectionSystem {
+impl Default for YoshiACSystem {
     fn default() -> Self {
         Self::new()
     }
@@ -825,9 +784,9 @@ mod tests {
     use tempfile::TempDir;
     use tokio::fs;
 
-    async fn create_test_project() -> Result<TempDir> {
+    async fn create_test_project() -> Hatch<TempDir> {
         let temp_dir = tempfile::tempdir()
-            .hatch()
+            .with_file_context(&std::env::temp_dir())
             .lay("Creating temporary test directory")?;
 
         let cargo_toml = r#"
@@ -865,7 +824,7 @@ fn main() {
 
     #[test]
     fn test_system_creation() {
-        let system = AutoCorrectionSystem::new();
+        let system = YoshiACSystem::new();
         assert!(system.config().enable_parallel_processing);
     }
 
@@ -877,7 +836,7 @@ fn main() {
             ..SystemConfig::default()
         };
 
-        let system = AutoCorrectionSystem::with_config(config);
+        let system = YoshiACSystem::with_config(config);
         assert!(!system.config().enable_parallel_processing);
         assert_eq!(system.config().max_concurrent_operations, 1);
     }
@@ -894,48 +853,48 @@ fn main() {
     #[test]
     fn test_parse_qualified_type() {
         assert_eq!(
-            AutoCorrectionSystem::parse_qualified_type("std::string::String"),
+            YoshiACSystem::parse_qualified_type("std::string::String"),
             Some(("std".to_string(), "String".to_string()))
         );
 
-        assert_eq!(AutoCorrectionSystem::parse_qualified_type("Vec<i32>"), None);
+        assert_eq!(YoshiACSystem::parse_qualified_type("Vec<i32>"), None);
 
         assert_eq!(
-            AutoCorrectionSystem::parse_qualified_type("tokio::sync::Mutex"),
+            YoshiACSystem::parse_qualified_type("tokio::sync::Mutex"),
             Some(("tokio".to_string(), "Mutex".to_string()))
         );
     }
 
     #[tokio::test]
     async fn test_project_validation() {
-        let system = AutoCorrectionSystem::new();
+        let system = YoshiACSystem::new();
 
         // Test non-existent path
-        let result = system
+        let hatch = system
             .analyze_and_correct(Path::new("/non/existent/path"))
             .await;
-        assert!(result.is_err());
+        assert!(hatch.is_err());
 
         // Test valid project
         let temp_project = create_test_project().await.unwrap();
-        let result = system.analyze_and_correct(temp_project.path()).await;
+        let hatch = system.analyze_and_correct(temp_project.path()).await;
         // Should succeed (may return empty corrections for valid code)
-        assert!(result.is_ok());
+        assert!(hatch.is_ok());
     }
 
     #[test]
     fn test_byte_range_application() {
-        let system = AutoCorrectionSystem::new();
+        let system = YoshiACSystem::new();
         let content = "let x = 5;\nlet y = 10;";
 
         // Replace "5" with "42"
-        let result = system.apply_correction_at_byte_range(content, "42", (8, 9));
-        assert!(result.is_ok());
-        assert_eq!(result.unwrap(), "let x = 42;\nlet y = 10;");
+        let hatch = system.apply_correction_at_byte_range(content, "42", (8, 9));
+        assert!(hatch.is_ok());
+        assert_eq!(hatch.unwrap(), "let x = 42;\nlet y = 10;");
 
         // Test invalid range
-        let result = system.apply_correction_at_byte_range(content, "42", (100, 200));
-        assert!(result.is_err());
+        let hatch = system.apply_correction_at_byte_range(content, "42", (100, 200));
+        assert!(hatch.is_err());
     }
 
     #[test]
@@ -967,7 +926,7 @@ fn main() {
 
     #[tokio::test]
     async fn test_metrics_collection() {
-        let system = AutoCorrectionSystem::new();
+        let system = YoshiACSystem::new();
         let metrics = system.get_metrics();
 
         // Should start with zero values
@@ -978,7 +937,7 @@ fn main() {
 
     #[tokio::test]
     async fn test_system_maintenance() {
-        let system = AutoCorrectionSystem::new();
+        let system = YoshiACSystem::new();
         let report = system.perform_maintenance().await.unwrap();
 
         assert!(report.was_successful());
@@ -988,7 +947,7 @@ fn main() {
 
     #[test]
     fn test_config_update() {
-        let mut system = AutoCorrectionSystem::new();
+        let mut system = YoshiACSystem::new();
 
         let new_config = SystemConfig {
             max_proposals_per_diagnostic: 10,

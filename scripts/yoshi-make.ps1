@@ -1,6 +1,6 @@
 # scripts/yoshi-make.ps1
-#![warn(missing_docs)]
 #![deny(unsafe_code)]
+#![warn(missing_docs)]
 #!
 #! **Brief:** ArcMoon Studios Enterprise PowerShell Makefile Equivalent with CI/Dev Mode Upgrade Support.
 #!

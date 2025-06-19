@@ -1,8 +1,15 @@
+#![allow(missing_docs)]
+#![allow(clippy::missing_docs_in_private_items)]
+#![allow(clippy::missing_panics_doc)]
+#![allow(clippy::doc_markdown)]
 /* yoshi-benches\benches\error_formatting.rs */
+#![deny(dead_code)]
 #![deny(unsafe_code)]
-#![warn(clippy::all)]
-#![warn(clippy::cargo)]
+#![warn(missing_docs)]
 #![warn(clippy::pedantic)]
+#![deny(unused_variables)]
+#![deny(clippy::unwrap_used)]
+#![deny(clippy::expect_used)]
 //! **Brief:** Performance benchmarks for Yoshi error formatting operations with display optimization.
 //!
 //! **Module Classification:** Performance-Critical
@@ -31,17 +38,12 @@
 // **GitHub:** [ArcMoon Studios](https://github.com/arcmoonstudios)
 // **Copyright:** (c) 2025 ArcMoon Studios
 // **License:** MIT OR Apache-2.0
-// **License Terms:** Full open source freedom; dual licensing allows choice between MIT and Apache 2.0.
-// **Effective Date:** 2025-06-02 | **Open Source Release|2025-06-02 | **Open Source Release
-// **License File:** /LICENSE
 // **Contact:** LordXyn@proton.me
 // **Author:** Lord Xyn
-// **Last Validation:** 2025-06-02
 
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use std::hint::black_box;
-use std::time::Duration;
-use yoshi_std::{Yoshi, YoshiKind};
+use yoshi::*;
 
 /// Benchmarks basic error formatting operations
 fn bench_basic_formatting(c: &mut Criterion) {
@@ -108,7 +110,7 @@ fn bench_formatting_with_contexts(c: &mut Criterion) {
                 .with_metadata("layer", i.to_string())
                 .with_metadata("timestamp", "2025-06-02T12:00:00Z")
                 .with_metadata("request_id", format!("req_{i}").to_string()) // Direct format argument
-                .with_suggestion(format!("Try approach {i} for resolution").to_string());
+                .with_signpost(format!("Try approach {i} for resolution").to_string());
             // Direct format argument
         }
 
@@ -198,7 +200,7 @@ fn bench_concurrent_formatting(c: &mut Criterion) {
     .with_metadata("database", "primary") // Use &str for metadata
     .with_metadata("query_complexity", "high") // Use &str for metadata
     .with_metadata("table_count", "7") // Use &str for metadata
-    .with_suggestion("Consider query optimization or database scaling"); // Use &str for suggestion
+    .with_signpost("Consider query optimization or database scaling"); // Use &str for suggestion
 
     group.bench_function("concurrent_display_formatting", |b| {
         b.iter(|| {
@@ -261,13 +263,59 @@ fn bench_formatting_memory_allocation(c: &mut Criterion) {
     group.finish();
 }
 
-criterion_group!(
-    formatting_benches,
-    bench_basic_formatting,
-    bench_formatting_with_contexts,
-    bench_error_chain_formatting,
-    bench_concurrent_formatting,
-    bench_formatting_memory_allocation
-);
+/// Benchmarks formatting with HatchExt trait methods
+fn bench_hatch_ext_formatting(c: &mut Criterion) {
+    let mut group = c.benchmark_group("hatch_ext_formatting");
+    group.measurement_time(Duration::from_secs(8));
+
+    // Test HatchExt methods on Result types
+    group.bench_function("hatch_ext_chain_formatting", |b| {
+        b.iter(|| {
+            let result: std::result::Result<String, &str> = Err("base error");
+            let enhanced_result = result
+                .context("Operation failed")
+                .meta("operation", "format_test")
+                .with_signpost("Try a different approach");
+
+            let formatted = format!("{:?}", black_box(enhanced_result));
+            black_box(formatted);
+        });
+    });
+
+    // Test LayText trait on Hatch types (Result<T, Yoshi>)
+    group.bench_function("lay_text_formatting", |b| {
+        b.iter(|| {
+            let result: Hatch<i32> = Err(Yoshi::from("parsing failed"));
+            let enhanced_result = result.lay("Failed to parse input");
+
+            let formatted = format!("{}", black_box(enhanced_result.unwrap_err()));
+            black_box(formatted);
+        });
+    });
+
+    group.finish();
+}
+
+// Workaround for criterion_group! missing_docs warning
+#[allow(missing_docs)]
+mod criterion_benchmarks {
+    use super::{
+        bench_basic_formatting, bench_concurrent_formatting, bench_error_chain_formatting,
+        bench_formatting_memory_allocation, bench_formatting_with_contexts,
+        bench_hatch_ext_formatting, criterion_group,
+    };
+
+    criterion_group!(
+        formatting_benches,
+        bench_basic_formatting,
+        bench_formatting_with_contexts,
+        bench_error_chain_formatting,
+        bench_concurrent_formatting,
+        bench_formatting_memory_allocation,
+        bench_hatch_ext_formatting
+    );
+}
+
+pub use criterion_benchmarks::formatting_benches;
 
 criterion_main!(formatting_benches);

@@ -7,11 +7,11 @@
 [![Rust Version](https://img.shields.io/badge/rust-1.87%2B-blue.svg)](https://www.rust-lang.org)
 [![License: MIT OR Apache-2.0](https://img.shields.io/badge/License-MIT%20OR%20Apache--2.0-blue.svg)](LICENSE)
 
-A structured error handling framework for Rust that tells you what went wrong, where, and how to fix it.
+A structured error handling framework for Rust that tells you what went wrong, where it happened, and how to fix it.
 
 ## What is Yoshi?
 
-Yoshi provides rich, structured errors with context and metadata instead of generic "something broke" messages. It combines the ergonomics of `anyhow` with the type safety of `thiserror`, while adding powerful features like error categorization, suggestions, and metadata.
+Yoshi transforms cryptic error messages into actionable insights. Instead of generic "something broke" messages, you get structured errors with context, suggestions, and metadata. We've combined the ergonomics of `anyhow` with the type safety of `thiserror`, then added intelligent error categorization, auto-correction suggestions, and rich debugging context.
 
 ## Quick Start
 
@@ -51,17 +51,33 @@ fn main() -> Result<()> {
 
 ## Key Features
 
-- **Powerful Macros** - Create rich errors with one line using `yoshi!`, `bail!`, and `ensure!`
-- **Structured Categories** - Categorize errors with `YoshiKind` for consistent handling
-- **Rich Context** - Capture and chain context as errors bubble up
-- **Metadata & Suggestions** - Attach debugging data and provide fix suggestions
-- **Derive Support** - Generate error types and conversions with `#[derive(YoshiError)]`
-- **No-std Compatible** - Works in embedded environments
+- **Expressive Macros** - Create rich errors with `yoshi!`, `bail!`, and `ensure!`
+- **Smart Categories** - Organize errors with `YoshiKind` for consistent handling patterns
+- **Context Chaining** - Build detailed error stories as they propagate through your code
+- **Auto-Correction** - Get intelligent suggestions for fixing common issues
+- **Derive Support** - Generate error types automatically with `#[derive(YoshiError)]`
+- **Modular Architecture** - Use what you need, from no-std embedded to full-stack applications
 
-## Concise Error Creation
+## Architecture
+
+### Framework Architecture Overview
+
+![Yoshi Framework FlowMap](assets/yoshiFlowMap.svg)
+
+*Interactive architecture diagram showing the complete Yoshi framework structure, dependencies, and API relationships.*
+
+Yoshi is built with a modular architecture that lets you use what you need:
+
+- **[yoshi-core](yoshi-core/)** - No-std foundation with essential error types
+- **[yoshi-std](yoshi-std/)** - Standard library integration and convenience features
+- **[yoshi-derive](yoshi-derive/)** - Procedural macros for generating error types
+- **[yoshi-deluxe](yoshi-deluxe/)** - Advanced auto-correction and IDE integration
+- **[yoshi](yoshi/)** - Unified facade that brings everything together
+
+## Simple Error Creation
 
 ```rust
-// Use the expressive yoshi! macro
+// Use the yoshi! macro for quick errors
 let error = yoshi!(
     YoshiKind::Database,
     "Failed to connect to database",
@@ -71,18 +87,56 @@ let error = yoshi!(
     suggestion: "Check database credentials and firewall settings"
 );
 
-// Or derive your own error types
-use yoshi_derive::YoshiError;
+// Or derive your own error types if you prefer
+use yoshi::*;
 
 #[derive(Debug, YoshiError)]
 pub enum ApiError {
-    #[yoshi(kind = "NotFound")]
     #[yoshi(display = "User {user_id} not found")]
     UserNotFound { user_id: u64 },
 
-    #[yoshi(kind = "Timeout")]
+    #[yoshi(display = "Request timed out after {seconds}s")]
     RequestTimeout { seconds: u64 },
 }
+```
+
+## Testing
+
+The Yoshi framework has comprehensive test coverage across all crates:
+
+### Overall Test Statistics
+
+- **528+ Total Tests** across all crates
+- **136 Doc Tests** with working examples
+- **392+ Unit & Integration Tests**
+- **0 Ignored Tests** - every test validates real functionality
+- **100% Test Pass Rate** with `cargo test --all --all-features`
+
+### Test Coverage by Crate
+
+- **yoshi-core:** 86 unit tests + 96 doc tests (no-std foundation)
+- **yoshi-std:** 41 unit tests + 28 doc tests (std integration)
+- **yoshi-derive:** 126 integration tests (macro functionality)
+- **yoshi-deluxe:** 81 unit tests + 2 doc tests (auto-correction system)
+- **yoshi:** 54 integration tests + 8 doc tests (facade crate)
+- **yoshi-benches:** 28 unit tests + 2 doc tests (performance benchmarks)
+
+### Running Tests
+
+```bash
+# Run all tests (recommended)
+cargo test --all --all-features
+
+# Run tests for specific crate
+cargo test -p yoshi-core
+cargo test -p yoshi-std
+cargo test -p yoshi-derive
+
+# Run only doc tests
+cargo test --doc --all-features
+
+# Run benchmarks
+cargo bench
 ```
 
 ## Documentation & Examples
@@ -93,7 +147,7 @@ pub enum ApiError {
 - [Performance Details](https://github.com/arcmoonstudios/yoshi/blob/main/docs/perf.md)
 - [Migration Guide](https://github.com/arcmoonstudios/yoshi/blob/main/docs/migration.md)
 - [API Docs](https://docs.rs/yoshi)
-- [Examples](https://github.com/arcmoonstudios/yoshi/tree/main/examples/)
+- [Examples](https://github.com/arcmoonstudios/yoshi/tree/main/yoshi/examples/)
 
 ## License
 

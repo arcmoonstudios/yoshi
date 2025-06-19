@@ -1,8 +1,16 @@
+#![allow(missing_docs)]
+#![allow(clippy::missing_docs_in_private_items)]
+#![allow(clippy::missing_panics_doc)]
+#![allow(clippy::doc_markdown)]
 /* yoshi-benches\benches\error_contest.rs */
+#![deny(dead_code)]
 #![deny(unsafe_code)]
-#![warn(clippy::all)]
-#![warn(clippy::cargo)]
+#![warn(missing_docs)]
 #![warn(clippy::pedantic)]
+#![deny(unused_variables)]
+#![deny(clippy::unwrap_used)]
+#![deny(clippy::expect_used)]
+
 //! **Brief:** Comprehensive side-by-side performance comparison between Yoshi error handling
 //! framework and alternative solutions (thiserror, anyhow) for empirical validation.
 //!
@@ -33,9 +41,6 @@
 // **GitHub:** [ArcMoon Studios](https://github.com/arcmoonstudios)
 // **Copyright:** (c) 2025 ArcMoon Studios
 // **License:** MIT OR Apache-2.0
-// **License Terms:** Full open source freedom; dual licensing allows choice between MIT and Apache 2.0.
-// **Effective Date:** 2025-06-02 | **Open Source Release|2025-06-02 | **Open Source Release
-// **License File:** /LICENSE
 // **Contact:** LordXyn@proton.me
 // **Author:** Lord Xyn
 
@@ -43,11 +48,9 @@ use criterion::{criterion_group, criterion_main, Criterion, Throughput};
 use std::error::Error;
 use std::fmt;
 use std::hint::black_box;
-use std::time::Duration; // Required for YoshiKind::Timeout
 
 // Always import Yoshi framework components
-use yoshi::Result as YoshiResult;
-use yoshi_std::{Yoshi, YoshiKind};
+use yoshi::{error, warn, Duration, Hatch, HatchExt, LayText, Write, Yoshi, YoshiKind};
 
 // Conditionally import comparison frameworks only when comparison feature is enabled
 #[cfg(feature = "comparison")]
@@ -113,33 +116,49 @@ impl UserOperation {
 pub enum YoshiAppError {
     /// Database connection failure with detailed context
     DatabaseConnection {
+        /// Error message describing the connection failure
         message: String,
+        /// Database connection information
         connection_info: DatabaseConnection,
+        /// Number of retry attempts made
         retry_count: u32,
     },
     /// User operation validation failure
     UserValidation {
+        /// Error message describing the validation failure
         message: String,
+        /// User operation that failed validation
         user_operation: UserOperation,
+        /// List of validation rules that were violated
         validation_rules: Vec<String>,
     },
     /// Network timeout with recovery suggestions
     NetworkTimeout {
+        /// Error message describing the timeout
         message: String,
+        /// Network endpoint that timed out
         endpoint: String,
+        /// Timeout duration in milliseconds
         timeout_duration: u64,
     },
     /// Configuration parsing error with context
     ConfigurationParse {
+        /// Error message describing the parsing failure
         message: String,
+        /// Path to the configuration file
         config_path: String,
+        /// Line number where the error occurred (if available)
         line_number: Option<u32>,
     },
     /// Resource exhaustion with system state
     ResourceExhausted {
+        /// Error message describing the resource exhaustion
         message: String,
+        /// Type of resource that was exhausted
         resource_type: String,
+        /// Current resource usage amount
         current_usage: f64,
+        /// Resource limit that was exceeded
         limit: f64,
     },
 }
@@ -281,7 +300,7 @@ impl From<YoshiAppError> for Yoshi {
                 Yoshi::new(yoshi_kind)
                     .context(format!("Network request to {endpoint} timed out"))
                     .with_metadata("original_message", message)
-                    .with_suggestion("Increase timeout duration or check network connectivity")
+                    .with_signpost("Increase timeout duration or check network connectivity")
             }
             YoshiAppError::ConfigurationParse {
                 message,
@@ -299,7 +318,7 @@ impl From<YoshiAppError> for Yoshi {
                     yoshi = yoshi.with_metadata("line_number", line.to_string());
                 }
 
-                yoshi.with_suggestion("Check configuration file syntax and format")
+                yoshi.with_signpost("Check configuration file syntax and format")
             }
             YoshiAppError::ResourceExhausted {
                 message,
@@ -316,7 +335,7 @@ impl From<YoshiAppError> for Yoshi {
                 Yoshi::new(yoshi_kind)
                     .context(format!("System resource {resource_type} exhausted"))
                     .with_metadata("original_message", message)
-                    .with_suggestion("Increase resource limits or optimize resource usage")
+                    .with_signpost("Increase resource limits or optimize resource usage")
             }
         }
     }
@@ -326,41 +345,66 @@ impl From<YoshiAppError> for Yoshi {
 // thiserror Comparison Implementation (Only when comparison feature enabled)
 // ============================================================================
 
+/// thiserror-based application error for performance comparison
 #[cfg(feature = "comparison")]
 #[derive(ThisError, Debug, Clone)]
 pub enum ThiserrorAppError {
+    /// Database connection failure with thiserror formatting
     #[error("Database connection failed: {message} (host: {host}:{port}, db: {database}, retries: {retry_count})")]
     DatabaseConnection {
+        /// Error message describing the connection failure
         message: String,
+        /// Database host address
         host: String,
+        /// Database port number
         port: u16,
+        /// Database name
         database: String,
+        /// Number of retry attempts made
         retry_count: u32,
     },
+    /// User validation failure with thiserror formatting
     #[error("User validation failed: {message} (user_id: {user_id}, operation: {operation_type})")]
     UserValidation {
+        /// Error message describing the validation failure
         message: String,
+        /// User ID that failed validation
         user_id: u64,
+        /// Type of operation that failed
         operation_type: String,
+        /// Count of validation rules that were violated
         validation_rules_count: usize,
     },
+    /// Network timeout with thiserror formatting
     #[error("Network timeout: {message} (endpoint: {endpoint}, duration: {timeout_duration}ms)")]
     NetworkTimeout {
+        /// Error message describing the timeout
         message: String,
+        /// Network endpoint that timed out
         endpoint: String,
+        /// Timeout duration in milliseconds
         timeout_duration: u64,
     },
+    /// Configuration parsing error with thiserror formatting
     #[error("Configuration parse error: {message} (file: {config_path})")]
     ConfigurationParse {
+        /// Error message describing the parsing failure
         message: String,
+        /// Path to the configuration file
         config_path: String,
+        /// Line number where the error occurred (if available)
         line_number: Option<u32>,
     },
+    /// Resource exhaustion with thiserror formatting
     #[error("Resource exhausted: {message} ({resource_type}: {current_usage:.2}% of {limit:.2})")]
     ResourceExhausted {
+        /// Error message describing the resource exhaustion
         message: String,
+        /// Type of resource that was exhausted
         resource_type: String,
+        /// Current resource usage amount
         current_usage: f64,
+        /// Resource limit that was exceeded
         limit: f64,
     },
 }
@@ -496,13 +540,13 @@ fn bench_error_chaining(c: &mut Criterion) {
                 line_number: Some(42),
             };
 
-            black_box(
-                Yoshi::from(base_error)
-                    .context("Failed during configuration loading at application startup") // Changed to &str
-                    .with_metadata("component", "database_config") // Changed to &str
-                    .with_suggestion("Check JSON syntax at line 42") // Changed to &str
-                    .with_suggestion("Validate configuration schema"), // Changed to &str
-            );
+            let result = Err::<(), _>(Yoshi::from(base_error))
+                .lay("Failed during configuration loading at application startup")
+                .context("Configuration loading phase")
+                .meta("component", "database_config")
+                .with_signpost("Check JSON syntax at line 42")
+                .with_signpost("Validate configuration schema");
+            let _ = black_box(result);
         });
     });
 
@@ -555,6 +599,23 @@ fn bench_error_formatting(c: &mut Criterion) {
         });
 
         b.iter(|| black_box(format!("{}", black_box(&yoshi_error))));
+    });
+
+    // Yoshi error to buffer using Write trait
+    group.bench_function("yoshi_to_buffer", |b| {
+        let yoshi_error = Yoshi::from(YoshiAppError::ResourceExhausted {
+            message: "Memory limit exceeded".to_string(),
+            resource_type: "heap_memory".to_string(),
+            current_usage: 950.0,
+            limit: 1000.0,
+        });
+
+        b.iter(|| {
+            let mut buffer = Vec::new();
+            // Use Write trait to write error to buffer
+            write!(&mut buffer, "{}", black_box(&yoshi_error)).unwrap();
+            black_box(buffer);
+        });
     });
 
     #[cfg(feature = "comparison")]
@@ -657,7 +718,7 @@ fn bench_realistic_scenarios(c: &mut Criterion) {
     group.bench_function("yoshi_database_operation", |b| {
         b.iter(|| {
             // Simulate a database operation that might fail
-            let result: YoshiResult<String> = if black_box(true) {
+            let result: Hatch<String> = if black_box(true) {
                 Err(YoshiAppError::DatabaseConnection {
                     message: "Connection pool exhausted".to_string(),
                     connection_info: DatabaseConnection::new("db-cluster.internal", 5432, "users"),
@@ -676,7 +737,7 @@ fn bench_realistic_scenarios(c: &mut Criterion) {
                         .context("Error during user data retrieval") // Changed to &str
                         .with_metadata("operation", "user_data_retrieval") // Changed to &str
                         .with_metadata("table", "users") // Changed to &str
-                        .with_suggestion("Check database connection pool configuration"); // Changed to &str
+                        .with_signpost("Check database connection pool configuration"); // Changed to &str
                     black_box(format!("{enhanced_error}")) // Direct format argument, no semicolon
                 }
             };
@@ -722,14 +783,26 @@ fn bench_realistic_scenarios(c: &mut Criterion) {
 // Benchmark Group Registration
 // ============================================================================
 
-criterion_group!(
-    benches,
-    bench_yoshi_error_creation,
-    bench_error_conversion,
-    bench_error_chaining,
-    bench_error_formatting,
-    bench_memory_efficiency,
-    bench_realistic_scenarios
-);
+// Workaround for criterion_group! missing_docs warning
+#[allow(missing_docs)]
+mod criterion_benchmarks {
+    use super::{
+        bench_error_chaining, bench_error_conversion, bench_error_formatting,
+        bench_memory_efficiency, bench_realistic_scenarios, bench_yoshi_error_creation,
+        criterion_group,
+    };
+
+    criterion_group!(
+        benches,
+        bench_yoshi_error_creation,
+        bench_error_conversion,
+        bench_error_chaining,
+        bench_error_formatting,
+        bench_memory_efficiency,
+        bench_realistic_scenarios
+    );
+}
+
+pub use criterion_benchmarks::benches;
 
 criterion_main!(benches);

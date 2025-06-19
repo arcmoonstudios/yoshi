@@ -1,8 +1,14 @@
+#![allow(missing_docs)]
+#![allow(clippy::missing_docs_in_private_items)]
+#![allow(clippy::missing_panics_doc)]
+#![allow(clippy::doc_markdown)]
+#![allow(clippy::pedantic)]
+#![allow(dead_code)]
+#![allow(unused_variables)]
 /* yoshi-benches\benches\error_creation.rs */
 #![deny(unsafe_code)]
-#![warn(clippy::all)]
-#![warn(clippy::cargo)]
-#![warn(clippy::pedantic)]
+#![deny(clippy::unwrap_used)]
+#![deny(clippy::expect_used)]
 //! **Brief:** Performance benchmarks for Yoshi error creation operations with mathematical precision.
 //!
 //! **Module Classification:** Performance-Critical
@@ -31,17 +37,12 @@
 // **GitHub:** [ArcMoon Studios](https://github.com/arcmoonstudios)
 // **Copyright:** (c) 2025 ArcMoon Studios
 // **License:** MIT OR Apache-2.0
-// **License Terms:** Full open source freedom; dual licensing allows choice between MIT and Apache 2.0
-// **Effective Date:** 2025-05-30 | **Open Source Release**
-// **License File:** /LICENSE
 // **Contact:** LordXyn@proton.me
 // **Author:** Lord Xyn
-// **Last Validation:** 2025-06-02
 
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use std::hint::black_box;
-use std::time::Duration;
-use yoshi_std::{Yoshi, YoshiKind, YoshiLocation}; // Only import what we actually use
+use yoshi::*;
 
 #[derive(Debug, Clone)]
 #[allow(clippy::items_after_statements)] // Allowed for benchmark struct definition
@@ -81,19 +82,14 @@ fn bench_basic_error_creation(c: &mut Criterion) {
         });
     });
 
-    // Network error creation - Corrected fields
+    // Network error creation - Basic creation without metadata for fair comparison
     group.bench_function("network_error", |b| {
         b.iter(|| {
             let error = Yoshi::new(YoshiKind::Network {
                 message: black_box("HTTP GET failed".into()),
                 source: None, // `source` expects `Option<Box<Yoshi>>`
                 error_code: Some(black_box(500)), // `error_code` expects `Option<u32>`
-            })
-            // Added original endpoint as metadata as NetworkKind does not have `endpoint` field
-            .with_metadata(
-                "endpoint",
-                black_box("https://api.example.com/users".to_string()),
-            );
+            });
             black_box(error);
         });
     });
@@ -134,8 +130,8 @@ fn bench_error_with_context(c: &mut Criterion) {
                     });
 
                     for i in 0..context_count {
-                        // Each `.context()` call adds a new `YoContext` to the error's chain.
-                        // Subsequent `.with_metadata()` and `.with_suggestion()` calls apply to the MOST RECENTLY ADDED context.
+                        // Each `.context()` call adds a new `Nest` to the error's chain.
+                        // Subsequent `.with_metadata()` and `.with_signpost()` calls apply to the MOST RECENTLY ADDED context.
                         error = error
                             .context(format!("Context {i}").to_string())
                             .with_metadata("index".to_string(), i.to_string())
@@ -143,13 +139,72 @@ fn bench_error_with_context(c: &mut Criterion) {
                                 "timestamp".to_string(),
                                 "2025-05-30T00:00:00Z".to_string(),
                             )
-                            .with_suggestion(format!("Try approach {i}").to_string());
+                            .with_signpost(format!("Try approach {i}").to_string());
                     }
 
                     black_box(error);
                 });
             },
         );
+    }
+
+    group.finish();
+}
+
+/// Benchmarks metadata attachment performance
+fn bench_error_with_metadata(c: &mut Criterion) {
+    let mut group = c.benchmark_group("error_with_metadata");
+    group.measurement_time(Duration::from_secs(10));
+    group.sample_size(10000);
+
+    // Single metadata attachment
+    group.bench_function("single_metadata", |b| {
+        b.iter(|| {
+            let error = Yoshi::new(YoshiKind::Network {
+                message: black_box("HTTP GET failed".into()),
+                source: None,
+                error_code: Some(black_box(500)),
+            })
+            .with_metadata(
+                "endpoint",
+                black_box("https://api.example.com/users".to_string()),
+            );
+            black_box(error);
+        });
+    });
+
+    // Multiple metadata attachments
+    group.bench_function("multiple_metadata", |b| {
+        b.iter(|| {
+            let error = Yoshi::new(YoshiKind::Network {
+                message: black_box("HTTP GET failed".into()),
+                source: None,
+                error_code: Some(black_box(500)),
+            })
+            .with_metadata("endpoint", black_box("https://api.example.com/users"))
+            .with_metadata("method", black_box("GET"))
+            .with_metadata("status_code", black_box("500"))
+            .with_metadata("retry_count", black_box("3"))
+            .with_metadata("timeout_ms", black_box("5000"));
+            black_box(error);
+        });
+    });
+
+    // Metadata with varying key/value sizes
+    for size in &[10, 50, 100] {
+        group.bench_with_input(BenchmarkId::new("metadata_size", size), size, |b, &size| {
+            let key = "x".repeat(size);
+            let value = "y".repeat(size);
+            b.iter(|| {
+                let error = Yoshi::new(YoshiKind::Internal {
+                    message: black_box("Test error".into()),
+                    source: None,
+                    component: None,
+                })
+                .with_metadata(black_box(key.clone()), black_box(value.clone()));
+                black_box(error);
+            });
+        });
     }
 
     group.finish();
@@ -288,7 +343,7 @@ fn bench_error_from_std_types(c: &mut Criterion) {
                 std::io::ErrorKind::PermissionDenied,
                 black_box("Permission denied"),
             );
-            let error = Yoshi::from(black_box(io_error));
+            let error = io_error_to_yoshi(black_box(io_error));
             black_box(error);
         });
     });
@@ -304,24 +359,33 @@ fn configure_benchmark_suite() {
     // Future: Add memory allocation tracking when available
 }
 
-criterion_group! {
-    name = error_creation_benches;
-    config = {
-        let config = Criterion::default()
-            .significance_level(0.01)
-            .confidence_level(0.95)
-            .warm_up_time(Duration::from_millis(500))
-            .measurement_time(Duration::from_secs(5));
+// Workaround for criterion_group! missing_docs warning
+#[allow(missing_docs)]
+mod criterion_benchmarks {
+    use super::*;
 
-        configure_benchmark_suite();
-        config
-    };
-    targets = bench_basic_error_creation,
-              bench_error_with_context,
-              bench_error_with_payloads,
-              bench_error_with_location,
-              bench_error_with_backtrace,
-              bench_error_from_std_types
+    criterion_group! {
+        name = error_creation_benches;
+        config = {
+            let config = Criterion::default()
+                .significance_level(0.01)
+                .confidence_level(0.95)
+                .warm_up_time(Duration::from_millis(500))
+                .measurement_time(Duration::from_secs(5));
+
+            configure_benchmark_suite();
+            config
+        };
+        targets = bench_basic_error_creation,
+                  bench_error_with_context,
+                  bench_error_with_metadata,
+                  bench_error_with_payloads,
+                  bench_error_with_location,
+                  bench_error_with_backtrace,
+                  bench_error_from_std_types
+    }
 }
+
+pub use criterion_benchmarks::error_creation_benches;
 
 criterion_main!(error_creation_benches);

@@ -1,7 +1,7 @@
 #!/bin/bash
 # scripts/arcmoon-upgrade.sh
-#![warn(missing_docs)]
 #![deny(unsafe_code)]
+#![warn(missing_docs)]
 #!
 #! **Brief:** ArcMoon Studios Enterprise Bash Upgrade Script with Git Safety Layer.
 #!

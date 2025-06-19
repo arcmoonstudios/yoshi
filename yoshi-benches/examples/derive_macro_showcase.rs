@@ -1,19 +1,45 @@
 /* yoshi-benches/examples/derive_macro_showcase.rs */
+#![deny(dead_code)]
 #![deny(unsafe_code)]
-#![warn(clippy::all)]
-#![allow(unused_variables)] // Allow unused variables in showcase example
-//! **Brief:** Comprehensive showcase of YoshiError derive macro capabilities with 2025 enhancements.
+#![warn(missing_docs)]
+#![warn(clippy::pedantic)]
+#![allow(unused_variables)]
+#![deny(clippy::unwrap_used)]
+#![deny(clippy::expect_used)]
+
+//! **Brief:** Comprehensive showcase of `YoshiError` derive macro capabilities with 2025 enhancements.
 //!
 //! This example demonstrates the full power of the Yoshi ecosystem with derive macros,
 //! auto-inference, shorthand syntax, and comprehensive error handling patterns.
 
-use std::error::Error;
-use std::time::Duration;
-use yoshi_benches::*;
-use yoshi_derive::YoshiError;
-use yoshi_std::Yoshi;
+//! **Brief:** Comprehensive showcase of `YoshiError` derive macro capabilities with 2025 enhancements.
+// ~=####====A===r===c===M===o===o===n====S===t===u===d===i===o===s====X|0|$>
+//! + Advanced `YoshiError` derive macro demonstration with comprehensive attribute support
+//!  - Error code base configuration with hierarchical numbering system
+//!  - Default severity levels with per-variant override capabilities
+//!  - Rich display formatting with field interpolation and context preservation
+//!  - Source error chaining with automatic From trait implementation
+//! + Comprehensive error variant showcase with real-world patterns
+//!  - `NetworkFailure` with endpoint context and retry suggestions
+//!  - `DatabaseError` with metrics shell and connection information
+//!  - `BusinessRuleViolation` with recovery actions and validation context
+//!  - `IoError` with source chaining and permission-based error handling
+//! + Framework comparison engine with multi-dimensional scoring system
+//!  - Context richness evaluation with metadata and suggestion tracking
+//!  - Ergonomics assessment with API usability and developer experience metrics
+//!  - Derive capabilities analysis with macro feature completeness scoring
+//!  - Comprehensive ecosystem comparison with category winners and overall rankings
+// ~=####====A===r===c===M===o===o===n====S===t===u===d===i===o===s====X|0|$>
+// **GitHub:** [ArcMoon Studios](https://github.com/arcmoonstudios)
+// **Copyright:** (c) 2025 ArcMoon Studios
+// **License:** MIT OR Apache-2.0
+// **Contact:** LordXyn@proton.me
+// **Author:** Lord Xyn
 
-/// Showcase all YoshiError derive macro features with 2025 enhancements
+use yoshi::*;
+use yoshi_benches::EcosystemComparisonEngine;
+
+/// Showcase all `YoshiError` derive macro features with 2025 enhancements
 #[derive(Debug, YoshiError)]
 #[yoshi(error_code_base = 1000)]
 #[yoshi(default_severity = 75)]
@@ -25,7 +51,9 @@ pub enum ShowcaseError {
     #[yoshi(severity = 90)]
     #[yoshi(suggestion = "Check network connectivity and retry")]
     NetworkFailure {
+        /// Human-readable error message describing the network failure
         message: String,
+        /// Target URL endpoint that failed to connect
         #[yoshi(context = "endpoint")]
         url: String,
     },
@@ -33,10 +61,12 @@ pub enum ShowcaseError {
     /// Timeout with auto-inference
     #[yoshi(display = "Operation timed out: {operation}")]
     #[yoshi(kind = "Timeout")]
-    #[yoshi(code = 1002)]
+    #[yoshi(code = 1005)]
     #[yoshi(transient = true)]
     OperationTimeout {
+        /// Name of the operation that timed out
         operation: String,
+        /// Duration of the timeout period
         duration: Duration,
     },
 
@@ -47,11 +77,15 @@ pub enum ShowcaseError {
     #[yoshi(severity = 85)]
     #[yoshi(suggestion = "Check database connectivity and retry")]
     DatabaseError {
+        /// Database operation that failed (e.g., SELECT, INSERT, UPDATE)
         operation: String,
+        /// Underlying I/O error that caused the database failure
         #[yoshi(source)]
         cause: std::io::Error,
+        /// Database connection string for debugging purposes
         #[yoshi(context = "connection_info")]
         connection_string: String,
+        /// Performance metrics and connection statistics
         #[yoshi(shell)]
         metrics: DatabaseMetrics,
     },
@@ -63,19 +97,24 @@ pub enum ShowcaseError {
     #[yoshi(severity = 75)]
     #[yoshi(suggestion = "Review business rules and retry")]
     BusinessRuleViolation {
+        /// Business rule that was violated
         rule: String,
+        /// Detailed explanation of the violation
         #[yoshi(context = "violation_context")]
         details: String,
+        /// Optional recovery action suggestion
         recovery_action: Option<String>,
     },
 
     /// Simple I/O error with source chaining
     #[yoshi(kind = "Io")]
     #[yoshi(display = "I/O operation failed: {message}")]
-    #[yoshi(code = 5001)]
+    #[yoshi(code = 5002)]
     #[yoshi(severity = 60)]
     IoError {
+        /// Human-readable I/O error message
         message: String,
+        /// Underlying I/O error that caused the failure
         #[yoshi(source)]
         cause: std::io::Error,
     },
@@ -86,26 +125,38 @@ pub enum ShowcaseError {
     #[yoshi(code = 4001)]
     #[yoshi(severity = 50)]
     ValidationFailed {
+        /// Field name that failed validation
         field: String,
+        /// Validation error message
         message: String,
+        /// User input that caused the validation failure
         #[yoshi(context = "validation_context")]
         user_input: String,
+        /// Validation rules that were applied
         #[yoshi(shell)]
         validation_rules: ValidationRules,
     },
 }
 
+/// Database performance metrics and connection statistics
 #[derive(Debug, Clone)]
 pub struct DatabaseMetrics {
+    /// Query execution time in milliseconds
     pub query_time_ms: u64,
+    /// Connection pool usage as a percentage (0.0 to 1.0)
     pub connection_pool_usage: f64,
+    /// Number of database rows affected by the operation
     pub rows_affected: u64,
 }
 
+/// Validation rules configuration for field validation
 #[derive(Debug, Clone)]
 pub struct ValidationRules {
+    /// List of required field names
     pub required_fields: Vec<String>,
+    /// Regular expression patterns for format validation
     pub format_patterns: Vec<String>,
+    /// Business constraint rules for validation
     pub business_constraints: Vec<String>,
 }
 
@@ -148,9 +199,9 @@ fn test_shorthand_syntax() {
         .lay("API request failed during user authentication")
         .with_metadata("endpoint", "https://api.example.com/auth")
         .with_metadata("retry_count", "3")
-        .with_suggestion("Check network connectivity and retry with exponential backoff");
+        .with_signpost("Check network connectivity and retry with exponential backoff");
 
-    println!("   Network Error: {}", yoshi_error);
+    println!("   Network Error: {yoshi_error}");
     println!("   Kind: {:?}", yoshi_error.kind());
     println!("   Suggestion: {:?}", yoshi_error.suggestion());
     assert!(yoshi_error.suggestion().is_some());
@@ -175,7 +226,7 @@ fn test_comprehensive_error() {
         .with_metadata("component", "user_service")
         .with_priority(200);
 
-    println!("   Database Error: {}", yoshi_error);
+    println!("   Database Error: {yoshi_error}");
     println!(
         "   Has Shell: {:?}",
         yoshi_error.shell::<DatabaseMetrics>().is_some()
@@ -201,9 +252,9 @@ fn test_auto_conversion() {
     let yoshi_error = Yoshi::from(showcase_error)
         .lay("File operation failed")
         .with_metadata("file_path", "/etc/sensitive.conf")
-        .with_suggestion("Check file permissions and user privileges");
+        .with_signpost("Check file permissions and user privileges");
 
-    println!("   IO Error: {}", yoshi_error);
+    println!("   IO Error: {yoshi_error}");
     println!("   Source Available: {:?}", yoshi_error.source().is_some());
 }
 
@@ -219,9 +270,9 @@ fn test_business_logic() {
         .with_metadata("transaction_amount", "5000.00")
         .with_metadata("daily_limit", "2500.00")
         .with_metadata("user_tier", "standard")
-        .with_suggestion("Contact support for limit increase or split the transaction");
+        .with_signpost("Contact support for limit increase or split the transaction");
 
-    println!("   Business Error: {}", yoshi_error);
+    println!("   Business Error: {yoshi_error}");
     println!(
         "   Recovery Available: {:?}",
         yoshi_error.suggestion().is_some()
@@ -310,13 +361,10 @@ fn run_framework_comparison() {
     let medals = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣"];
     for (i, (framework, score)) in sorted_frameworks.iter().enumerate() {
         let medal = medals.get(i).unwrap_or(&"📊");
-        println!("      {} {}: {:.1}/100", medal, framework, score);
+        println!("      {medal} {framework}: {score:.1}/100");
     }
 
     if let Some((winner, _)) = sorted_frameworks.first() {
-        println!(
-            "\n   🎉 OVERALL WINNER: {} based on combined scores!",
-            winner
-        );
+        println!("\n   🎉 OVERALL WINNER: {winner} based on combined scores!");
     }
 }

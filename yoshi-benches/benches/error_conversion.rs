@@ -1,8 +1,15 @@
+#![allow(missing_docs)]
+#![allow(clippy::missing_docs_in_private_items)]
+#![allow(clippy::missing_panics_doc)]
+#![allow(clippy::doc_markdown)]
 /* yoshi-benches\benches\error_conversion.rs */
+#![deny(dead_code)]
 #![deny(unsafe_code)]
-#![warn(clippy::all)]
-#![warn(clippy::cargo)]
+#![warn(missing_docs)]
 #![warn(clippy::pedantic)]
+#![deny(unused_variables)]
+#![deny(clippy::unwrap_used)]
+#![deny(clippy::expect_used)]
 //! **Brief:** Performance benchmarks for Yoshi error conversion operations with type safety analysis.
 //!
 //! **Module Classification:** Performance-Critical
@@ -31,18 +38,15 @@
 // **GitHub:** [ArcMoon Studios](https://github.com/arcmoonstudios)
 // **Copyright:** (c) 2025 ArcMoon Studios
 // **License:** MIT OR Apache-2.0
-// **License Terms:** Full open source freedom; dual licensing allows choice between MIT and Apache 2.0.
-// **Effective Date:** 2025-06-02 | **Open Source Release|2025-06-02 | **Open Source Release
-// **License File:** /LICENSE
 // **Contact:** LordXyn@proton.me
 // **Author:** Lord Xyn
-// **Last Validation:** 2025-06-02
 
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use std::error::Error; // Import the Error trait
 use std::hint::black_box; // Use std::hint::black_box
-use std::time::Duration;
-use yoshi_std::{Result, Yoshi, YoshiKind};
+use yoshi::{
+    io_error_to_yoshi, warn, Duration, HatchExt, LayText, Result, Write, Yoshi, YoshiKind,
+};
 
 /// Custom error types for conversion benchmarks - Pure Rust implementations
 #[derive(Debug)]
@@ -130,7 +134,7 @@ fn bench_direct_conversions(c: &mut Criterion) {
         b.iter(|| {
             let io_error =
                 std::io::Error::new(std::io::ErrorKind::NotFound, black_box("File not found"));
-            let error: Yoshi = black_box(io_error).into();
+            let error: Yoshi = io_error_to_yoshi(black_box(io_error));
             black_box(error);
         });
     });
@@ -184,15 +188,11 @@ fn bench_result_conversions(c: &mut Criterion) {
             let result: Result<i32> = black_box("Initial error")
                 .parse::<i32>()
                 // Use a better approach instead of foreign error
-                .map_err(|parse_err| {
-                    // First convert to Yoshi
-                    let base_err = Yoshi::foreign(parse_err);
-                    // Then add context
-                    base_err
-                        .context("Failed to parse integer".to_string())
-                        .with_metadata("field", "input")
-                        .with_metadata("expected", "A valid integer")
-                })
+                .map_err(Yoshi::foreign)
+                .lay("Failed to parse integer")
+                .context("Number parsing operation")
+                .meta("field", "input")
+                .with_signpost("Provide a valid integer")
                 .and_then(|n| {
                     if n > 0 {
                         Ok(n * 2)
@@ -335,7 +335,7 @@ fn bench_error_downcasting(c: &mut Criterion) {
     // Successful downcast
     group.bench_function("successful_downcast", |b| {
         let io_error = std::io::Error::new(std::io::ErrorKind::PermissionDenied, "Access denied");
-        let yoshi_error = Yoshi::from(io_error);
+        let yoshi_error = io_error_to_yoshi(io_error);
 
         b.iter(|| {
             // Simulate accessing the underlying source (std::error::Error trait is in scope)
@@ -369,7 +369,7 @@ fn bench_context_preservation(c: &mut Criterion) {
                 std::io::ErrorKind::TimedOut,
                 black_box("Connection timeout"),
             );
-            let yoshi_error = Yoshi::from(io_error)
+            let yoshi_error = io_error_to_yoshi(io_error)
                 .context("During database connection".to_string()) // Use .context(String)
                 .with_metadata("operation", "SELECT * FROM users") // Use &str for metadata
                 .with_metadata("timeout_ms", "5000"); // Use &str for metadata
@@ -381,15 +381,73 @@ fn bench_context_preservation(c: &mut Criterion) {
     group.finish();
 }
 
-criterion_group!(
-    error_conversion_benches,
-    bench_direct_conversions,
-    bench_result_conversions,
-    bench_foreign_error_integration,
-    bench_error_chain_operations,
-    bench_multiple_error_aggregation,
-    bench_error_downcasting,
-    bench_context_preservation
-);
+/// Benchmarks error serialization to different output formats
+fn bench_error_serialization(c: &mut Criterion) {
+    let mut group = c.benchmark_group("error_serialization");
+    group.measurement_time(Duration::from_secs(8));
+
+    // Serialize error to string buffer using Write trait
+    group.bench_function("error_to_string_buffer", |b| {
+        let error = Yoshi::new(YoshiKind::Network {
+            message: "Connection timeout".into(),
+            source: None,
+            error_code: Some(408),
+        });
+
+        b.iter(|| {
+            let mut buffer = Vec::new();
+            // Use Write trait to write error to buffer
+            write!(&mut buffer, "{}", black_box(&error)).unwrap();
+            black_box(buffer);
+        });
+    });
+
+    // Serialize complex error chain to buffer
+    group.bench_function("complex_error_to_buffer", |b| {
+        let base_error = Yoshi::new(YoshiKind::Internal {
+            message: "Database connection failed".into(),
+            source: None,
+            component: Some("connection_pool".into()),
+        });
+
+        let complex_error = base_error
+            .context("During user authentication".to_string())
+            .with_metadata("user_id", "12345")
+            .with_metadata("attempt", "3");
+
+        b.iter(|| {
+            let mut buffer = Vec::new();
+            // Use Write trait for serialization
+            write!(&mut buffer, "{:?}", black_box(&complex_error)).unwrap();
+            black_box(buffer);
+        });
+    });
+
+    group.finish();
+}
+
+// Workaround for criterion_group! missing_docs warning
+#[allow(missing_docs)]
+mod criterion_benchmarks {
+    use super::{
+        bench_context_preservation, bench_direct_conversions, bench_error_chain_operations,
+        bench_error_downcasting, bench_error_serialization, bench_foreign_error_integration,
+        bench_multiple_error_aggregation, bench_result_conversions, criterion_group,
+    };
+
+    criterion_group!(
+        error_conversion_benches,
+        bench_direct_conversions,
+        bench_result_conversions,
+        bench_foreign_error_integration,
+        bench_error_chain_operations,
+        bench_multiple_error_aggregation,
+        bench_error_downcasting,
+        bench_context_preservation,
+        bench_error_serialization
+    );
+}
+
+pub use criterion_benchmarks::error_conversion_benches;
 
 criterion_main!(error_conversion_benches);

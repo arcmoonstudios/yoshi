@@ -24,7 +24,8 @@
 # Rust build artifacts
 target/
 **/target/
-Cargo.lock
+# Keep Cargo.lock for reproducible builds
+# Cargo.lock
 
 # Rust incremental compilation
 **/*-incremental/
@@ -398,4 +399,45 @@ tests/target/
 # Files
 lib copy.rs
 deluxe.lib.rs.txt
+
+# =============================================================================
+# YOSHI PROJECT SPECIFIC
+# =============================================================================
+
+# Diagnostic and analysis reports
+yoFixME.txt
+yoFixed/
+*.fixed
+
+# Temporary analysis files
+FlowMaps/
+tools/temp/
+real_analysis_reports/
+
+# Build artifacts and expanded macros
+expanded.rs
+**/expanded.rs
+
+# Test artifacts
+test_exports.rs
+
+# Development notes and temporary files
+DevNotes.md
+zNote.md
+zFinishHim.md.fixed
+*.sample
+
+# Target directory should be ignored
+target/
+**/target/
+
+# WebAssembly build artifacts (yoshi-mcp)
+yoshi-mcp/dist/
+yoshi-mcp/pkg/
+yoshi-mcp/node_modules/
+yoshi-mcp/package-lock.json
+
+# Python analysis tools cache
+__pycache__/
+*.pyc
 
