@@ -122,50 +122,6 @@ fn test_optimization_patterns() -> Hatch<()> {
     Ok(())
 }
 
-/// Test optimization engine if available
-#[cfg(feature = "yoshi-deluxe")]
-#[test]
-fn test_optimization_engine() -> Hatch<()> {
-    use yoshi::OptimizationEngine;
-
-    // Create the optimization engine
-    let engine = OptimizationEngine::new();
-
-    // Sample code with optimization opportunities
-    let sample_code = r#"
-fn example() -> Result<Vec<String>, Box<dyn std::error::Error>> {
-    let mut items = Vec::new();
-    items.push("test".to_string());
-    let maybe_value = Some("test");
-    let value = maybe_value.unwrap();
-    Ok(items)
-}
-"#;
-
-    // Detect optimization opportunities
-    let opportunities = engine.detect_optimization_opportunities(sample_code);
-
-    // Should detect some optimization opportunities
-    assert!(
-        !opportunities.is_empty(),
-        "Should detect optimization opportunities"
-    );
-
-    // Verify specific optimizations are detected
-    let has_optimization = opportunities.iter().any(|opp| {
-        opp.description.contains("Vec::new")
-            || opp.description.contains("unwrap")
-            || opp.description.contains("variable")
-    });
-
-    assert!(
-        has_optimization,
-        "Should detect Vec, unwrap, or variable optimizations"
-    );
-
-    Ok(())
-}
-
 /// Test error chaining and context
 #[test]
 fn test_error_chaining() -> Hatch<()> {

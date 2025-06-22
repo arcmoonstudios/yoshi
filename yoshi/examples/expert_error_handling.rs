@@ -462,7 +462,8 @@ impl ErrorAnalyticsEngine {
         let sampling_factor = self.tracing_context.sampling_rate;
 
         // Calculate confidence based on tracing data
-        let confidence_score = 0.85 + (baggage_count as f64 * 0.01) + (sampling_factor * 0.1);
+        let confidence_score =
+            sampling_factor.mul_add(0.1, (baggage_count as f64).mul_add(0.01, 0.85));
 
         Ok(ExpertDiagnosis {
             error_id: generate_error_id(),
@@ -516,7 +517,7 @@ impl ErrorAnalyticsEngine {
         let correlation_count = self.performance_analyzer.impact_correlations.len();
 
         // Calculate degradation based on analyzer data
-        let degradation_pct = 25.0 + (baseline_count as f64 * 0.5);
+        let degradation_pct = (baseline_count as f64).mul_add(0.5, 25.0);
 
         Ok(PerformanceImpactAssessment {
             impact_severity: "HIGH".to_string(),
@@ -543,8 +544,8 @@ impl ErrorAnalyticsEngine {
 
         // Use accuracy metrics to adjust prediction confidence
         let base_confidence = self.predictive_model.accuracy_metrics.f1_score;
-        let prediction_confidence = base_confidence + (confidence_count as f64 * 0.01);
-        let time_to_next = 15.0 - (pattern_count as f64 * 0.5);
+        let prediction_confidence = (confidence_count as f64).mul_add(0.01, base_confidence);
+        let time_to_next = (pattern_count as f64).mul_add(-0.5, 15.0);
 
         Ok(ErrorPredictions {
             likely_next_errors: vec![
@@ -569,7 +570,7 @@ impl ErrorAnalyticsEngine {
         let suggestion_count = self.pattern_recognizer.diagnosis_suggestions.len();
 
         // Calculate pattern confidence based on recognizer data
-        let pattern_confidence = 0.85 + (known_count as f64 * 0.001);
+        let pattern_confidence = (known_count as f64).mul_add(0.001, 0.85);
 
         Ok(PatternAnalysisResult {
             matched_patterns: vec![
@@ -749,7 +750,7 @@ fn generate_correlation_id() -> String {
 /// Shows enterprise-grade error handling techniques including distributed
 /// tracing, correlation analysis, and predictive error modeling.
 pub fn demonstrate_expert_patterns() -> Hatch<()> {
-    println!("=== Expert Error Handling Demonstration ===");
+    tracing::error!("=== Expert Error Handling Demonstration ===");
 
     let mut analytics_engine = ErrorAnalyticsEngine::new();
 
@@ -779,13 +780,13 @@ pub fn demonstrate_expert_patterns() -> Hatch<()> {
     // Perform expert-level error analysis
     match analytics_engine.analyze_error(&yoshi_error, "distributed_transaction_context") {
         Ok(diagnosis) => {
-            println!("Expert Error Analysis Complete:");
-            println!("  Error ID: {}", diagnosis.error_id);
-            println!("  Trace ID: {}", diagnosis.trace_id);
-            println!("  Analysis Duration: {}μs", diagnosis.analysis_duration_us);
-            println!("  Confidence Score: {:.2}", diagnosis.confidence_score);
+            tracing::error!("Expert Error Analysis Complete:");
+            tracing::error!("  Error ID: {}", diagnosis.error_id);
+            tracing::debug!("  Trace ID: {}", diagnosis.trace_id);
+            tracing::info!("  Analysis Duration: {}μs", diagnosis.analysis_duration_us);
+            tracing::info!("  Confidence Score: {:.2}", diagnosis.confidence_score);
 
-            println!("\nCorrelation Analysis:");
+            tracing::info!("\nCorrelation Analysis:");
             println!(
                 "  Correlation ID: {}",
                 diagnosis.correlation_result.correlation_id
@@ -803,7 +804,7 @@ pub fn demonstrate_expert_patterns() -> Hatch<()> {
                 diagnosis.correlation_result.affected_services
             );
 
-            println!("\nPerformance Impact:");
+            tracing::info!("\nPerformance Impact:");
             println!(
                 "  Severity: {}",
                 diagnosis.performance_impact.impact_severity
@@ -817,20 +818,20 @@ pub fn demonstrate_expert_patterns() -> Hatch<()> {
                 diagnosis.performance_impact.estimated_recovery_time_ms
             );
 
-            println!("\nPredictions:");
+            tracing::info!("\nPredictions:");
             println!(
                 "  Confidence: {:.2}%",
                 diagnosis.predictions.prediction_confidence * 100.0
             );
             if let Some(time_to_next) = diagnosis.predictions.time_to_next_error_minutes {
-                println!("  Next Error ETA: {time_to_next:.1} minutes");
+                tracing::error!("  Next Error ETA: {time_to_next:.1} minutes");
             }
             println!(
                 "  Likely Next Errors: {:?}",
                 diagnosis.predictions.likely_next_errors
             );
 
-            println!("\nPattern Analysis:");
+            tracing::info!("\nPattern Analysis:");
             println!(
                 "  Matched Patterns: {:?}",
                 diagnosis.pattern_analysis.matched_patterns
@@ -839,15 +840,15 @@ pub fn demonstrate_expert_patterns() -> Hatch<()> {
                 "  Pattern Confidence: {:.2}%",
                 diagnosis.pattern_analysis.pattern_confidence * 100.0
             );
-            println!("  Diagnosis: {}", diagnosis.pattern_analysis.diagnosis);
+            tracing::info!("  Diagnosis: {}", diagnosis.pattern_analysis.diagnosis);
 
-            println!("\nRecommended Actions:");
+            tracing::info!("\nRecommended Actions:");
             for (i, action) in diagnosis.recommended_actions.iter().enumerate() {
-                println!("  {}. {}", i + 1, action);
+                tracing::info!("  {}. {}", i + 1, action);
             }
         }
         Err(e) => {
-            println!("Expert analysis failed: {e}");
+            tracing::info!("Expert analysis failed: {e}");
         }
     }
 
@@ -860,6 +861,6 @@ pub fn demonstrate_expert_patterns() -> Hatch<()> {
 /// and distributed system error analysis using the Yoshi framework.
 pub fn main() -> Hatch<()> {
     demonstrate_expert_patterns()?;
-    println!("\n=== Expert Error Handling Complete ===");
+    tracing::error!("\n=== Expert Error Handling Complete ===");
     Ok(())
 }

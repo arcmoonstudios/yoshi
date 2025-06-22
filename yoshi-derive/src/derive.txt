@@ -16,7 +16,7 @@
 //! **Brief:** Community-driven derive macro for ergonomic error handling, inspired by thiserror and anyhow.
 //!
 //! This crate provides the `#[derive(YoshiError)]` macro that generates boilerplate for integrating
-//! custom error enums with the yoshi-core framework. Built for the Rust community with lessons learned
+//! custom error enums with the yoshi-std framework. Built for the Rust community with lessons learned
 //! from the excellent thiserror and anyhow ecosystems, it focuses on developer experience and
 //! practical error handling patterns.
 //!
@@ -74,10 +74,10 @@ use ahash::AHasher;
 use hashbrown::HashMap;
 
 // Type aliases to disambiguate Result types
-/// Type alias for `syn::Result` to reduce verbosity in function signatures
+/// Type alias for syn::Result to reduce verbosity in function signatures
 type SynResult<T> = syn::Result<T>;
 
-/// Type alias for `std::result::Result` to avoid conflicts with custom Result types
+/// Type alias for std::result::Result to avoid conflicts with custom Result types
 type StdResult<T, E> = std::result::Result<T, E>;
 
 //--------------------------------------------------------------------------------------------------
@@ -753,7 +753,9 @@ impl CodePattern {
     fn contains_pattern_by_hash(code: &str, pattern: &str, pattern_hash: u64) -> bool {
         // Fast path: direct hash-based substring search
         if pattern.len() <= code.len() {
-            return Self::rolling_hash_search(code, pattern, pattern_hash);
+            if let Some(found) = Self::rolling_hash_search(code, pattern, pattern_hash) {
+                return found;
+            }
         }
 
         // Backwards compatibility fallback (should rarely be needed)
@@ -761,11 +763,12 @@ impl CodePattern {
     }
 
     /// True rolling hash-based substring search for optimal performance
-    fn rolling_hash_search(text: &str, pattern: &str, target_hash: u64) -> bool {
+    fn rolling_hash_search(text: &str, pattern: &str, target_hash: u64) -> Option<bool> {
         if pattern.is_empty() || pattern.len() > text.len() {
-            return false;
+            return Some(false);
         }
 
+        use std::hash::Hasher;
         let text_bytes = text.as_bytes();
         let pattern_len = pattern.len();
 
@@ -774,7 +777,7 @@ impl CodePattern {
         if let Some(slice) = text_bytes.get(0..pattern_len) {
             hasher.write(slice);
         } else {
-            return false;
+            return Some(false);
         }
         let mut current_hash = hasher.finish();
 
@@ -782,7 +785,7 @@ impl CodePattern {
         if current_hash == target_hash {
             if let Some(text_slice) = text.get(0..pattern_len) {
                 if text_slice == pattern {
-                    return true;
+                    return Some(true);
                 }
             }
         }
@@ -800,18 +803,18 @@ impl CodePattern {
                 if current_hash == target_hash {
                     if let Some(text_slice) = text.get(i..i + pattern_len) {
                         if text_slice == pattern {
-                            return true;
+                            return Some(true);
                         }
                     }
                 }
             }
         }
 
-        false
+        Some(false)
     }
 
     /// Get pattern description for diagnostics
-    pub fn description(self) -> &'static str {
+    pub fn description(&self) -> &'static str {
         match self {
             Self::Unwrap => "Unwrap usage detected",
             Self::Expect => "Expect usage detected",
@@ -833,7 +836,7 @@ impl CodePattern {
     }
 
     /// Get pattern type for categorization
-    pub fn pattern_type(self) -> &'static str {
+    pub fn pattern_type(&self) -> &'static str {
         match self {
             Self::Unwrap => "unwrap_call",
             Self::Expect => "expect_call",
@@ -1000,10 +1003,11 @@ fn register_error_code(code: u32, variant_name: &str, span: Span) -> syn::Result
 /// - **Binary search optimization**: Efficient keyword lookup pattern
 ///
 /// # Algorithm Implementation
-///
-/// - Time Complexity: O(n*m) where n = string length, m = keyword count
-/// - Space Complexity: O(1) auxiliary space (excluding input)
-/// - Early Termination: Sub-3-character strings processed in O(1)
+/// ```
+/// Time Complexity: O(n*m) where n = string length, m = keyword count
+/// Space Complexity: O(1) auxiliary space (excluding input)
+/// Early Termination: Sub-3-character strings processed in O(1)
+/// ```
 fn contains_error_keywords(type_str: &str) -> bool {
     const ERROR_KEYWORDS: &[&str] = &[
         "error",
@@ -1059,7 +1063,7 @@ fn extract_placeholders(format_str: &str) -> Vec<String> {
     // Use String with pre-allocation for common case
     let mut current_placeholder = String::with_capacity(32); // Byte-level processing for maximum performance
     let bytes = format_str.as_bytes();
-    for &ch in bytes {
+    for (_idx, &ch) in bytes.iter().enumerate() {
         state = match (state, ch) {
             (Text, b'{') => OpenBrace,
             (OpenBrace, b'{') => Text, // Escaped brace
@@ -1101,8 +1105,7 @@ fn extract_placeholders(format_str: &str) -> Vec<String> {
     placeholders
 }
 
-/// Extract field name from placeholder string and add to placeholders vector
-#[inline]
+#[inline(always)]
 fn extract_field_name(placeholder: &str, placeholders: &mut Vec<String>) {
     if let Some(colon_pos) = placeholder.find(':') {
         let field_name = &placeholder[..colon_pos];
@@ -1262,9 +1265,6 @@ struct YoshiErrorOpts {
     /// Override error code conflicts (use with caution)
     #[darling(default)]
     override_codes: bool,
-    /// Crate path for yoshi types (auto-detected)
-    #[darling(skip)]
-    crate_path: String,
 }
 
 /// Configuration for individual enum variants
@@ -1393,9 +1393,8 @@ const fn default_true() -> bool {
 /// ## Basic Enum Error
 /// ```rust
 /// use yoshi_derive::YoshiError;
-/// use std::error::Error;
 ///
-/// #[derive(Debug, YoshiError)]
+/// #[derive(YoshiError)]
 /// enum MyError {
 ///     #[yoshi(signpost = "Check file permissions")]
 ///     FileNotFound,
@@ -1407,14 +1406,14 @@ const fn default_true() -> bool {
 /// ## Advanced Error with Metadata
 /// ```rust
 /// use yoshi_derive::YoshiError;
-/// use std::error::Error;
 ///
-/// #[derive(Debug, YoshiError)]
+/// #[derive(YoshiError)]
 /// enum ApiError {
 ///     #[yoshi(
 ///         signpost = "Verify API credentials",
 ///         kind = "Authentication",
-///         code = 401
+///         code = 401,
+///         confidence = 0.9
 ///     )]
 ///     Unauthorized,
 ///
@@ -1430,14 +1429,12 @@ const fn default_true() -> bool {
 /// ## Struct Error with Source
 /// ```rust
 /// use yoshi_derive::YoshiError;
-/// use std::error::Error;
-/// use std::io;
 ///
-/// #[derive(Debug, YoshiError)]
+/// #[derive(YoshiError)]
 /// struct DatabaseError {
 ///     message: String,
 ///     #[yoshi(source)]
-///     cause: io::Error,
+///     cause: Box<dyn std::error::Error>,
 /// }
 /// ```
 ///
@@ -1518,15 +1515,14 @@ fn generate_fallback_impl(input: &DeriveInput, error: &Error) -> TokenStream2 {
         // **COMPREHENSIVE FALLBACK IMPLEMENTATIONS**
 
         // Enhanced Display impl with error context
-        impl #impl_generics ::core::fmt::Display for #enum_name #ty_generics #where_clause {
-            fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
+        impl #impl_generics ::std::fmt::Display for #enum_name #ty_generics #where_clause {
+            fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
                 write!(f, "Error in {}: Macro expansion failed - {}",
                     stringify!(#enum_name), #fallback_signpost)
             }
         }
 
-        // Enhanced Error impl with source chain (only available with std feature)
-        #[cfg(feature = "std")]
+        // Enhanced Error impl with source chain
         impl #impl_generics ::std::error::Error for #enum_name #ty_generics #where_clause {
             fn source(&self) -> Option<&(dyn ::std::error::Error + 'static)> {
                 None // Fallback implementation
@@ -1538,18 +1534,20 @@ fn generate_fallback_impl(input: &DeriveInput, error: &Error) -> TokenStream2 {
         }
 
         // Fallback YoshiAutoFixable implementation for LSP integration
-        impl #impl_generics ::yoshi_core::YoshiAutoFixable for #enum_name #ty_generics #where_clause {
-            fn autofix_suggestions() -> &'static [::yoshi_core::AutofixEntry] {
-                // Use a simple static array for no-std compatibility
-                &[
-                    ::yoshi_core::AutofixEntry {
-                        variant_name: ::yoshi_core::Arc::from("MacroFailure"),
-                        suggestion: ::yoshi_core::Arc::from(#fallback_signpost),
-                        category: ::yoshi_core::Arc::from("macro_error"),
-                        severity: ::yoshi_core::Arc::from("error"),
-                        confidence: 0.9,
-                    }
-                ]
+        impl #impl_generics ::yoshi_std::YoshiAutoFixable for #enum_name #ty_generics #where_clause {
+            fn autofix_suggestions() -> &'static [::yoshi_std::AutofixEntry] {
+                static FALLBACK_SUGGESTIONS: ::std::sync::OnceLock<::std::vec::Vec<::yoshi_std::AutofixEntry>> = ::std::sync::OnceLock::new();
+                FALLBACK_SUGGESTIONS.get_or_init(|| {
+                    ::std::vec![
+                        ::yoshi_std::AutofixEntry {
+                            variant_name: ::std::sync::Arc::from("MacroFailure"),
+                            suggestion: ::std::sync::Arc::from(#fallback_signpost),
+                            category: ::std::sync::Arc::from("macro_error"),
+                            severity: ::std::sync::Arc::from("error"),
+                            confidence: 0.9,
+                        }
+                    ]
+                })
             }
 
             fn variant_name(&self) -> &'static str {
@@ -1562,12 +1560,12 @@ fn generate_fallback_impl(input: &DeriveInput, error: &Error) -> TokenStream2 {
         }
 
         // Fallback conversion to Yoshi error type
-        impl #impl_generics From<#enum_name #ty_generics> for ::yoshi_core::Yoshi #where_clause {
+        impl #impl_generics From<#enum_name #ty_generics> for ::yoshi_std::Oops #where_clause {
             fn from(err: #enum_name #ty_generics) -> Self {
-                ::yoshi_core::Yoshi::new(::yoshi_core::YoshiKind::Internal {
-                    message: ::yoshi_core::Arc::from("Fallback error from derive macro"),
+                ::yoshi_std::Oops::new(::yoshi_std::YoshiKind::Internal {
+                    message: ::std::sync::Arc::from(format!("Fallback error: {err}")),
                     source: None,
-                    component: Some(::yoshi_core::Arc::from(stringify!(#enum_name))),
+                    component: Some(::std::sync::Arc::from(stringify!(#enum_name))),
                 })
             }
         }
@@ -1575,8 +1573,8 @@ fn generate_fallback_impl(input: &DeriveInput, error: &Error) -> TokenStream2 {
         // Enhanced diagnostic information for developers (conditional to avoid conflicts)
         impl #impl_generics #enum_name #ty_generics #where_clause {
             /// Get diagnostic information about the macro failure
-            pub fn yoshi_af_diagnostic_info(&self) -> ::yoshi_core::DiagnosticInfo {
-                ::yoshi_core::DiagnosticInfo {
+            pub fn yoshi_af_diagnostic_info(&self) -> ::yoshi_std::DiagnosticInfo {
+                ::yoshi_std::DiagnosticInfo {
                     error_type: stringify!(#enum_name),
                     variant: "MacroFailure",
                     autofix_available: true,
@@ -1586,15 +1584,17 @@ fn generate_fallback_impl(input: &DeriveInput, error: &Error) -> TokenStream2 {
             }
 
             /// Get LSP code action for fixing the macro issue
-            #[cfg(feature = "std")]
-            pub fn yoshi_af_lsp_code_action(&self) -> Option<&'static str> {
-                Some(r#"{"title": "Check macro syntax", "kind": "quickfix", "edit": {"changes": {}}}"#)
+            pub fn yoshi_af_lsp_code_action(&self) -> Option<::std::string::String> {
+                Some(::std::format!(
+                    r#"{{"title": "{}", "kind": "quickfix", "edit": {{"changes": {{}}}}}}"#,
+                    #fallback_signpost
+                ))
             }
 
             /// Get enhanced diagnostic message with autofix hint
-            #[cfg(feature = "std")]
-            pub fn yoshi_af_lsp_diagnostic_message(&self) -> &'static str {
-                "Macro expansion failed - check syntax and attributes"
+            pub fn yoshi_af_lsp_diagnostic_message(&self) -> ::std::string::String {
+                ::std::format!("Macro expansion failed for '{}': {} (Autofix available)",
+                            stringify!(#enum_name), #fallback_signpost)
             }
         }
 
@@ -1667,7 +1667,7 @@ fn yoshi_error_attribute_impl(args: TokenStream2, input: TokenStream2) -> SynRes
 
     if let Some(cached_string) = ast_cache().get(&cache_key) {
         return cached_string.parse::<TokenStream2>().map_err(|e| {
-            syn::Error::new(Span::call_site(), format!("Cache re-parse failed: {e}"))
+            syn::Error::new(Span::call_site(), format!("Cache re-parse failed: {}", e))
         });
     }
 
@@ -1828,29 +1828,10 @@ fn yoshi_error_enhance_universal(_args: TokenStream2, input: TokenStream2) -> Re
     }
 }
 
-/// Detect the correct crate path for yoshi types
-fn detect_crate_path() -> String {
-    // Always use ::yoshi_core since:
-    // 1. When used directly with yoshi-derive, yoshi_core is available
-    // 2. When used through yoshi crate, yoshi re-exports yoshi_std as yoshi_core
-    "::yoshi_core".to_string()
-}
-
-/// Get the crate path as a TokenStream for use in generated code
-fn crate_path_tokens(opts: &YoshiErrorOpts) -> TokenStream2 {
-    let path_str = &opts.crate_path;
-    syn::parse_str::<syn::Path>(path_str)
-        .map(|path| quote! { #path })
-        .unwrap_or_else(|_| quote! { ::yoshi_core })
-}
-
-/// The core implementation logic for the `YoshiError` derive macro.
+/// The core implementation logic for the YoshiError derive macro.
 /// Handles parsing, validation, and code generation in a single pass.
 fn yoshi_error_derive_impl(input: &DeriveInput) -> SynResult<TokenStream2> {
     let mut opts = YoshiErrorOpts::from_derive_input(input)?;
-
-    // Auto-detect the correct crate path
-    opts.crate_path = detect_crate_path();
 
     // Apply ML-inspired inference engine when enabled
     if opts.auto_inference {
@@ -1974,12 +1955,11 @@ fn generate_all_implementations(opts: &YoshiErrorOpts) -> Result<TokenStream2> {
                 #helper_methods
             })
         }
-        // The derive macro can only be applied to enums and structs, so these arms should not occur.
+        // The derive macro can only be applied to enums and structs, so these arms are unreachable.
         // The universal analysis path is handled exclusively by the `#[yoshi_error]` attribute macro.
-        _ => Err(Error::new(
-            proc_macro2::Span::call_site(),
-            "detect_universal_construct_type only returns Enum or Struct for derive macros",
-        )),
+        _ => unreachable!(
+            "detect_universal_construct_type only returns Enum or Struct for derive macros"
+        ),
     }
 }
 
@@ -2053,7 +2033,9 @@ fn process_block_syntax_ultimate(block: syn::Block) -> Result<TokenStream2> {
 
     // **SPECIAL HANDLING FOR SINGLE ITEM BLOCKS**
     if block.stmts.len() == 1 {
-        let Some(stmt) = block.stmts.into_iter().next() else {
+        let stmt = if let Some(stmt) = block.stmts.into_iter().next() {
+            stmt
+        } else {
             return Err(Error::new(
                 proc_macro2::Span::call_site(),
                 "Statement should exist since len() == 1 - panic converted to error",
@@ -2284,12 +2266,12 @@ fn yoshi_af_struct_full_impl(item_struct: &syn::ItemStruct) -> Result<TokenStrea
     // Generate autofix capabilities for structs
     let autofix_impl = quote! {
         #[automatically_derived]
-        impl #impl_generics ::yoshi_core::YoshiAutoFixable for #struct_ident #ty_generics #where_clause {
-            fn autofix_suggestions() -> &'static [::yoshi_core::AutofixEntry] {
-                static SUGGESTIONS: ::std::sync::OnceLock<::std::vec::Vec<::yoshi_core::AutofixEntry>> = ::std::sync::OnceLock::new();
+        impl #impl_generics ::yoshi_std::YoshiAutoFixable for #struct_ident #ty_generics #where_clause {
+            fn autofix_suggestions() -> &'static [::yoshi_std::AutofixEntry] {
+                static SUGGESTIONS: ::std::sync::OnceLock<::std::vec::Vec<::yoshi_std::AutofixEntry>> = ::std::sync::OnceLock::new();
                 SUGGESTIONS.get_or_init(|| {
                     ::std::vec![
-                        ::yoshi_core::AutofixEntry {
+                        ::yoshi_std::AutofixEntry {
                             variant_name: ::std::sync::Arc::from(stringify!(#struct_ident)),
                             suggestion: ::std::sync::Arc::from("Review struct field values and initialization logic."),
                             category: ::std::sync::Arc::from("struct_error"),
@@ -2810,10 +2792,7 @@ fn yoshi_af_universal_enhancement(item: &syn::Item) -> Result<TokenStream2> {
     })
 }
 
-/// Get a human-readable name for a `syn::Item` type
-///
-/// This function was originally used for verbose output which is now disabled,
-/// but is kept for potential future debugging or diagnostic purposes.
+// Function removed - was only used for verbose output which is now disabled
 #[allow(dead_code)]
 fn _get_item_type_name(item: &syn::Item) -> &'static str {
     match item {
@@ -2866,12 +2845,12 @@ fn generate_autofix_impl_for_type(
 
     Ok(quote! {
         #[automatically_derived]
-        impl #impl_generics ::yoshi_core::YoshiAutoFixable for #self_ty #ty_generics #where_clause {
-            fn autofix_suggestions() -> &'static [::yoshi_core::AutofixEntry] {
-                static UNIVERSAL_SUGGESTIONS: ::std::sync::OnceLock<::std::vec::Vec<::yoshi_core::AutofixEntry>> = ::std::sync::OnceLock::new();
+        impl #impl_generics ::yoshi_std::YoshiAutoFixable for #self_ty #ty_generics #where_clause {
+            fn autofix_suggestions() -> &'static [::yoshi_std::AutofixEntry] {
+                static UNIVERSAL_SUGGESTIONS: ::std::sync::OnceLock<::std::vec::Vec<::yoshi_std::AutofixEntry>> = ::std::sync::OnceLock::new();
                 UNIVERSAL_SUGGESTIONS.get_or_init(|| {
                     ::std::vec![
-                        ::yoshi_core::AutofixEntry {
+                        ::yoshi_std::AutofixEntry {
                             variant_name: ::std::sync::Arc::from("GenericImpl"),
                             suggestion: ::std::sync::Arc::from(concat!("Review implementation for `", stringify!(#self_ty), "` and associated usage patterns.")),
                             category: ::std::sync::Arc::from("generic_impl"),
@@ -2937,10 +2916,10 @@ fn generate_error_impl_enhancements(item_impl: &syn::ItemImpl) -> Result<TokenSt
         // Enhanced Error implementation with autofix capabilities
         impl #self_ty {
             /// Get error autofix signposts
-            pub fn error_autofix_signposts(&self) -> &'static [::yoshi_core::AutofixEntry] {
-                static ERROR_SUGGESTIONS: ::std::sync::LazyLock<::std::vec::Vec<::yoshi_core::AutofixEntry>> = ::std::sync::LazyLock::new(|| {
+            pub fn error_autofix_signposts(&self) -> &'static [::yoshi_std::AutofixEntry] {
+                static ERROR_SUGGESTIONS: ::std::sync::LazyLock<::std::vec::Vec<::yoshi_std::AutofixEntry>> = ::std::sync::LazyLock::new(|| {
                     ::std::vec![
-                        ::yoshi_core::AutofixEntry {
+                        ::yoshi_std::AutofixEntry {
                             variant_name: ::std::sync::Arc::from("ErrorImpl"),
                             signpost: ::std::sync::Arc::from("Check error source and context"),
                             category: ::std::sync::Arc::from("error_handling"),
@@ -2996,14 +2975,14 @@ fn generate_error_handling_wrapper(
         // Universal error handling wrapper
         impl #impl_generics #self_ty #ty_generics #where_clause {
             /// Wrap any operation with enhanced error handling
-            pub fn with_error_handling<F, R, E>(self, operation: F) -> ::std::result::Result<R, ::yoshi_core::Yoshi>
+            pub fn with_error_handling<F, R, E>(self, operation: F) -> ::std::result::Result<R, ::yoshi_std::Oops>
             where
                 F: FnOnce(Self) -> ::std::result::Result<R, E>,
                 E: ::std::error::Error + Send + Sync + 'static,
             {
                 match operation(self) {
                     Ok(result) => Ok(result),
-                    Err(error) => Err(::yoshi_core::Yoshi::new(::yoshi_core::YoshiKind::Foreign {
+                    Err(error) => Err(::yoshi_std::Oops::new(::yoshi_std::YoshiKind::Foreign {
                         error: ::std::boxed::Box::new(error),
                         error_type_name: ::std::sync::Arc::from("Enhanced error handling wrapper"),
                     }))
@@ -3089,10 +3068,10 @@ fn extract_variant_metadata(variant: &syn::Variant) -> Result<Option<AutofixMeta
 
     // Process autofix attributes
     for attr in &variant.attrs {
-        if attr.path().get_ident().is_some_and(|i| i == "autofix") {
+        if attr.path().get_ident().map_or(false, |i| i == "autofix") {
             found_autofix = true;
             parse_autofix_attribute(attr, &mut metadata)?;
-        } else if attr.path().get_ident().is_some_and(|i| i == "yoshi") {
+        } else if attr.path().get_ident().map_or(false, |i| i == "yoshi") {
             parse_yoshi_autofix_attribute(attr, &mut metadata)?;
             found_autofix = true;
         }
@@ -3439,7 +3418,7 @@ fn generate_autofix_trait_impl(
 
         // Create Arc at runtime to avoid const issues
         quote! {
-            ::yoshi_core::AutofixEntry {
+            ::yoshi_std::AutofixEntry {
                 variant_name: ::std::sync::Arc::from(#variant_name),
                 suggestion: ::std::sync::Arc::from(#signpost),
                 category: ::std::sync::Arc::from(#category),
@@ -3490,18 +3469,18 @@ fn generate_autofix_trait_impl(
     Ok(quote! {
         #[automatically_derived]
         #[doc(hidden)]
-        impl ::yoshi_core::YoshiAutoFixable for #enum_ident {
+        impl ::yoshi_std::YoshiAutoFixable for #enum_ident {
             #[inline]
-            fn autofix_suggestions() -> &'static [::yoshi_core::AutofixEntry] {
+            fn autofix_suggestions() -> &'static [::yoshi_std::AutofixEntry] {
                 // CRVO Enhancement: Use OnceLock for runtime Arc creation
-                static __YOSHI_INTERNAL_AUTOFIX_SUGGESTIONS: ::std::sync::OnceLock<::std::vec::Vec<::yoshi_core::AutofixEntry>> = ::std::sync::OnceLock::new();
+                static __YOSHI_INTERNAL_AUTOFIX_SUGGESTIONS: ::std::sync::OnceLock<::std::vec::Vec<::yoshi_std::AutofixEntry>> = ::std::sync::OnceLock::new();
                 __YOSHI_INTERNAL_AUTOFIX_SUGGESTIONS.get_or_init(|| {
                     ::std::vec![#(#autofix_entries),*]
                 })
             }
 
             #[inline]
-            fn variant_autofix(&self) -> Option<&'static ::yoshi_core::AutofixEntry> {
+            fn variant_autofix(&self) -> Option<&'static ::yoshi_std::AutofixEntry> {
                 let __yoshi_internal_variant_name = self.variant_name();
                 Self::autofix_suggestions()
                     .iter()
@@ -3523,11 +3502,11 @@ fn generate_autofix_trait_impl(
             }
 
             #[inline]
-            fn contextual_autofix(&self) -> Option<::yoshi_core::ContextualAutofix> {
-                self.variant_autofix().map(|__yoshi_internal_entry| ::yoshi_core::ContextualAutofix {
+            fn contextual_autofix(&self) -> Option<::yoshi_std::ContextualAutofix> {
+                self.variant_autofix().map(|__yoshi_internal_entry| ::yoshi_std::ContextualAutofix {
                     entry: __yoshi_internal_entry.clone(),
-                    context: ::alloc::collections::BTreeMap::new(), // Default empty context (no-std compatible)
-                    related_errors: ::alloc::vec::Vec::new(), // Default empty related errors
+                    context: ::std::collections::HashMap::new(), // Default empty context
+                    related_errors: ::std::vec::Vec::new(), // Default empty related errors
                 })
             }
         }
@@ -3567,8 +3546,8 @@ fn generate_lsp_utilities(
         impl #enum_ident {
             /// Get diagnostic information for LSP integration (yoshi_af! version)
             #[inline]
-            pub fn yoshi_af_diagnostic_info(&self) -> ::yoshi_core::DiagnosticInfo {
-                ::yoshi_core::DiagnosticInfo {
+            pub fn yoshi_af_diagnostic_info(&self) -> ::yoshi_std::DiagnosticInfo {
+                ::yoshi_std::DiagnosticInfo {
                     error_type: #enum_name_str,
                     variant: self.variant_name(),
                     autofix_available: self.variant_autofix().is_some(),
@@ -4715,8 +4694,7 @@ fn generate_enhanced_yoshi_conversion(opts: &YoshiErrorOpts) -> Result<TokenStre
             .collect::<Result<Vec<_>>>()?;
 
         Ok(quote! {
-            // Primary implementation for yoshi_core::Yoshi
-            impl #impl_generics ::std::convert::From<#enum_name #ty_generics> for ::yoshi_core::Yoshi #where_clause {
+            impl #impl_generics ::std::convert::From<#enum_name #ty_generics> for ::yoshi_std::Yoshi #where_clause {
                 #[track_caller]
                 fn from(err: #enum_name #ty_generics) -> Self {
                     let error_message = err.to_string();
@@ -4725,18 +4703,6 @@ fn generate_enhanced_yoshi_conversion(opts: &YoshiErrorOpts) -> Result<TokenStre
                     }
                 }
             }
-
-            // TRUE DYNAMIC ADAPTABILITY: Automatic AnyError implementation
-            // This enables seamless interoperability between Yoshi and AnyError
-            impl #impl_generics ::std::convert::From<#enum_name #ty_generics> for ::yoshi_core::AnyError #where_clause {
-                #[track_caller]
-                fn from(err: #enum_name #ty_generics) -> Self {
-                    // Convert through Yoshi first, then wrap in AnyError
-                    ::yoshi_core::AnyError::from(::yoshi_core::Yoshi::from(err))
-                }
-            }
-
-
         })
     } else if is_struct(opts) {
         // Struct implementation - delegate to struct-specific function
@@ -4795,7 +4761,6 @@ fn generate_enhanced_yoshi_construction(
         .as_deref()
         .or(opts.default_kind.as_deref())
         .unwrap_or("Internal");
-    let crate_path = crate_path_tokens(opts);
 
     let base_yoshi = if let Some((_, field_ident)) = variant
         .fields
@@ -4804,8 +4769,8 @@ fn generate_enhanced_yoshi_construction(
         .find(|(f, _)| f.source)
     {
         quote! {
-            #crate_path::Yoshi::new_with_source(
-                #crate_path::YoshiKind::Internal {
+            ::yoshi_std::Yoshi::new_with_source(
+                ::yoshi_std::YoshiKind::Internal {
                     message: ::std::convert::Into::<::std::borrow::Cow<'static, str>>::into(error_message.clone()).into_owned().into(),
                     source: None, // Source is handled by new_with_source
                     component: Some(::std::convert::Into::<::std::borrow::Cow<'static, str>>::into("generated").into_owned().into()),
@@ -4818,7 +4783,6 @@ fn generate_enhanced_yoshi_construction(
             kind_str,
             &quote! { error_message },
             variant,
-            opts,
             field_idents,
         )
     };
@@ -4911,18 +4875,16 @@ fn generate_enhanced_yoshi_kind_construction(
     kind_str: &str,
     message: &TokenStream2,
     variant: &YoshiVariantOpts,
-    opts: &YoshiErrorOpts,
     field_idents: &[Ident],
 ) -> TokenStream2 {
-    let crate_path = crate_path_tokens(opts);
     if variant.transparent {
         // For transparent variants, use the inner field value instead of the entire enum
         if let Some(field_ident) = field_idents.first() {
             // Use foreign method for better compatibility with generic types
-            return quote! { #crate_path::Yoshi::foreign(#field_ident) };
+            return quote! { ::yoshi_std::Yoshi::foreign(#field_ident) };
         }
         // Fallback for unit transparent variants (shouldn't happen but be safe)
-        return quote! { #crate_path::Yoshi::foreign(err) };
+        return quote! { ::yoshi_std::Yoshi::foreign(err) };
     }
 
     let source_expr = if let Some((_, field_ident)) = variant
@@ -4932,7 +4894,7 @@ fn generate_enhanced_yoshi_kind_construction(
         .find(|(f, _)| f.source)
     {
         quote! {
-            Some(Box::new(#crate_path::Yoshi::from(#field_ident)))
+            Some(Box::new(::yoshi_std::Yoshi::from(#field_ident)))
         }
     } else {
         quote! { None }
@@ -4940,19 +4902,19 @@ fn generate_enhanced_yoshi_kind_construction(
 
     match kind_str {
         "Io" => quote! {
-            #crate_path::Yoshi::new(#crate_path::YoshiKind::Io(
-                #crate_path::NoStdIo::new(::std::convert::Into::<::std::borrow::Cow<'static, str>>::into(#message.to_string()).into_owned())
+            ::yoshi_std::Yoshi::new(::yoshi_std::YoshiKind::Io(
+                ::yoshi_std::NoStdIo::new(::std::convert::Into::<::std::borrow::Cow<'static, str>>::into(#message.to_string()).into_owned())
             ))
         },
         "Network" => quote! {
-            #crate_path::Yoshi::new(#crate_path::YoshiKind::Network {
+            ::yoshi_std::Yoshi::new(::yoshi_std::YoshiKind::Network {
                 message: ::std::convert::Into::<::std::borrow::Cow<'static, str>>::into(#message.to_string()).into_owned().into(),
                 source: #source_expr,
                 error_code: None,
             })
         },
         "Validation" => quote! {
-            #crate_path::Yoshi::new(#crate_path::YoshiKind::Validation {
+            ::yoshi_std::Yoshi::new(::yoshi_std::YoshiKind::Validation {
                 field: ::std::convert::Into::<::std::borrow::Cow<'static, str>>::into("unknown").into_owned().into(),
                 message: ::std::convert::Into::<::std::borrow::Cow<'static, str>>::into(#message.to_string()).into_owned().into(),
                 expected: None,
@@ -4960,35 +4922,35 @@ fn generate_enhanced_yoshi_kind_construction(
             })
         },
         "Config" => quote! {
-            #crate_path::Yoshi::new(#crate_path::YoshiKind::Config {
+            ::yoshi_std::Yoshi::new(::yoshi_std::YoshiKind::Config {
                 message: ::std::convert::Into::<::std::borrow::Cow<'static, str>>::into(#message.to_string()).into_owned().into(),
                 source: #source_expr,
                 config_path: None,
             })
         },
         "Security" => quote! {
-            #crate_path::Yoshi::new(#crate_path::YoshiKind::Security {
+            ::yoshi_std::Yoshi::new(::yoshi_std::YoshiKind::Security {
                 message: ::std::convert::Into::<::std::borrow::Cow<'static, str>>::into(#message.to_string()).into_owned().into(),
                 source: #source_expr,
                 security_level: ::std::convert::Into::<::std::borrow::Cow<'static, str>>::into("HIGH").into_owned().into(),
             })
         },
         "Timeout" => quote! {
-            #crate_path::Yoshi::new(#crate_path::YoshiKind::Timeout {
+            ::yoshi_std::Yoshi::new(::yoshi_std::YoshiKind::Timeout {
                 operation: ::std::convert::Into::<::std::borrow::Cow<'static, str>>::into(#message.to_string()).into_owned().into(),
                 duration: ::core::time::Duration::from_millis(5000),
                 expected_max: None,
             })
         },
         "NotFound" => quote! {
-            #crate_path::Yoshi::new(#crate_path::YoshiKind::NotFound {
+            ::yoshi_std::Yoshi::new(::yoshi_std::YoshiKind::NotFound {
                 resource_type: ::std::convert::Into::<::std::borrow::Cow<'static, str>>::into("unknown").into_owned().into(),
                 identifier: ::std::convert::Into::<::std::borrow::Cow<'static, str>>::into(#message.to_string()).into_owned().into(),
                 search_locations: None,
             })
         },
         "ResourceExhausted" => quote! {
-            #crate_path::Yoshi::new(#crate_path::YoshiKind::ResourceExhausted {
+            ::yoshi_std::Yoshi::new(::yoshi_std::YoshiKind::ResourceExhausted {
                 resource: ::std::convert::Into::<::std::borrow::Cow<'static, str>>::into("unknown").into_owned().into(),
                 limit: ::std::convert::Into::<::std::borrow::Cow<'static, str>>::into("unknown").into_owned().into(),
                 current: ::std::convert::Into::<::std::borrow::Cow<'static, str>>::into("unknown").into_owned().into(),
@@ -4996,8 +4958,8 @@ fn generate_enhanced_yoshi_kind_construction(
             })
         },
         "Foreign" => quote! {
-            #crate_path::Yoshi::new(#crate_path::YoshiKind::Foreign {
-                error: Box::new(#crate_path::NoStdIo::new(::std::convert::Into::<::std::borrow::Cow<'static, str>>::into(#message.to_string()).into_owned())),
+            ::yoshi_std::Yoshi::new(::yoshi_std::YoshiKind::Foreign {
+                error: Box::new(::yoshi_std::NoStdIo::new(::std::convert::Into::<::std::borrow::Cow<'static, str>>::into(#message.to_string()).into_owned())),
                 error_type_name: ::std::convert::Into::<::std::borrow::Cow<'static, str>>::into("generated").into_owned().into(),
             })
         },
@@ -5024,13 +4986,13 @@ fn generate_enhanced_yoshi_kind_construction(
                     false
                 }) {
                 // Convert each error in the Vec to a Yoshi error.
-                quote! { #field_ident.into_iter().map(#crate_path::Yoshi::from).collect() }
+                quote! { #field_ident.into_iter().map(::yoshi_std::Yoshi::from).collect() }
             } else {
                 quote! { vec![] }
             };
 
             quote! {
-                #crate_path::Yoshi::new(#crate_path::YoshiKind::Multiple {
+                ::yoshi_std::Yoshi::new(::yoshi_std::YoshiKind::Multiple {
                     errors: #errors_expr,
                     primary_index: Some(0),
                 })
@@ -5040,7 +5002,7 @@ fn generate_enhanced_yoshi_kind_construction(
             // Internal
             let component_name = variant.ident.to_string();
             quote! {
-                #crate_path::Yoshi::new(#crate_path::YoshiKind::Internal {
+                ::yoshi_std::Yoshi::new(::yoshi_std::YoshiKind::Internal {
                     message: ::std::convert::Into::<::std::borrow::Cow<'static, str>>::into(#message.to_string()).into_owned().into(),
                     source: #source_expr,
                     component: Some(::std::convert::Into::<::std::borrow::Cow<'static, str>>::into(#component_name).into_owned().into()),
@@ -5892,7 +5854,8 @@ fn contains_non_static_lifetime(ty: &Type) -> bool {
                 .path
                 .segments
                 .last()
-                .map_or(&PathArguments::None, |segment| &segment.arguments)
+                .map(|segment| &segment.arguments)
+                .unwrap_or(&PathArguments::None)
             else {
                 return false;
             };
@@ -6115,7 +6078,7 @@ fn generate_variant_pattern(variant: &YoshiVariantOpts) -> TokenStream2 {
     }
 }
 
-// /// **Type-Safe String Conversion for yoshi-core Compatibility**
+// /// **Type-Safe String Conversion for yoshi-std Compatibility**
 // /// Generates type-safe string conversions following thiserror/anyhow patterns
 // #[inline]
 // fn yoshi_string_from(value: impl ToTokens) -> TokenStream2 {
@@ -6129,7 +6092,7 @@ fn generate_variant_pattern(variant: &YoshiVariantOpts) -> TokenStream2 {
 //     quote! { ::std::sync::Arc::<str>::from(#value.as_str()) }
 // }
 
-// /// **Literal String to yoshi-core::String Conversion**
+// /// **Literal String to yoshi-std::String Conversion**
 // /// For compile-time string literals
 // #[inline]
 // fn yoshi_string_literal(literal: &str) -> TokenStream2 {
@@ -6226,7 +6189,7 @@ fn is_std_io_error_direct(ty: &Type) -> bool {
                         .iter()
                         .rev()
                         .nth(1)
-                        .is_some_and(|seg| seg.ident == "io")
+                        .map_or(false, |seg| seg.ident == "io")
             } else {
                 false
             }
@@ -6412,19 +6375,19 @@ fn generate_struct_yoshi_conversion(opts: &YoshiErrorOpts) -> Result<TokenStream
 
     let yoshi_construction = match kind_str {
         "Io" => quote! {
-            ::yoshi_core::Yoshi::new(::yoshi_core::YoshiKind::Io(
-                ::yoshi_core::NoStdIo::new(::std::convert::Into::<::std::borrow::Cow<'static, str>>::into(err.to_string()).into_owned())
+            ::yoshi_std::Yoshi::new(::yoshi_std::YoshiKind::Io(
+                ::yoshi_std::NoStdIo::new(::std::convert::Into::<::std::borrow::Cow<'static, str>>::into(err.to_string()).into_owned())
             ))
         },
         "Network" => quote! {
-            ::yoshi_core::Yoshi::new(::yoshi_core::YoshiKind::Network {
+            ::yoshi_std::Yoshi::new(::yoshi_std::YoshiKind::Network {
                 message: ::std::convert::Into::<::std::borrow::Cow<'static, str>>::into(err.to_string()).into_owned().into(),
                 source: None,
                 error_code: None,
             })
         },
         "Validation" => quote! {
-            ::yoshi_core::Yoshi::new(::yoshi_core::YoshiKind::Validation {
+            ::yoshi_std::Yoshi::new(::yoshi_std::YoshiKind::Validation {
                 field: ::std::convert::Into::<::std::borrow::Cow<'static, str>>::into("unknown").into_owned().into(),
                 message: ::std::convert::Into::<::std::borrow::Cow<'static, str>>::into(err.to_string()).into_owned().into(),
                 expected: None,
@@ -6432,7 +6395,7 @@ fn generate_struct_yoshi_conversion(opts: &YoshiErrorOpts) -> Result<TokenStream
             })
         },
         _ => quote! {
-            ::yoshi_core::Yoshi::new(::yoshi_core::YoshiKind::Internal {
+            ::yoshi_std::Yoshi::new(::yoshi_std::YoshiKind::Internal {
                 message: ::std::convert::Into::<::std::borrow::Cow<'static, str>>::into(err.to_string()).into_owned().into(),
                 source: None,
                 component: Some(::std::convert::Into::<::std::borrow::Cow<'static, str>>::into("generated").into_owned().into()),
@@ -6441,24 +6404,12 @@ fn generate_struct_yoshi_conversion(opts: &YoshiErrorOpts) -> Result<TokenStream
     };
 
     Ok(quote! {
-        // Primary implementation for yoshi_core::Yoshi
-        impl #impl_generics ::std::convert::From<#struct_name #ty_generics> for ::yoshi_core::Yoshi #where_clause {
+        impl #impl_generics ::std::convert::From<#struct_name #ty_generics> for ::yoshi_std::Yoshi #where_clause {
             #[track_caller]
             fn from(err: #struct_name #ty_generics) -> Self {
                 #yoshi_construction
             }
         }
-
-        // TRUE DYNAMIC ADAPTABILITY: Automatic AnyError implementation for structs
-        impl #impl_generics ::std::convert::From<#struct_name #ty_generics> for ::yoshi_core::AnyError #where_clause {
-            #[track_caller]
-            fn from(err: #struct_name #ty_generics) -> Self {
-                // Convert through Yoshi first, then wrap in AnyError
-                ::yoshi_core::AnyError::from(::yoshi_core::Yoshi::from(err))
-            }
-        }
-
-
     })
 }
 
@@ -6815,9 +6766,9 @@ impl ErrorHandlingOptimizer {
 
         // Check for constraints that might prevent ? operator usage
         for constraint in &self.safety_analysis.generic_constraints {
-            if !constraint.contains("Copy") && !constraint.contains("Clone") {
-                // These constraints might prevent ? operator usage
-                // Additional analysis would be needed here
+            if constraint.contains("Copy") || constraint.contains("Clone") {
+                // These constraints are generally fine with ? operator
+                continue;
             }
         }
 
@@ -6924,7 +6875,7 @@ impl<'a> PushPatternAnalyzer<'a> {
     }
 }
 
-impl syn::visit::Visit<'_> for PushPatternAnalyzer<'_> {
+impl<'a> syn::visit::Visit<'_> for PushPatternAnalyzer<'a> {
     fn visit_expr_method_call(&mut self, method_call: &syn::ExprMethodCall) {
         if method_call.method == "push" {
             if let syn::Expr::Path(path) = &*method_call.receiver {
@@ -7432,7 +7383,7 @@ fn validate_optimized_ast(item_fn: &syn::ItemFn) -> StdResult<(), OptimizationEr
         })?;
 
     // Check for unsafe patterns introduced by optimization
-    if safety_analysis.has_unsafe_blocks && item_fn.sig.unsafety.is_none() {
+    if safety_analysis.has_unsafe_blocks && !item_fn.sig.unsafety.is_some() {
         return Err(OptimizationError::UnsafePattern {
             pattern: "Unsafe blocks detected in safe function after optimization".to_string(),
         });
@@ -7462,14 +7413,12 @@ fn generate_optimization_summary(messages: &[OptimizationMessage]) -> String {
         return "Yoshi autonomous optimization summary: 0 total optimizations".to_string();
     }
     if messages.len() == 1 {
-        let Some(message) = messages.first() else {
-            // This should never happen since we check messages.len() == 1 above
-            return "Yoshi autonomous optimization summary: 1 optimization (error accessing message)".to_string();
-        };
+        let message = &messages[0];
         let memory = message.performance_impact.memory_saved_bytes.unwrap_or(0);
         let cpu = message.performance_impact.cpu_cycles_saved.unwrap_or(0);
         return format!(
-            "Yoshi autonomous optimization summary: 1 optimization, {memory} bytes memory saved, {cpu} CPU cycles saved"
+            "Yoshi autonomous optimization summary: 1 optimization, {} bytes memory saved, {} CPU cycles saved",
+            memory, cpu
         );
     }
 
@@ -7529,5 +7478,4 @@ fn emit_optimization_messages(messages: &[OptimizationMessage]) -> TokenStream2 
         };
     }
 }
-
 //--------------------------------------------------------------------------------------------------

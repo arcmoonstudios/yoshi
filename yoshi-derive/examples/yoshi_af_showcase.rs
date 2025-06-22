@@ -1,4 +1,5 @@
 /* yoshi-derive/examples/enhanced_yoshi_af_showcase.rs */
+
 //! **Brief:** Showcase of enhanced `yoshi_af!` macro with auto-optimization capabilities.
 //!
 //! This example demonstrates the enhanced `yoshi_af!` macro that now includes
@@ -11,7 +12,7 @@
 // **Contact:** LordXyn@proton.me
 // **Author:** Lord Xyn
 
-use yoshi_std::Hatch;
+use yoshi_core::Hatch;
 
 /// Main function that demonstrates the enhanced `yoshi_af!` macro capabilities
 #[allow(clippy::print_stdout)]
@@ -45,7 +46,7 @@ fn test_basic_optimization() {
 /// Demonstrates error handling optimization capabilities of the enhanced macro
 #[allow(clippy::print_stdout)]
 fn test_error_handling_optimization() {
-    println!("🛡️ Error Handling Optimization Test");
+    eprintln!("🛡️ Error Handling Optimization Test");
     println!("===================================");
 
     let result = error_handling_function();
@@ -113,7 +114,7 @@ fn combined_optimizations_function() -> Hatch<Vec<ProcessedData>> {
 // Helper function for processing data
 fn process_item(data: &str) -> Hatch<ProcessedData> {
     if data.is_empty() {
-        return Err(yoshi_std::Yoshi::new(yoshi_std::YoshiKind::Validation {
+        return Err(yoshi_core::Yoshi::new(yoshi_core::YoshiKind::Validation {
             field: "data".into(),
             message: "Empty data not allowed".into(),
             expected: Some("non-empty string".into()),
@@ -143,7 +144,7 @@ struct ProcessedData {
 impl ProcessedData {
     /// Use all fields to avoid dead code warnings
     #[allow(dead_code)]
-    fn validate(&self) -> bool {
+    const fn validate(&self) -> bool {
         !self.original.is_empty() && !self.processed.is_empty() && self.length > 0
     }
 }

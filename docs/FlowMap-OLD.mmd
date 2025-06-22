@@ -1,0 +1,255 @@
+flowchart LR
+        %% ArcMoon Studios FlowMap for Project: yoshi
+        %% Calculated Code Quality: Good Quality (Composite Score: 0.889)
+        %% Research Sources: 8 validated sources integrated
+        %% Analysis Mode: M1 - Complete Workspace Analysis
+        %% Processing Iterations: 1
+        Start([🚀 Rust Workspace Analysis<br/>Project Structure]) --> Workspace[Workspace Root<br/>📊 Crate Dependencies]
+
+    subgraph Foundation["🏗️ Foundation Layer"]
+        yoshi_core
+        subgraph yoshi_core_API["📋 yoshi-core API"]
+            yoshi_core_with_metadata([🔧 with_metadata<br/>3 params])
+            click yoshi_core_with_metadata "https://docs.rs/yoshi_core/latest/yoshi_core/fn.with_metadata.html" "fn with_metadata(self: Self, k: impl …, v: impl …) -> Self | Adds metadata to the error's primary nest." _blank
+            yoshi_core_with_signpost([🔧 with_signpost<br/>2 params])
+            click yoshi_core_with_signpost "https://docs.rs/yoshi_core/latest/yoshi_core/fn.with_signpost.html" "fn with_signpost(self: Self, s: impl …) -> Self | Adds a signpost (suggestion) to the error's primary nest." _blank
+            yoshi_core_new([🔧 new<br/>no params])
+            click yoshi_core_new "https://docs.rs/yoshi_core/latest/yoshi_core/fn.new.html" "fn new() -> Self | Creates a new `OnceLock` for `no_std` environments." _blank
+            yoshi_core_kind([🔧 kind<br/>1 params])
+            click yoshi_core_kind "https://docs.rs/yoshi_core/latest/yoshi_core/fn.kind.html" "fn kind(self: &Self) -> &YoshiKind | Returns a reference to the `YoshiKind` of this error." _blank
+            yoshi_core_analyze_nests([🔧 analyze_nests<br/>1 params])
+            click yoshi_core_analyze_nests "https://docs.rs/yoshi_core/latest/yoshi_core/fn.analyze_nests.html" "fn analyze_nests(self: &Self) -> NestAnalysis | Gathers analysis results about the nests in this error." _blank
+        end
+        yoshi_core -.->|API| yoshi_core_API
+        class yoshi_core_with_metadata fnNode
+        class yoshi_core_with_signpost fnNode
+        class yoshi_core_new fnNode
+        class yoshi_core_kind fnNode
+        class yoshi_core_analyze_nests fnNode
+        yoshi_std
+        subgraph yoshi_std_API["📋 yoshi-std API"]
+            yoshi_std_new([🔧 new<br/>2 params])
+            click yoshi_std_new "https://docs.rs/yoshi_std/latest/yoshi_std/fn.new.html" "fn new(line: u32, character: u32) -> Self | Creates a new position." _blank
+            yoshi_std_stats([🔧 stats<br/>1 params])
+            click yoshi_std_stats "https://docs.rs/yoshi_std/latest/yoshi_std/fn.stats.html" "fn stats(self: &Self) -> (usize, usize, usize) | Returns cache statistics for performance monitoring." _blank
+            yoshi_std_build_correlation_graph([🔧 build_correlation_graph<br/>4 params])
+            click yoshi_std_build_correlation_graph "https://docs.rs/yoshi_std/latest/yoshi_std/fn.build_correlation_graph.html" "fn build_correlation_graph(error_type: &str, variant_name: &str, context: HashMap, timestamp: SystemTime) -> ErrorCorrelationGraph | Builds correlation graph for error analysis." _blank
+            yoshi_std_compute_code_hash([🔧 compute_code_hash<br/>1 params])
+            click yoshi_std_compute_code_hash "https://docs.rs/yoshi_std/latest/yoshi_std/fn.compute_code_hash.html" "fn compute_code_hash(code: &str) -> u64 | **Fast Code Hash for Lock-Free Operations**
+
+Computes a 64-bit hash for code content to enable effic..." _blank
+            yoshi_std_apply_optimizations([🔧 apply_optimizations<br/>3 params])
+            click yoshi_std_apply_optimizations "https://docs.rs/yoshi_std/latest/yoshi_std/fn.apply_optimizations.html" "fn apply_optimizations(self: &Self, code: &str, opportunities: &…) -> Result | Apply optimizations to the given code
+
+# Errors
+
+Returns an error if optimization application fails." _blank
+        end
+        yoshi_std -.->|API| yoshi_std_API
+
+        subgraph AutonomousSystems["🤖 Autonomous Systems"]
+            AutonomousErrorAnalytics[AutonomousErrorAnalytics<br/>Error Pattern Analysis<br/>📍 yoshi-std/lib.rs]
+            AutonomousRecovery[AutonomousRecovery<br/>Auto Recovery<br/>📍 yoshi-std/lib.rs]
+            AutonomousCircuitBreaker[AutonomousCircuitBreaker<br/>Failure Protection<br/>📍 yoshi-std/lib.rs]
+            AutonomousPerformanceMonitor[AutonomousPerformanceMonitor<br/>Performance Tracking<br/>📍 yoshi-std/lib.rs]
+            AutonomousTestGenerator[AutonomousTestGenerator<br/>Test Generation<br/>📍 yoshi-std/lib.rs]
+            AutonomousConstructRecovery[AutonomousConstructRecovery<br/>Construct Recovery<br/>📍 yoshi-std/lib.rs]
+        end
+
+        subgraph LSPIntegration["🔌 LSP Integration"]
+            YoshiAutoFixable[YoshiAutoFixable Trait<br/>LSP AutoFix Interface<br/>📍 yoshi-std/lib.rs]
+            AutofixEntry[AutofixEntry<br/>Fix Metadata<br/>📍 yoshi-std/lib.rs]
+            ContextualAutofix[ContextualAutofix<br/>Enhanced Correlation<br/>📍 yoshi-std/lib.rs]
+            YoshiAutoFix[YoshiAutoFix<br/>Fix Representation<br/>📍 yoshi-std/lib.rs]
+            AutoFixSafetyLevel[AutoFixSafetyLevel<br/>Safety Classification<br/>📍 yoshi-std/lib.rs]
+        end
+        class yoshi_std_new fnNode
+        class yoshi_std_stats fnNode
+        class yoshi_std_build_correlation_graph fnNode
+        class yoshi_std_compute_code_hash fnNode
+        class yoshi_std_apply_optimizations fnNode
+    end
+
+    subgraph Advanced["⚡ Advanced Layer"]
+        yoshi_deluxe
+        subgraph AutoCorrection["🤖 Auto-Correction Framework"]
+            AutoFixTrigger[AutoFixTrigger<br/>4 Variants<br/>📍 yoshi-deluxe/types.rs]
+            TriggerProcessor[TriggerProcessor<br/>Async Processing<br/>📍 yoshi-deluxe/diagnostics/trigger_processor.rs]
+            ASTAnalysisEngine[ASTAnalysisEngine<br/>Syntax Analysis<br/>📍 yoshi-deluxe/ast/mod.rs]
+            CodeGenerationEngine[CodeGenerationEngine<br/>Fix Generation<br/>📍 yoshi-deluxe/codegen/mod.rs]
+
+            AutoFixTrigger --> TriggerProcessor
+            TriggerProcessor --> ASTAnalysisEngine
+            TriggerProcessor --> CodeGenerationEngine
+        end
+
+        yoshi_derive
+        subgraph AutoInference["🧠 Auto-Inference Engine"]
+            YoshiDerive[#[yoshi] Macro<br/>Auto-Inference<br/>📍 yoshi-derive/lib.rs]
+            YoshiACE[yoshi_af! Macro<br/>AutoFix Generation<br/>📍 yoshi-derive/lib.rs]
+            AutoInferenceEngine[Auto-Inference Engine<br/>ML Pattern Recognition<br/>📍 yoshi-derive/src/auto_inference.rs]
+
+            YoshiDerive --> AutoInferenceEngine
+            YoshiACE --> AutoInferenceEngine
+        end
+    end
+
+    Workspace --> yoshi[yoshi<br/>Library Crate<br/>Complexity: Medium]
+    click yoshi "https://docs.rs/yoshi/latest/yoshi/" "22 files · 67 deps · 19 features · library · tests | Click to view documentation" _blank
+    yoshi -.->|docs| yoshi_anchor["📚 yoshi docs<br/>Local anchor: #yoshi"]
+    class yoshi_anchor docLink
+    yoshi --> yoshi_features[Features: default, std, derive...]
+    yoshi --> yoshi_lib[lib.rs]
+    yoshi --> yoshi_main[main.rs]
+    yoshi --> yoshi_simple[simple.rs]
+    Workspace --> yoshi_analyzer[yoshi-analyzer<br/>Library Crate<br/>Complexity: Low]
+    click yoshi_analyzer "https://docs.rs/yoshi-analyzer/latest/yoshi_analyzer/" "12 files · 34 deps · no features · library · no tests | Click to view documentation" _blank
+    yoshi_analyzer -.->|docs| yoshi_analyzer_anchor["📚 yoshi-analyzer docs<br/>Local anchor: #yoshi_analyzer"]
+    class yoshi_analyzer_anchor docLink
+    yoshi_analyzer --> yoshi_analyzer_lib[lib.rs]
+    yoshi_analyzer --> yoshi_analyzer_main[main.rs]
+    yoshi_analyzer --> yoshi_analyzer_analyzers[analyzers.rs]
+    Workspace --> yoshi_benches[yoshi-benches<br/>Library Crate<br/>Complexity: Low]
+    click yoshi_benches "https://docs.rs/yoshi-benches/latest/yoshi_benches/" "15 files · 25 deps · 3 features · library · tests | Click to view documentation" _blank
+    yoshi_benches -.->|docs| yoshi_benches_anchor["📚 yoshi-benches docs<br/>Local anchor: #yoshi_benches"]
+    class yoshi_benches_anchor docLink
+    yoshi_benches --> yoshi_benches_features[Features: default, comparison, std]
+    yoshi_benches --> yoshi_benches_lib[lib.rs]
+    yoshi_benches --> yoshi_benches_comprehensive_comparison[comprehensive_comparison.rs]
+    Workspace --> yoshi_core[yoshi-core<br/>Core Foundation<br/>Complexity: Low]
+    click yoshi_core "https://docs.rs/yoshi-core/latest/yoshi_core/" "5 files · 9 deps · 6 features · library · tests | Click to view documentation" _blank
+    yoshi_core -.->|docs| yoshi_core_anchor["📚 yoshi-core docs<br/>Local anchor: #yoshi_core"]
+    class yoshi_core_anchor docLink
+    yoshi_core --> yoshi_core_features[Features: default, alloc, std...]
+    yoshi_core --> yoshi_core_lib[lib.rs]
+    Workspace --> yoshi_deluxe[yoshi-deluxe<br/>Advanced Features<br/>Complexity: High]
+    click yoshi_deluxe "https://docs.rs/yoshi-deluxe/latest/yoshi_deluxe/" "25 files · 72 deps · 12 features · library · tests | Click to view documentation" _blank
+    yoshi_deluxe -.->|docs| yoshi_deluxe_anchor["📚 yoshi-deluxe docs<br/>Local anchor: #yoshi_deluxe"]
+    class yoshi_deluxe_anchor docLink
+    yoshi_deluxe --> yoshi_deluxe_features[Features: default, runtime-analysis, config-validation...]
+    yoshi_deluxe --> yoshi_deluxe_lib[lib.rs]
+    yoshi_deluxe --> yoshi_deluxe_ast[ast.rs]
+    yoshi_deluxe --> yoshi_deluxe_codegen[codegen.rs]
+    Workspace --> yoshi_derive[yoshi-derive<br/>Proc Macro Crate<br/>Complexity: Medium]
+    click yoshi_derive "https://docs.rs/yoshi-derive/latest/yoshi_derive/" "15 files · 29 deps · 10 features · proc-macro · tests | Click to view documentation" _blank
+    yoshi_derive -.->|docs| yoshi_derive_anchor["📚 yoshi-derive docs<br/>Local anchor: #yoshi_derive"]
+    class yoshi_derive_anchor docLink
+    yoshi_derive --> yoshi_derive_features[Features: default, std, rayon...]
+    yoshi_derive --> yoshi_derive_lib[lib.rs]
+    Workspace --> yoshi_std[yoshi-std<br/>Std Integration<br/>Complexity: Low]
+    click yoshi_std "https://docs.rs/yoshi-std/latest/yoshi_std/" "4 files · 16 deps · 11 features · library · tests | Click to view documentation" _blank
+    yoshi_std -.->|docs| yoshi_std_anchor["📚 yoshi-std docs<br/>Local anchor: #yoshi_std"]
+    class yoshi_std_anchor docLink
+    yoshi_std --> yoshi_std_features[Features: default, derive, serde...]
+    yoshi_std --> yoshi_std_lib[lib.rs]
+
+    %% Inter-crate Dependencies & Auto-Correction Flow
+
+    %% Auto-Correction Integration Flow
+    yoshi_derive -.->|Triggers| AutoFixTrigger
+    AutoFixTrigger -.->|Processing| TriggerProcessor
+    TriggerProcessor -.->|Analysis| ASTAnalysisEngine
+    TriggerProcessor -.->|Generation| CodeGenerationEngine
+    CodeGenerationEngine -.->|LSP| YoshiAutoFixable
+    YoshiAutoFixable -.->|IDE| AutofixEntry
+
+    %% Autonomous System Coordination
+    AutonomousErrorAnalytics -.->|Monitoring| AutonomousErrorMonitor
+    AutonomousRecovery -.->|Protection| AutonomousCircuitBreaker
+    AutonomousPerformanceMonitor -.->|Optimization| AutonomousOptimizationMonitor
+    AutonomousTestGenerator -.->|Recovery| AutonomousConstructRecovery
+
+    %% Foundation Integration
+    yoshi_core -.->|Types| YoshiAutoFix
+    yoshi_core -.->|Foundation| AutoFixSafetyLevel
+
+    %% Analysis Results
+    Workspace -.->|Issue Analysis| IssueAnalysis[Static Analysis Results<br/>Comprehensive Resolution<br/>Realistic 2-5&#37; allocation improvement &#40;only &#126;30&#37; of Vec::new&#40;&#41; calls optimizable&#41;]
+    Workspace -.->|Issue Analysis| IssueAnalysis[Static Analysis Results<br/>Comprehensive Resolution<br/>Realistic 2-5&#37; allocation improvement &#40;only &#126;30&#37; of Vec::new&#40;&#41; calls optimizable&#41;]
+    Workspace -.->|🔗 Interface Analysis| InterfaceAnalysis[API Design Evaluation<br/>Pattern: Best practices<br/>Ergonomics: Research-validated<br/>RAP Enhancement: Diagram clarity improvements possible]
+
+    %% Research Augmentation Protocol (RAP) Findings - Interactive Links
+    Workspace -.->|Research| RAP0[Memory Allocation Optimization<br/>Realistic 2-5&#37; allocation improvement &#40;...]
+    click RAP0 "https://doc.rust-lang.org/std/vec/struct.Vec.html#method.with_capacity" "Vec::with_capacity and arena allocation patterns. Realistic 2-5&#37; allocation improvement &#40;only &#126;30&#37; o..." _blank
+    Workspace -.->|Research| RAP1[Compilation Time Optimization<br/>Build time optimization opportunities]
+    click RAP1 "https://doc.rust-lang.org/cargo/reference/features.html" "Incremental compilation with feature flags. Build time optimization opportunities" _blank
+    Workspace -.->|Research| RAP2[Cognitive Load Reduction Techniques<br/>Diagram clarity improvements possible]
+    click RAP2 "https://mermaid-js.github.io/mermaid/" "Research-backed visual hierarchy and color theory. Diagram clarity improvements possible" _blank
+
+    %% Quality Assessment
+    Workspace -.->|provisional| QualityCert[📊 Quality Assessment: Good<br/>Score: 0.889]
+
+    %% Auto-Correction Framework Roadmap
+    subgraph Roadmap["🗺️ Auto-Correction Roadmap"]
+        Phase1[🚨 Phase 1: Fix Compilation<br/>807 Errors → 0 Errors<br/>Status: CRITICAL]
+        Phase2[🔗 Phase 2: Connect Integration<br/>Wire AutoFix → TriggerProcessor<br/>Status: READY]
+        Phase3[🤖 Phase 3: Enable Autonomous<br/>Auto-apply High-Confidence Fixes<br/>Status: PENDING]
+
+        Phase1 --> Phase2
+        Phase2 --> Phase3
+
+        subgraph CurrentIssues["❌ Blocking Issues"]
+            Issue1[Missing dyn keywords<br/>Trait object errors]
+            Issue2[Method signature mismatches<br/>with_file_context → with_file_nest]
+            Issue3[Missing imports<br/>ToTokens, Spanned, etc.]
+            Issue4[Field name mismatches<br/>problematic_node → primary_node]
+            Issue5[Missing dependencies<br/>jarowinkler crate]
+            Issue6[PathBuf Display trait<br/>AutoFixTrigger formatting]
+        end
+
+        Phase1 -.->|Resolves| CurrentIssues
+    end
+
+    %% ArcMoon Studios Enhanced Styling Classes with Cognitive Load Optimization
+    classDef primeAnnotation fill:#e1f5fe,stroke:#01579b,stroke-width:2px,color:#01579b
+    classDef qualityCert fill:#fff8e1,stroke:#ff8f00,stroke-width:3px,color:#e65100
+    classDef fnNode fill:#ffffff,stroke:#1976d2,stroke-width:1px,color:#000000
+    classDef unsafeFn fill:#ffebee,stroke:#c62828,stroke-width:2px,color:#b71c1c
+    classDef asyncFn fill:#e8f5e8,stroke:#388e3c,stroke-width:1px,color:#1b5e20
+    classDef fallibleFn fill:#fff3e0,stroke:#f57c00,stroke-width:1px,color:#e65100
+    classDef coreNode fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px,color:#1b5e20
+    classDef stdNode fill:#e3f2fd,stroke:#1565c0,stroke-width:2px,color:#0d47a1
+    classDef deluxeNode fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px,color:#4a148c
+    classDef procMacroNode fill:#ffebee,stroke:#c62828,stroke-width:2px,color:#b71c1c
+    classDef libraryNode fill:#f5f5f5,stroke:#616161,stroke-width:2px,color:#424242
+    classDef autoCorrectionNode fill:#fff3e0,stroke:#ff6f00,stroke-width:3px,color:#e65100
+    classDef autonomousNode fill:#e8f5e8,stroke:#4caf50,stroke-width:2px,color:#2e7d32
+    classDef lspNode fill:#e1f5fe,stroke:#2196f3,stroke-width:2px,color:#0d47a1
+    classDef roadmapNode fill:#fce4ec,stroke:#e91e63,stroke-width:2px,color:#ad1457
+    classDef issueNode fill:#ffebee,stroke:#f44336,stroke-width:2px,color:#c62828
+
+    %% Apply ArcMoon Studios FlowMap Generator styling to crate nodes
+    class yoshi libraryNode
+    class yoshi_analyzer libraryNode
+    class yoshi_benches libraryNode
+    class yoshi_core coreNode
+    class yoshi_deluxe deluxeNode
+    class yoshi_derive procMacroNode
+    class yoshi_std stdNode
+
+    %% Apply styling to annotation nodes
+    class IssueAnalysis,IssueAnalysis,InterfaceAnalysis primeAnnotation
+    class QualityCert qualityCert
+
+    %% Apply styling to auto-correction components
+    class AutoFixTrigger,TriggerProcessor,ASTAnalysisEngine,CodeGenerationEngine autoCorrectionNode
+    class YoshiDerive,YoshiACE,AutoInferenceEngine autoCorrectionNode
+    class AutonomousErrorAnalytics,AutonomousRecovery,AutonomousCircuitBreaker autonomousNode
+    class AutonomousPerformanceMonitor,AutonomousTestGenerator,AutonomousConstructRecovery autonomousNode
+    class YoshiAutoFixable,AutofixEntry,ContextualAutofix,YoshiAutoFix,AutoFixSafetyLevel lspNode
+    class Phase1,Phase2,Phase3 roadmapNode
+    class Issue1,Issue2,Issue3,Issue4,Issue5,Issue6 issueNode
+
+    %% Safety Color Legend (emojis only in legend)
+    LegendUnsafe([unsafe]):::unsafeFn
+    LegendAsync([async]):::asyncFn
+    LegendFallible([fallible]):::fallibleFn
+    LegendRegular([regular]):::fnNode
+
+    %% Connect legend to prevent orphan nodes
+    Start -.-> LegendRegular
+
+    %% ArcMoon Studios Research Integration Footer
+    %% Generated by FlowMap Generator - Quality Assessment Complete
+    %% Quality Score: 0.889 | Level: Good
+    %% Processing Iterations: 1 | Analysis Depth: Elite Level

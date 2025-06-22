@@ -5,7 +5,7 @@
 //! + Comprehensive compile-time validation testing with error message verification
 //!  - Invalid attribute combinations with clear diagnostic messages
 //!  - Malformed derive macro usage with syntax error detection
-//!  - Type constraint violations with helpful correction suggestions
+//!  - Type constraint violations with helpful correction signposts
 //!  - Edge case handling with robust error reporting and recovery
 //! + Negative testing framework with expected failure validation
 //!  - Compile-fail test infrastructure with error pattern matching
@@ -19,7 +19,7 @@
 // **Contact:** LordXyn@proton.me
 // **Author:** Lord Xyn
 
-//! `Compile`-time failure tests for yoshi-derive
+//!    `Compile`-time failure tests for yoshi-derive
 //!
 //! These tests ensure that the derive macros properly reject invalid input
 //! and provide helpful error messages.

@@ -193,7 +193,8 @@ fn test_result_type_state_transitions() {
         message: "State transition test".into(),
         source: None,
         component: Some("state_test".into()),
-    }));
+    })
+    .into());
 
     assert!(error_result.is_err());
 
@@ -210,8 +211,8 @@ fn test_context_addition_properties() {
         component: Some("context_test".into()),
     });
 
-    let result: Result<()> = Err(original_error.clone());
-    let enhanced = result.context("Additional context");
+    let result: Result<()> = Err(original_error.clone().into());
+    let enhanced = HatchExt::context(result, "Additional context");
 
     assert!(enhanced.is_err());
     let enhanced_error = enhanced.expect_err("Should be an error");
@@ -219,13 +220,14 @@ fn test_context_addition_properties() {
     // Original error information should be preserved
     assert!(enhanced_error.to_string().contains("Original error"));
 
-    // Additional context should be present
-    let contexts: Vec<_> = enhanced_error.contexts().collect();
+    // Additional context should be present - convert to Yoshi to access advanced methods
+    let yoshi_error = enhanced_error.into_yoshi();
+    let contexts: Vec<_> = yoshi_error.contexts().collect();
     assert!(!contexts.is_empty());
 
     // Enhanced error should have valid properties (u64 type guarantees validity)
-    let _enhanced_id = enhanced_error.instance_id();
-    assert!(enhanced_error.severity() > 0);
+    let _enhanced_id = yoshi_error.instance_id();
+    assert!(yoshi_error.severity() > 0);
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -281,22 +283,23 @@ fn test_error_composition_properties() {
         component: Some("base_component".into()),
     });
 
-    let result: Result<()> = Err(base_error);
-    let composed = result
-        .context("First layer")
-        .context("Second layer")
-        .context("Third layer");
+    let result: Result<()> = Err(base_error.into());
+    let composed = HatchExt::context(
+        HatchExt::context(HatchExt::context(result, "First layer"), "Second layer"),
+        "Third layer",
+    );
 
     assert!(composed.is_err());
     let final_error = composed.expect_err("Should be an error");
 
-    // Properties of composed error (u64 type guarantees validity)
-    let _final_id = final_error.instance_id();
-    assert!(final_error.severity() > 0);
+    // Properties of composed error (u64 type guarantees validity) - convert to Yoshi to access advanced methods
     assert!(!final_error.to_string().is_empty());
+    let final_yoshi = final_error.into_yoshi();
+    let _final_id = final_yoshi.instance_id();
+    assert!(final_yoshi.severity() > 0);
 
     // Should contain information from all layers
-    let contexts: Vec<_> = final_error.contexts().collect();
+    let contexts: Vec<_> = final_yoshi.contexts().collect();
     assert!(contexts.len() >= 3);
 }
 

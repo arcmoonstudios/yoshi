@@ -90,8 +90,8 @@ fn test_lay_text_trait() {
     assert!(enriched.is_err());
 
     let error = enriched.expect_err("enriched should be an error");
-    let contexts: Vec<_> = error.contexts().collect();
-    assert!(!contexts.is_empty());
+    let nests: Vec<_> = error.nests().collect();
+    assert!(!nests.is_empty());
 }
 
 #[test]
@@ -106,11 +106,11 @@ fn test_lay_text_with_success() {
 #[test]
 fn test_hatch_ext_context() {
     let result: core::result::Result<i32, String> = Err("base error".to_string());
-    let enriched = result.context("Operation failed");
+    let enriched = result.nest("Operation failed");
 
     assert!(enriched.is_err());
     let error = enriched.expect_err("enriched should be an error");
-    let contexts: Vec<_> = error.contexts().collect();
+    let contexts: Vec<_> = error.nests().collect();
     assert!(!contexts.is_empty());
 }
 
@@ -121,10 +121,10 @@ fn test_hatch_ext_with_suggestion() {
 
     assert!(enriched.is_err());
     let error = enriched.expect_err("enriched should be an error");
-    assert!(error.suggestion().is_some());
+    assert!(error.signpost().is_some());
     assert!(error
-        .suggestion()
-        .expect("suggestion should be present")
+        .signpost()
+        .expect("signpost should be present")
         .contains("different approach"));
 }
 
@@ -146,18 +146,18 @@ fn test_hatch_ext_with_shell() {
 
     assert!(enriched.is_err());
     let error = enriched.expect_err("enriched should be an error");
-    let contexts: Vec<_> = error.contexts().collect();
-    assert!(!contexts.is_empty());
+    let nests: Vec<_> = error.nests().collect();
+    assert!(!nests.is_empty());
 }
 
 #[test]
 fn test_hatch_ext_ctx_alias() {
     let result: core::result::Result<i32, String> = Err("ctx test".to_string());
-    let enriched = result.ctx("Short context");
+    let enriched = result.nest("Short context");
 
     assert!(enriched.is_err());
     let error = enriched.expect_err("enriched should be an error");
-    let contexts: Vec<_> = error.contexts().collect();
+    let contexts: Vec<_> = error.nests().collect();
     assert!(!contexts.is_empty());
 }
 
@@ -168,10 +168,10 @@ fn test_hatch_ext_help_alias() {
 
     assert!(enriched.is_err());
     let error = enriched.expect_err("enriched should be an error");
-    assert!(error.suggestion().is_some());
+    assert!(error.signpost().is_some());
     assert!(error
-        .suggestion()
-        .expect("suggestion should be present")
+        .signpost()
+        .expect("signpost should be present")
         .contains("Helpful"));
 }
 
@@ -182,26 +182,26 @@ fn test_hatch_ext_with_metadata() {
 
     assert!(enriched.is_err());
     let error = enriched.expect_err("enriched should be an error");
-    let contexts: Vec<_> = error.contexts().collect();
-    assert!(!contexts.is_empty());
+    let nests: Vec<_> = error.nests().collect();
+    assert!(!nests.is_empty());
 }
 
 #[test]
 fn test_method_chaining() {
     let result: core::result::Result<i32, String> = Err("chain test".to_string());
     let enriched = result
-        .context("First context")
+        .nest("First context")
         .with_signpost("Try this")
         .with_priority(100)
         .meta("key1", "value1")
         .meta("key2", "value2")
-        .ctx("Short context")
+        .nest("Short context")
         .help("Additional help");
 
     assert!(enriched.is_err());
     let error = enriched.expect_err("enriched should be an error");
-    assert!(error.suggestion().is_some());
-    let contexts: Vec<_> = error.contexts().collect();
+    assert!(error.signpost().is_some());
+    let contexts: Vec<_> = error.nests().collect();
     assert!(!contexts.is_empty());
 }
 
@@ -209,7 +209,7 @@ fn test_method_chaining() {
 fn test_hatch_ext_with_success_values() {
     let result: core::result::Result<i32, String> = Ok(42);
     let enriched = result
-        .context("This won't be added")
+        .nest("This won't be added")
         .with_signpost("Neither will this")
         .with_priority(100)
         .meta("key", "value");
@@ -229,12 +229,12 @@ fn test_complex_error_conversion_chain() {
     }
 
     let io_result = simulate_io_error()
-        .context("While reading configuration file")
+        .nest("While reading configuration file")
         .meta("file_path", "/etc/config.toml")
         .with_signpost("Check if the file exists and has proper permissions");
 
     let parse_result = simulate_parse_error()
-        .context("While parsing configuration value")
+        .nest("While parsing configuration value")
         .meta("field", "port_number")
         .with_signpost("Ensure the value is a valid integer");
 
@@ -244,8 +244,8 @@ fn test_complex_error_conversion_chain() {
     let io_error = io_result.expect_err("io_result should be an error");
     let parse_error = parse_result.expect_err("parse_result should be an error");
 
-    assert!(io_error.suggestion().is_some());
-    assert!(parse_error.suggestion().is_some());
+    assert!(io_error.signpost().is_some());
+    assert!(parse_error.signpost().is_some());
 }
 
 #[test]
@@ -264,7 +264,7 @@ fn test_nested_error_contexts() {
 
     assert!(enriched.is_err());
     let error = enriched.expect_err("enriched should be an error");
-    let contexts: Vec<_> = error.contexts().collect();
+    let contexts: Vec<_> = error.nests().collect();
     assert!(contexts.len() >= 3);
 }
 
@@ -277,7 +277,7 @@ fn test_error_source_preservation() {
     });
 
     let result: Hatch<i32> = Err(original_error);
-    let enriched = result.context("Additional context");
+    let enriched = result.nest("Additional context");
 
     assert!(enriched.is_err());
     let error = enriched.expect_err("enriched should be an error");
@@ -297,7 +297,7 @@ fn test_multiple_metadata_entries() {
 
     assert!(enriched.is_err());
     let error = enriched.expect_err("enriched should be an error");
-    let contexts: Vec<_> = error.contexts().collect();
+    let contexts: Vec<_> = error.nests().collect();
     assert!(!contexts.is_empty());
 }
 
@@ -325,24 +325,24 @@ fn test_priority_ordering() {
 fn test_unicode_in_contexts() {
     let result: core::result::Result<i32, String> = Err("unicode test".to_string());
     let enriched = result
-        .context("Context with emoji: 🚀")
+        .nest("Context with emoji: 🚀")
         .with_signpost("Suggestion with Chinese: 建议")
         .meta("arabic_key", "مفتاح");
 
     assert!(enriched.is_err());
     let error = enriched.expect_err("enriched should be an error");
-    assert!(error.suggestion().is_some());
-    let contexts: Vec<_> = error.contexts().collect();
+    assert!(error.signpost().is_some());
+    let contexts: Vec<_> = error.nests().collect();
     assert!(!contexts.is_empty());
 }
 
 #[test]
 fn test_empty_string_handling() {
     let result: core::result::Result<i32, String> = Err(String::new());
-    let enriched = result.context("").with_signpost("").meta("", "");
+    let enriched = result.nest("").with_signpost("").meta("", "");
 
     assert!(enriched.is_err());
     let error = enriched.expect_err("enriched should be an error");
-    let contexts: Vec<_> = error.contexts().collect();
+    let contexts: Vec<_> = error.nests().collect();
     assert!(!contexts.is_empty());
 }

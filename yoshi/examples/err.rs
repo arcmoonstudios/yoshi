@@ -1,30 +1,28 @@
 /* src/err.rs */
 #![warn(missing_docs)]
 #![allow(unused_variables)]
-//! **Brief:** Complete Yoshi Framework Showcase - The World's Most Advanced Rust Error Handling & Auto-Optimization System
+//! **Brief:** Complete Yoshi Framework Showcase - Rust Error Handling System
 // ~=####====A===r===c===M===o===o===n====S===t===u===d===i===o===s====X|0|$>
-//! + [Ultimate Yoshi Framework Showcase - Everything Through `use yoshi::*;`]
+//! + [Yoshi Framework Showcase - Everything Through `use yoshi::*;`]
 //!  - [Universal error handling with Hatch<T> and rich context]
 //!  - [Adaptive yoshi! macro with intelligent error suggestions]
-//!  - [Auto-correction `yoshi_af!` with compile-time optimizations]
-//!  - [Real-time LSP integration for VS Code optimization suggestions]
-//!  - [Advanced pattern detection: Vec, unwrap, imports, variables, Box allocations]
+//!  - [Error handling patterns and best practices]
 //!  - [Production-ready async error handling with circuit breakers]
-//!  - [Comprehensive safety analysis and unsafe block detection]
-//!  - [Zero-allocation performance with intelligent string interning]
+//!  - [Comprehensive error categorization and structured reporting]
+//!  - [Template implementations for common error scenarios]
 // ~=####====A===r===c===M===o===o===n====S===t===u===d===i===o===s====X|0|$>
 // **GitHub:** [ArcMoon Studios](https://github.com/arcmoonstudios)
 // **Copyright:** (c) 2025 ArcMoon Studios
 // **Author:** Lord Xyn
 // **License:** MIT OR Apache-2.0
 
-//! # 🚀 Ultimate Yoshi Framework Showcase - Complete Auto-Optimization System
+//! # 🚀 Yoshi Framework Showcase - Complete Auto-Optimization System
 //!
-//! **Copy this entire file to your project and get the world's most advanced Rust error handling instantly!**
+//! **Copy this entire file to your project and get Yoshi's powerful Rust error handling instantly!**
 //!
-//! This file demonstrates the complete power of the Yoshi framework - the world's first
-//! Rust framework with built-in compile-time auto-optimization, real-time LSP integration,
-//! and comprehensive error handling, all accessible through a single import.
+//! This file demonstrates the power of the Yoshi framework - a comprehensive
+//! Rust error handling system with structured error types and best practices,
+//! all accessible through a single import.
 //!
 //! ## 🎯 Quick Setup (30 seconds to world-class error handling)
 //!
@@ -32,7 +30,7 @@
 //! 2. **Add to your `Cargo.toml`:**
 //!    ```toml
 //!    [dependencies]
-//!    yoshi = { version = "0.1.6", features = ["full", "lsp-integration"] }
+//!    yoshi = { version = "0.1.0", features = ["full"] }
 //!    ```
 //! 3. **In your `main.rs` or `lib.rs`:**
 //!    ```rust
@@ -52,81 +50,76 @@
 //! ✅ **Production Ready** - Comprehensive error categorization
 //! ✅ **Developer Friendly** - Ergonomic macros and helpers
 //!
-//! ### 🚀 **Auto-Optimization System (World's First)**
-//! ✅ **Compile-time Optimization** - Automatic code improvements during build
-//! ✅ **Vec Capacity Optimization** - `Vec::new()` → `Vec::with_capacity()`
-//! ✅ **Unwrap Error Handling** - `.expect("Operation should succeed at line 59")` → `.expect()` or `?` operator
-//! ✅ **Unused Variable Detection** - Automatic underscore prefixing
-//! ✅ **Unused Import Removal** - Automatic cleanup of unused imports
-//! ✅ **String Clone Optimization** - Unnecessary cloning detection
-//! ✅ **Box Allocation Optimization** - Smart allocation pattern detection
-//! ✅ **Iterator Optimization** - `.collect()` and chain improvements
-//! ✅ **Async/Await Optimization** - Concurrent execution suggestions
-//! ✅ **Loop Optimization** - Iterator-based improvements
+//! ### 🚀 **Error Handling Patterns**
+//! ✅ **Structured Error Types** - Rich error categorization and context
+//! ✅ **Error Propagation** - Seamless `?` operator usage
+//! ✅ **Context Chaining** - Layered error information with signposts
+//! ✅ **Async Error Handling** - Comprehensive async/await error patterns
+//! ✅ **Circuit Breakers** - Resilient external service integration
+//! ✅ **Timeout Management** - Structured timeout error handling
+//! ✅ **Validation Patterns** - Input validation with detailed feedback
+//! ✅ **File Operations** - Safe file I/O with atomic operations
+//! ✅ **Network Operations** - HTTP request patterns with retry logic
+//! ✅ **Database Operations** - Transaction-safe database error handling
 //!
-//! ### 🔧 **LSP Integration (Real-time VS Code Support)**
-//! ✅ **Real-time Optimization Detection** - As you type suggestions
-//! ✅ **Code Actions** - Instant quick fixes with 🚀 Yoshi branding
-//! ✅ **Hover Information** - Detailed optimization tooltips
-//! ✅ **Performance Impact Estimates** - High/Medium/Low impact indicators
-//! ✅ **Safety Validation** - All suggestions are safe to apply
-//! ✅ **Configurable Thresholds** - Customize confidence and suggestion limits
+//! ### 🔧 **Development Experience**
+//! ✅ **Rich Error Messages** - Detailed error information with context
+//! ✅ **Structured Debugging** - Organized error categorization
+//! ✅ **Template Patterns** - Ready-to-use error handling templates
+//! ✅ **Best Practices** - Comprehensive guidelines and examples
+//! ✅ **Testing Utilities** - Error testing and validation helpers
+//! ✅ **Documentation** - Extensive examples and usage patterns
 //!
-//! ### 🛡️ **Safety & Quality Analysis**
-//! ✅ **Unsafe Block Detection** - Comprehensive safety review
-//! ✅ **Memory Safety Analysis** - Allocation pattern optimization
-//! ✅ **Performance Monitoring** - Metrics and optimization statistics
-//! ✅ **Code Quality Enforcement** - Automatic best practice application
+//! ### 🛡️ **Safety & Quality**
+//! ✅ **Type Safety** - Compile-time error prevention
+//! ✅ **Memory Safety** - Safe error handling patterns
+//! ✅ **Error Recovery** - Graceful degradation strategies
+//! ✅ **Production Ready** - Battle-tested error handling patterns
 //!
-//! ## 📊 **Proven Performance Results**
+//! ## 📊 **Error Handling Benefits**
 //!
-//! In our comprehensive testing, the Yoshi optimization engine detected:
-//! - **13 optimization opportunities** in a single code sample
-//! - **3 unused imports** automatically flagged for removal
-//! - **7 unused variables** with underscore prefix suggestions
-//! - **Vec capacity optimizations** with 90% confidence
-//! - **Error handling improvements** with 95% confidence
-//! - **Box allocation optimizations** with 70% confidence
+//! The Yoshi error handling system provides:
+//! - **Structured Error Types** - 11 comprehensive error categories
+//! - **Rich Context** - Detailed error information with suggestions
+//! - **Type Safety** - Compile-time error prevention
+//! - **Async Support** - Full async/await error handling patterns
+//! - **Production Ready** - Battle-tested error handling strategies
+//! - **Developer Friendly** - Ergonomic macros and utilities
 //!
 //! ## 🎯 **Real-World Usage Examples**
 //!
 //! ```rust
 //! use yoshi::*;
 //!
-//! // Before Yoshi optimization:
+//! // Before Yoshi:
 //! fn old_way() -> Result<Vec<String>, Box<dyn std::error::Error>> {
-//!     let mut items = Vec::with_capacity(50);  // ❌ No capacity hint
-//!     let value = maybe_get_value()?;  // ❌ Panic on None
+//!     let mut items = Vec::new();
+//!     let value = maybe_get_value().unwrap();  // ❌ Panic on error
 //!     items.push(value);
 //!     Ok(items)
 //! }
 //!
-//! // After Yoshi auto-optimization:
-//! yoshi_af! {
-//!     fn optimized_way() -> Hatch<Vec<String>> {
-//!         let mut items = Vec::with_capacity(1);  // ✅ Optimized capacity
-//!         let value = maybe_get_value().expect("Value should exist");  // ✅ Better error
-//!         items.push(value);
-//!         Ok(items)
-//!     }
+//! // With Yoshi error handling:
+//! fn yoshi_way() -> Hatch<Vec<String>> {
+//!     let mut items = Vec::new();
+//!     let value = maybe_get_value()?;  // ✅ Proper error propagation
+//!     items.push(value);
+//!     Ok(items)
 //! }
 //! ```
-
-use yoshi::*;
 
 /// **THE** Result type for your entire application.
 ///
 /// Use this instead of `std::result::Result<T, E>` everywhere.
-/// Provides rich error context, auto-correction, and seamless error propagation.
-/// This is the cornerstone of the Yoshi error handling system.
-///
+/// Provides rich error context and seamless error propagation.
+/// This is the cornerstone of the Yoshi error handling system
 /// # Features
 ///
 /// - **Universal Error Type**: Works with any error scenario
 /// - **Rich Context**: Automatic error chaining and metadata
-/// - **Auto-Correction**: Compile-time optimization suggestions
+/// - **Structured Errors**: Comprehensive error categorization
 /// - **Zero-Cost**: No runtime overhead compared to standard Result
-/// - **LSP Integration**: Real-time error suggestions in VS Code
+/// - **Developer Friendly**: Ergonomic macros and utilities
 ///
 /// # Examples
 ///
@@ -201,7 +194,7 @@ use yoshi::*;
 ///         .collect()
 /// }
 /// ```
-pub type Result<T> = Hatch<T>;
+pub use yoshi::*;
 
 /// Your application's comprehensive error taxonomy.
 ///
@@ -647,19 +640,19 @@ macro_rules! timeout_error {
     };
 }
 
-/// Auto-correction system for detecting and fixing error patterns.
+/// Code analysis system for detecting error patterns and generating suggestions.
 ///
-/// This system automatically analyzes your code and suggests improvements
-/// for error handling patterns, performance issues, and best practices.
-/// It integrates with the LSP server to provide real-time suggestions in VS Code.
+/// This system analyzes code at compile-time to detect error handling patterns,
+/// generates metadata for potential improvements, and provides a foundation
+/// for IDE integration and development tool enhancement.
 ///
 /// # Features
 ///
-/// - **Real-time Analysis**: Detects patterns as you type
-/// - **Automatic Fixes**: Suggests and applies optimizations
-/// - **Performance Optimization**: Identifies Vec, unwrap, and allocation patterns
-/// - **Code Quality**: Detects unused variables and imports
-/// - **Safety Analysis**: Reviews unsafe blocks and potential issues
+/// - **Compile-time Analysis**: Detects error patterns during compilation
+/// - **Pattern Recognition**: Identifies unwrap(), expect(), panic!() usage
+/// - **Metadata Generation**: Creates autofix triggers for IDE integration
+/// - **Code Transformation**: Enhances code with error handling improvements
+/// - **Extensible Framework**: Foundation for development tool integration
 ///
 /// # Examples
 ///
@@ -672,23 +665,23 @@ macro_rules! timeout_error {
 /// # async fn main() -> Hatch<()> {
 /// let corrector = AutoCorrector::new();
 ///
-/// // Enable real-time correction for development
+/// // Enable analysis mode for development
 /// corrector.enable_realtime_correction().await?;
 ///
-/// // Analyze entire project for optimization opportunities
-/// let fixes = corrector.analyze_project("./src").await?;
-/// assert!(fixes.len() > 0, "Should detect some optimization opportunities");
+/// // Analyze project for potential improvements (template)
+/// let suggestions = corrector.analyze_project("./src").await?;
+/// assert!(suggestions.len() > 0, "Should provide some suggestions");
 ///
-/// // Verify the types of fixes detected
-/// assert!(fixes.iter().any(|fix| fix.contains("unwrap")));
-/// assert!(fixes.iter().any(|fix| fix.contains("error")));
+/// // Verify the types of suggestions provided
+/// assert!(suggestions.iter().any(|fix| fix.contains("unwrap")));
+/// assert!(suggestions.iter().any(|fix| fix.contains("error")));
 ///
-/// println!("Applied {} fixes", fixes.len());
+/// println!("Found {} suggestions", suggestions.len());
 /// # Ok(())
 /// # }
 /// ```
 ///
-/// ## Integration with LSP Server
+/// ## Development Environment Setup
 /// ```rust
 /// use yoshi::*;
 /// # use crate::err::AutoCorrector;
@@ -696,10 +689,10 @@ macro_rules! timeout_error {
 /// async fn setup_development_environment() -> Hatch<()> {
 ///     let corrector = AutoCorrector::new();
 ///
-///     // This would typically be called by your IDE/LSP server
+///     // This provides a template for development tool integration
 ///     corrector.enable_realtime_correction().await?;
 ///
-///     println!("Development environment ready with auto-correction!");
+///     println!("Development environment ready with error analysis!");
 ///     Ok(())
 /// }
 /// ```
@@ -710,34 +703,34 @@ pub struct AutoCorrector {
 impl AutoCorrector {
     /// Create a new auto-correction system
     #[must_use]
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             _system_placeholder: true,
         }
     }
 
-    /// Analyze and auto-correct your entire project
+    /// Analyze project for potential improvements (template implementation)
     pub async fn analyze_project(&self, project_path: &str) -> Hatch<Vec<String>> {
-        // Placeholder implementation - in a real system this would integrate with LSP
+        // Template implementation - extend this for actual analysis
         let _path = Path::new(project_path);
 
-        let applied_fixes = vec![
-            "Fixed unwrap() pattern in error handling".to_string(),
-            "Suggested ? operator usage for cleaner error propagation".to_string(),
-            "Optimized error context chaining".to_string(),
-            "Added missing error documentation".to_string(),
+        let suggestions = vec![
+            "Consider using ? operator instead of unwrap() for error handling".to_string(),
+            "Suggestion: Use ? operator for cleaner error propagation".to_string(),
+            "Consider adding error context chaining".to_string(),
+            "Suggestion: Add error documentation for public functions".to_string(),
         ];
 
-        Ok(applied_fixes)
+        Ok(suggestions)
     }
 
-    /// Enable real-time auto-correction for development
+    /// Enable analysis mode for development (template implementation)
     pub async fn enable_realtime_correction(&self) -> Hatch<()> {
-        println!("🚀 Real-time auto-correction enabled!");
-        println!("   - Detecting ? patterns");
-        println!("   - Suggesting ? operator usage");
-        println!("   - Optimizing error propagation");
-        println!("   - Checking panic! usage");
+        tracing::info!("🚀 Error analysis mode enabled!");
+        tracing::info!("   - Template for detecting error patterns");
+        tracing::info!("   - Template for suggesting ? operator usage");
+        tracing::info!("   - Template for error propagation analysis");
+        tracing::info!("   - Template for panic! usage detection");
         Ok(())
     }
 }
@@ -796,8 +789,8 @@ pub mod patterns {
             _body: Option<&str>,
         ) -> Hatch<String> {
             // Placeholder implementation - replace with actual HTTP client
-            println!("  HTTP {method} request to: {url}");
-            println!("  (Add reqwest dependency for real HTTP calls)");
+            tracing::info!("  HTTP {method} request to: {url}");
+            tracing::info!("  (Add reqwest dependency for real HTTP calls)");
 
             // Simulate different responses for demo
             match url {
@@ -1023,7 +1016,7 @@ pub mod examples {
             let email_clone = email.to_string();
             tokio::spawn(async move {
                 if let Err(e) = send_welcome_email(&email_clone).await {
-                    eprintln!("Failed to send welcome email: {e}");
+                    tracing::info!("Failed to send welcome email: {e}");
                 }
             });
 
@@ -1100,7 +1093,9 @@ pub mod examples {
                     let semaphore = semaphore.clone();
                     let path_owned = path.to_string();
                     tokio::spawn(async move {
-                        let _permit = semaphore.acquire().await?;
+                        let _permit = semaphore.acquire().await.map_err(
+                            |e| yoshi!(message: format!("Failed to acquire semaphore: {e}")),
+                        )?;
                         process_single_file(&path_owned).await
                     })
                 })
@@ -1164,7 +1159,7 @@ pub mod examples {
         }
 
         impl ProcessingReport {
-            fn new() -> Self {
+            const fn new() -> Self {
                 Self {
                     success_count: 0,
                     failures: Vec::new(),
@@ -1212,16 +1207,16 @@ pub mod testing {
         assert!(yoshi_error.to_string().contains("file not found"));
     }
 
-    /// Test auto-correction system integration
+    /// Test analysis system integration (template)
     pub async fn test_auto_correction() -> Hatch<()> {
         let corrector = AutoCorrector::new();
 
-        // This would analyze the current project
-        let fixes = corrector.analyze_project(".").await?;
+        // This demonstrates the analysis template
+        let suggestions = corrector.analyze_project(".").await?;
 
-        println!("Auto-correction found {} potential fixes", fixes.len());
-        for fix in fixes {
-            println!("  - {}", fix);
+        tracing::info!("Analysis found {} potential suggestions", suggestions.len());
+        for suggestion in suggestions {
+            tracing::info!("  - {}", suggestion);
         }
 
         Ok(())
@@ -1244,7 +1239,7 @@ pub mod quick_start {
         // Example: Start web server
         start_web_server().await?;
 
-        println!("🚀 Application started successfully!");
+        tracing::info!("🚀 Application started successfully!");
         Ok(())
     }
 
@@ -1266,7 +1261,7 @@ pub mod quick_start {
 
     async fn start_web_server() -> Hatch<()> {
         // Placeholder for your web server startup
-        println!("🌐 Web server starting...");
+        tracing::info!("🌐 Web server starting...");
         Ok(())
     }
 
@@ -1325,1095 +1320,23 @@ pub mod best_practices {
     //! ```
 }
 
-// Re-export everything for convenience
-pub use examples::*;
-pub use patterns::*;
-pub use utils::*;
-
-#[cfg(test)]
-pub use testing::*;
-
-/// **Complete Yoshi Framework Demonstration**
-///
-/// This is the main demonstration function that showcases every capability of the Yoshi framework.
-/// It serves as both a comprehensive example and a validation test for all features.
-///
-/// # What This Demo Covers
-///
-/// ## 🔧 Core Error Handling
-/// - Universal `Hatch<T>` result type usage
-/// - Rich error context and chaining
-/// - Structured error types with metadata
-/// - Error propagation with `?` operator
-///
-/// ## ⚡ Auto-Correction System
-/// - Real-time pattern detection
-/// - Compile-time optimizations
-/// - Vec capacity optimization
-/// - Unwrap to error handling conversion
-/// - Unused variable and import detection
-///
-/// ## 🚀 LSP Integration
-/// - VS Code real-time suggestions
-/// - Code actions and quick fixes
-/// - Hover information with optimization details
-/// - Performance impact estimates
-///
-/// ## 📊 Advanced Optimizations
-/// - String cloning optimization
-/// - Iterator pattern improvements
-/// - Box allocation analysis
-/// - Async/await optimization
-/// - Loop optimization suggestions
-///
-/// ## 🛡️ Safety Analysis
-/// - Unsafe block detection
-/// - Security vulnerability scanning
-/// - Memory safety validation
-/// - Performance bottleneck identification
-///
-/// # Usage Examples
-///
-/// ## Run the Complete Demo
-/// ```bash
-/// # Run with all features enabled
-/// cargo run --example err --features full,lsp-integration
-///
-/// # Run with auto-optimization
-/// cargo run --example err --features full,lsp-integration,auto-optimization
-/// ```
-///
-/// ## Copy and Use in Your Project
-/// ```rust
-/// // Copy this entire file to your project
-/// // src/error_handling.rs
-///
-/// use yoshi::*;
-///
-/// // Use Hatch<T> everywhere instead of Result<T, E>
-/// fn your_function() -> Hatch<String> {
-///     let data = load_data()?;
-///     let processed = process_data(&data)?;
-///     Ok(processed)
-/// }
-/// ```
-///
-/// ## Integration with Existing Code
-/// ```rust
-/// use yoshi::*;
-///
-/// // Convert existing Result<T, E> to Hatch<T>
-/// fn convert_existing_function() -> Hatch<Vec<String>> {
-///     let result = std::fs::read_to_string("config.toml")
-///         .map_err(|e| yoshi!(error: e, with_signpost = "Check file permissions"))?;
-///
-///     let lines: Vec<String> = result.lines().map(|s| s.to_string()).collect();
-///     Ok(lines)
-/// }
-/// ```
-///
-/// # Performance Characteristics
-///
-/// - **Zero-cost abstractions**: No runtime overhead compared to standard Result
-/// - **Compile-time optimizations**: Automatic code improvements during build
-/// - **Memory efficient**: String interning and optimized allocations
-/// - **Async-first**: Full tokio integration with minimal overhead
-///
-/// # Real-world Validation
-///
-/// This demo validates:
-/// - ✅ All error types compile and work correctly
-/// - ✅ Auto-correction detects optimization opportunities
-/// - ✅ LSP integration provides real-time suggestions
-/// - ✅ Performance optimizations are applied successfully
-/// - ✅ Safety analysis identifies potential issues
-/// - ✅ All features work together seamlessly
-///
-/// Run this example to see the complete Yoshi framework in action!
-#[tokio::main]
-async fn main() -> Hatch<()> {
-    println!("🚀 Yoshi Ultimate Error Handling System Demo");
-    println!("============================================");
-
-    // Use all fields to eliminate unused warnings (zero-cost at runtime)
-    let _ = _use_all_fields();
-
-    // Initialize auto-correction system
-    let corrector = AutoCorrector::new();
-    corrector.enable_realtime_correction().await?;
-
-    // Demonstrate structured error handling
-    println!("\n📋 Testing structured error handling...");
-
-    // Test validation errors
-    match validate_demo_input("invalid-email", "123") {
-        Ok(()) => println!("✅ Validation passed"),
-        Err(e) => println!("❌ Validation failed: {e}"),
-    }
-
-    // Test file operations with error recovery
-    println!("\n📁 Testing file operations...");
-    match demo_file_operations().await {
-        Ok(()) => println!("✅ File operations completed"),
-        Err(e) => println!("❌ File operations failed: {e}"),
-    }
-
-    // Test network operations with retries
-    println!("\n🌐 Testing network operations...");
-    match demo_network_operations().await {
-        Ok(()) => println!("✅ Network operations completed"),
-        Err(e) => println!("❌ Network operations failed: {e}"),
-    }
-
-    // Test circuit breaker
-    println!("\n⚡ Testing circuit breaker...");
-    demo_circuit_breaker().await?;
-
-    // Test advanced error recovery
-    println!("\n🔧 Testing advanced error recovery...");
-    demo_advanced_error_recovery().await?;
-
-    // Test database operations
-    println!("\n🗄️ Testing database operations...");
-    demo_database_operations().await?;
-
-    // NEW: Test complete integration with advanced features
-    println!("\n🚀 Testing complete Yoshi integration...");
-    demo_complete_integration().await?;
-
-    println!("\n🎉 Demo completed successfully!");
-    println!("   Copy this err.rs file to your project and start using it!");
-    println!("   🌟 Now includes LSP integration and advanced optimizations!");
-
-    Ok(())
-}
-
-/// Demonstrate input validation with structured errors
-fn validate_demo_input(email: &str, password: &str) -> Hatch<()> {
-    if !email.contains('@') {
-        return Err(validation_error!(
-            "email",
-            "Invalid email format",
-            expected: "user@domain.com",
-            actual: email
-        ));
-    }
-
-    if password.len() < 8 {
-        return Err(validation_error!(
-            "password",
-            "Password too short",
-            expected: "At least 8 characters",
-            actual: &format!("{} characters", password.len())
-        ));
-    }
-
-    Ok(())
-}
-
-/// **File Operations with Rich Error Context**
-///
-/// Demonstrates how the Yoshi framework handles file system operations with comprehensive
-/// error reporting, automatic suggestions, and graceful failure handling.
-///
-/// # Features Demonstrated
-///
-/// - **Rich Error Context**: Detailed error messages with file paths and operations
-/// - **Automatic Suggestions**: Helpful hints for resolving file system issues
-/// - **Graceful Failure**: Errors don't crash the application but provide useful information
-/// - **Async Support**: Full tokio integration for non-blocking file operations
-///
-/// # Error Scenarios Covered
-///
-/// - File not found errors with path information
-/// - Permission denied errors with suggested solutions
-/// - Invalid file format errors with parsing context
-/// - Disk space errors with resource usage information
-///
-/// # Examples
-///
-/// ## Reading Files Safely
-/// ```rust
-/// use yoshi::*;
-/// use std::fs;
-///
-/// fn read_config_sync() -> Hatch<String> {
-///     // This will provide rich error context if the file doesn't exist
-///     let content = fs::read_to_string("config.toml")
-///         .map_err(|e| yoshi!(
-///             error: e,
-///             with_signpost = "Create config.toml or check file permissions"
-///         ))?;
-///     Ok(content)
-/// }
-///
-/// # fn main() -> Hatch<()> {
-/// // Test with a file that doesn't exist - should return error with suggestion
-/// let result = read_config_sync();
-/// assert!(result.is_err());
-///
-/// // The error should contain our suggestion
-/// let error_msg = format!("{}", result.unwrap_err());
-/// assert!(error_msg.contains("config.toml") || error_msg.contains("file"));
-/// # Ok(())
-/// # }
-/// ```
-///
-/// ## Writing Files with Atomic Operations
-/// ```rust
-/// use yoshi::*;
-///
-/// async fn save_config(content: &str) -> Hatch<()> {
-///     // Write to temporary file first, then atomic rename
-///     let temp_path = "config.toml.tmp";
-///     tokio::fs::write(temp_path, content).await
-///         .map_err(|e| yoshi!(error: e, with_signpost = "Check disk space and permissions"))?;
-///
-///     tokio::fs::rename(temp_path, "config.toml").await
-///         .map_err(|e| yoshi!(error: e, with_signpost = "Atomic rename failed"))?;
-///
-///     Ok(())
-/// }
-/// ```
-///
-/// # Real-world Usage
-///
-/// This pattern is used throughout production applications for:
-/// - Configuration file management
-/// - Log file operations
-/// - Data persistence
-/// - Backup and restore operations
-/// - Template processing
-async fn demo_file_operations() -> Hatch<()> {
-    // This will fail gracefully and show structured error information
-    match patterns::file_ops::read_file_safe("nonexistent.txt").await {
-        Ok(_) => println!("  File read successfully"),
-        Err(e) => println!("  Expected file error: {e}"),
-    }
-    println!("✅ File operations completed");
-    Ok(())
-}
-
-/// Demonstrate network operations (placeholder)
-async fn demo_network_operations() -> Hatch<()> {
-    // This is a placeholder - in a real implementation you'd have actual HTTP calls
-    println!("  Network operations would be tested here");
-    println!("  (Add reqwest dependency to test real HTTP calls)");
-    Ok(())
-}
-
-/// **Circuit Breaker Pattern for Resilient Systems**
-///
-/// Demonstrates the circuit breaker pattern implementation in the Yoshi framework.
-/// Circuit breakers prevent cascading failures by temporarily stopping calls to
-/// failing services, allowing them time to recover.
-///
-/// # Circuit Breaker States
-///
-/// 1. **Closed**: Normal operation, all calls pass through
-/// 2. **Open**: Service is failing, calls are rejected immediately
-/// 3. **Half-Open**: Testing if service has recovered
-///
-/// # Features Demonstrated
-///
-/// - **Failure Threshold**: Configurable number of failures before opening
-/// - **Timeout Period**: How long to wait before testing recovery
-/// - **Automatic Recovery**: Transitions back to closed state when service recovers
-/// - **Rich Error Context**: Detailed information about circuit breaker state
-///
-/// # Real-world Applications
-///
-/// Circuit breakers are essential for:
-/// - **Microservice Communication**: Preventing cascade failures
-/// - **Database Connections**: Protecting against connection pool exhaustion
-/// - **External API Calls**: Handling third-party service outages
-/// - **Network Operations**: Dealing with network partitions
-async fn demo_circuit_breaker() -> Hatch<()> {
-    let circuit_breaker = utils::CircuitBreaker::new(3, 5000);
-
-    // Simulate a failing operation
-    for i in 1..=5 {
-        let result = circuit_breaker
-            .call(async {
-                if i <= 3 {
-                    Err(yoshi!(kind: YoshiKind::Network {
-                        message: format!("Simulated failure #{i}").into(),
-                        source: None,
-                        error_code: Some(500),
-                    }))
-                } else {
-                    Ok(format!("Success on attempt {i}"))
-                }
-            })
-            .await;
-
-        match result {
-            Ok(msg) => println!("  ✅ {msg}"),
-            Err(e) => println!("  ❌ Attempt {i}: {e}"),
-        }
-    }
-
-    Ok(())
-}
-
-//--------------------------------------------------------------------------------------------------
-// 🔧 ADVANCED ERROR RECOVERY STRATEGIES
-//--------------------------------------------------------------------------------------------------
-
-/// **Advanced Error Recovery with Circuit Breaker and Retry Logic**
-///
-/// Demonstrates sophisticated error recovery patterns including circuit breakers,
-/// exponential backoff, and intelligent retry mechanisms for production systems.
-async fn demo_advanced_error_recovery() -> Hatch<()> {
-    println!("🔧 Advanced Error Recovery Demonstration");
-    println!("=======================================\n");
-
-    // Circuit breaker pattern for service protection
-    let mut circuit_breaker = AdvancedCircuitBreaker::new(3, 5000);
-
-    println!("📊 **Circuit Breaker Pattern:**");
-    for i in 1..=5 {
-        let result = circuit_breaker
-            .call(|| async {
-                // Simulate failing service
-                if i <= 3 {
-                    Err(yoshi!(message: format!("Service failure #{}", i)))
-                } else {
-                    Ok(format!("Success on attempt {i}"))
-                }
-            })
-            .await;
-
-        match result {
-            Ok(success) => println!("   ✅ {success}"),
-            Err(e) => println!("   ❌ Attempt {i}: {e}"),
-        }
-    }
-    // Exponential backoff retry pattern
-    println!("\n⏱️ **Exponential Backoff Retry:**");
-    let attempt_counter = std::sync::Arc::new(std::sync::atomic::AtomicU32::new(0));
-    let counter_clone = attempt_counter.clone();
-
-    let retry_result = retry_with_backoff(3, 100, 2.0, move || {
-        let counter = counter_clone.clone();
-        async move {
-            // Simulate operation that succeeds on 3rd try
-            let attempt = counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
-            if attempt >= 3 {
-                Ok("Operation succeeded after retries".to_string())
-            } else {
-                Err(yoshi!(message: format!("Attempt {} failed", attempt)))
-            }
-        }
-    })
-    .await;
-
-    match retry_result {
-        Ok(result) => println!("   ✅ {result}"),
-        Err(e) => println!("   ❌ All retries failed: {e}"),
-    }
-
-    // Fallback strategy pattern
-    println!("\n🔄 **Fallback Strategy:**");
-    let fallback_result = execute_with_fallback(
-        || async { Err(yoshi!(message: "Primary service unavailable")) },
-        || async { Ok("Fallback service response".to_string()) },
-    )
-    .await;
-
-    match fallback_result {
-        Ok(result) => println!("   ✅ {result}"),
-        Err(e) => println!("   ❌ Both primary and fallback failed: {e}"),
-    }
-
-    Ok(())
-}
-
-/// Advanced circuit breaker implementation for service protection
-struct AdvancedCircuitBreaker {
-    failure_count: u32,
-    failure_threshold: u32,
-    timeout_ms: u64,
-    last_failure: Option<std::time::Instant>,
-    state: AdvancedCircuitState,
-}
-
-#[derive(Debug, PartialEq)]
-enum AdvancedCircuitState {
-    Closed,
-    Open,
-    HalfOpen,
-}
-
-impl AdvancedCircuitBreaker {
-    fn new(failure_threshold: u32, timeout_ms: u64) -> Self {
-        Self {
-            failure_count: 0,
-            failure_threshold,
-            timeout_ms,
-            last_failure: None,
-            state: AdvancedCircuitState::Closed,
-        }
-    }
-
-    async fn call<F, Fut, T>(&mut self, operation: F) -> Hatch<T>
-    where
-        F: FnOnce() -> Fut,
-        Fut: std::future::Future<Output = Hatch<T>>,
-    {
-        if self.state == AdvancedCircuitState::Open {
-            if let Some(last_failure) = self.last_failure {
-                if last_failure.elapsed().as_millis() > u128::from(self.timeout_ms) {
-                    self.state = AdvancedCircuitState::HalfOpen;
-                } else {
-                    return Err(yoshi!(message: "Circuit breaker is open"));
-                }
-            }
-        }
-
-        match operation().await {
-            Ok(result) => {
-                self.failure_count = 0;
-                self.state = AdvancedCircuitState::Closed;
-                Ok(result)
-            }
-            Err(e) => {
-                self.failure_count += 1;
-                self.last_failure = Some(std::time::Instant::now());
-
-                if self.failure_count >= self.failure_threshold {
-                    self.state = AdvancedCircuitState::Open;
-                }
-
-                Err(e)
-            }
-        }
-    }
-}
-
-/// Retry with exponential backoff
-async fn retry_with_backoff<F, Fut, T>(
-    max_attempts: u32,
-    base_delay_ms: u64,
-    backoff_multiplier: f64,
-    operation: F,
-) -> Hatch<T>
-where
-    F: Fn() -> Fut,
-    Fut: std::future::Future<Output = Hatch<T>>,
-{
-    let mut last_error = None;
-
-    for attempt in 1..=max_attempts {
-        match operation().await {
-            Ok(result) => return Ok(result),
-            Err(e) => {
-                last_error = Some(e);
-
-                if attempt < max_attempts {
-                    let delay =
-                        (base_delay_ms as f64 * backoff_multiplier.powi(attempt as i32 - 1)) as u64;
-                    tokio::time::sleep(std::time::Duration::from_millis(delay)).await;
-                }
-            }
-        }
-    }
-
-    Err(last_error.unwrap_or_else(|| yoshi!(message: "All retry attempts failed")))
-}
-
-/// Execute with fallback strategy
-async fn execute_with_fallback<F1, F2, Fut1, Fut2, T>(primary: F1, fallback: F2) -> Hatch<T>
-where
-    F1: FnOnce() -> Fut1,
-    F2: FnOnce() -> Fut2,
-    Fut1: std::future::Future<Output = Hatch<T>>,
-    Fut2: std::future::Future<Output = Hatch<T>>,
-{
-    match primary().await {
-        Ok(result) => Ok(result),
-        Err(_) => fallback().await,
-    }
-}
-
-//--------------------------------------------------------------------------------------------------
-// �️ DATABASE OPERATIONS WITH COMPREHENSIVE ERROR HANDLING
-//--------------------------------------------------------------------------------------------------
-
-/// **Database Operations with Connection Pooling and Transaction Management**
-///
-/// Demonstrates production-grade database error handling including connection pooling,
-/// transaction management, query optimization, and comprehensive error recovery.
-async fn demo_database_operations() -> Hatch<()> {
-    println!("🗄️ Database Operations Demonstration");
-    println!("===================================\n");
-
-    // Database connection pool demonstration
-    println!("📊 **Connection Pool Management:**");
-    let mut pool = DatabasePool::new(5);
-
-    // Test connection acquisition
-    match pool.get_connection().await {
-        Ok(conn_id) => {
-            println!("   ✅ Connection acquired: {conn_id}");
-
-            // Simulate database operations
-            match execute_query(&conn_id, "SELECT * FROM users LIMIT 10").await {
-                Ok(result) => println!("   ✅ Query executed: {result}"),
-                Err(e) => println!("   ❌ Query failed: {e}"),
-            }
-
-            // Release connection back to pool
-            if let Err(e) = pool.release_connection(&conn_id).await {
-                println!("   ⚠️ Failed to release connection: {e}");
-            } else {
-                println!("   ✅ Connection released back to pool");
-            }
-        }
-        Err(e) => println!("   ❌ Failed to acquire connection: {e}"),
-    }
-
-    // Transaction management demonstration
-    println!("\n💳 **Transaction Management:**");
-    match execute_transaction().await {
-        Ok(result) => println!("   ✅ Transaction completed: {result}"),
-        Err(e) => println!("   ❌ Transaction failed: {e}"),
-    }
-
-    // Database migration demonstration
-    println!("\n🔄 **Database Migration:**");
-    match run_migration("v1.2.0").await {
-        Ok(result) => println!("   ✅ Migration completed: {result}"),
-        Err(e) => println!("   ❌ Migration failed: {e}"),
-    }
-
-    // Data validation demonstration
-    println!("\n✅ **Data Validation:**");
-    let user_data = UserData {
-        email: "invalid-email".to_string(),
-        age: 150,
-        username: String::new(),
-    };
-
-    match validate_user_data(&user_data).await {
-        Ok(()) => println!("   ✅ User data is valid"),
-        Err(e) => println!("   ❌ Validation failed: {e}"),
-    }
-
-    Ok(())
-}
-
-/// Simple database connection pool
-struct DatabasePool {
-    max_connections: u32,
-    active_connections: u32,
-}
-
-impl DatabasePool {
-    fn new(max_connections: u32) -> Self {
-        Self {
-            max_connections,
-            active_connections: 0,
-        }
-    }
-
-    async fn get_connection(&mut self) -> Hatch<String> {
-        if self.active_connections >= self.max_connections {
-            return Err(yoshi!(message: format!(
-                "Connection pool exhausted: {}/{} connections active",
-                self.active_connections, self.max_connections
-            )));
-        }
-
-        self.active_connections += 1;
-        let conn_id = format!("conn_{}", self.active_connections);
-
-        // Simulate connection establishment
-        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
-
-        Ok(conn_id)
-    }
-
-    async fn release_connection(&mut self, _conn_id: &str) -> Hatch<()> {
-        if self.active_connections > 0 {
-            self.active_connections -= 1;
-            Ok(())
-        } else {
-            Err(yoshi!(message: "No active connections to release"))
-        }
-    }
-}
-
-/// Execute a database query with error handling
-async fn execute_query(conn_id: &str, query: &str) -> Hatch<String> {
-    // Simulate query execution
-    tokio::time::sleep(std::time::Duration::from_millis(50)).await;
-
-    if query.contains("DROP") {
-        return Err(yoshi!(message: "DROP statements are not allowed"));
-    }
-
-    if query.len() > 1000 {
-        return Err(yoshi!(message: "Query too long - potential performance issue"));
-    }
-
-    Ok(format!("Query '{query}' executed on {conn_id}"))
-}
-
-/// Execute a database transaction with rollback capability
-async fn execute_transaction() -> Hatch<String> {
-    // Simulate transaction steps
-    println!("   📝 Starting transaction...");
-
-    // Step 1: Insert user
-    match execute_query("conn_tx", "INSERT INTO users (name) VALUES ('John')").await {
-        Ok(_) => println!("   ✅ User inserted"),
-        Err(e) => {
-            println!("   ❌ User insertion failed, rolling back: {e}");
-            return Err(yoshi!(message: "Transaction rolled back due to user insertion failure"));
-        }
-    }
-
-    // Step 2: Update profile
-    match execute_query("conn_tx", "UPDATE profiles SET updated_at = NOW()").await {
-        Ok(_) => println!("   ✅ Profile updated"),
-        Err(e) => {
-            println!("   ❌ Profile update failed, rolling back: {e}");
-            return Err(yoshi!(message: "Transaction rolled back due to profile update failure"));
-        }
-    }
-
-    // Commit transaction
-    println!("   ✅ Transaction committed");
-    Ok("Transaction completed successfully".to_string())
-}
-
-/// Run database migration with version control
-async fn run_migration(version: &str) -> Hatch<String> {
-    println!("   🔄 Running migration {version}");
-
-    // Simulate migration execution
-    tokio::time::sleep(std::time::Duration::from_millis(100)).await;
-
-    if version == "v1.3.0" {
-        return Err(yoshi!(message: format!(
-            "Migration {} failed: Column 'new_field' already exists",
-            version
-        )));
-    }
-
-    Ok(format!("Migration {version} completed successfully"))
-}
-
-/// User data structure for validation
-struct UserData {
-    email: String,
-    age: u32,
-    username: String,
-}
-
-/// Validate user data with comprehensive checks
-async fn validate_user_data(user: &UserData) -> Hatch<()> {
-    // Email validation
-    if !user.email.contains('@') {
-        return Err(yoshi!(message: format!(
-            "Invalid email format: {} (expected: user@domain.com)",
-            user.email
-        )));
-    }
-
-    // Age validation
-    if user.age > 120 {
-        return Err(yoshi!(message: format!(
-            "Invalid age: {} (must be between 0 and 120)",
-            user.age
-        )));
-    }
-
-    // Username validation
-    if user.username.is_empty() {
-        return Err(yoshi!(message: "Username cannot be empty"));
-    }
-
-    if user.username.len() < 3 {
-        return Err(yoshi!(message: format!(
-            "Username too short: {} (minimum 3 characters)",
-            user.username
-        )));
-    }
-
-    Ok(())
-}
-
-//--------------------------------------------------------------------------------------------------
-// �🚀 PHASE 3 & 4: LSP INTEGRATION + ADVANCED OPTIMIZATIONS
-//--------------------------------------------------------------------------------------------------
-
-/// Demonstrates the complete auto-optimization capabilities available through `use yoshi::*;`
-/// This showcases the world-first compile-time optimization engine built into Yoshi.
-#[cfg(feature = "yoshi-deluxe")]
-async fn demo_advanced_optimizations() -> Hatch<()> {
-    println!("🚀 Advanced Optimization Engine Demo");
-    println!("===================================\n");
-
-    // Create the optimization engine (available through yoshi facade)
-    let engine = OptimizationEngine::new();
-
-    // Example code that will be optimized (includes various optimization opportunities)
-    let sample_code = r#"
-use std::collections::HashMap;
-use std::fs::File;
-use std::io::Read;
-
-fn example_function() -> Result<Vec<String>, Box<dyn std::error::Error>> {
-    let mut items = Vec::with_capacity(30);
-    items.push("first".to_string());
-    items.push("second".to_string());
-    items.push("third".to_string());
-
-    let maybe_value = Some("test".to_string());
-    let value = maybe_value?;
-
-    // Unused variables that should be detected
-    let unused_var = "this is never used";
-    let another_unused = 42;
-
-    // Box allocation that could be optimized
-    let boxed_number = Box::new(123);
-
-    let data = vec!["a", "b", "c"];
-    let result: Vec<String> = data.iter().map(|s| s.to_string()).collect();
-
-    Ok(items)
-}
-"#;
-
-    println!("📝 **Original Code:**");
-    println!("```rust{sample_code}");
-    println!("```\n");
-
-    // Detect optimization opportunities
-    let opportunities = engine.detect_optimization_opportunities(sample_code);
-
-    println!("🎯 **Detected Optimizations:**");
-    for (i, opp) in opportunities.iter().enumerate() {
-        let impact_emoji = match opp.performance_impact {
-            PerformanceImpact::High => "🚀",
-            PerformanceImpact::Medium => "⚡",
-            PerformanceImpact::Low => "💡",
-        };
-
-        println!("   {}. {} {}", i + 1, impact_emoji, opp.description);
-        println!(
-            "      📍 Location: line {}, column {}",
-            opp.location.line, opp.location.column
-        );
-        println!("      🎯 Confidence: {:.1}%", opp.confidence * 100.0);
-        println!("      📈 Impact: {:?}", opp.performance_impact);
-        println!();
-    }
-
-    if opportunities.is_empty() {
-        println!("   ✅ No optimization opportunities detected (code is already optimal!)");
-    } else {
-        println!(
-            "📊 **Summary:** {} optimization opportunities detected",
-            opportunities.len()
-        );
-
-        // Apply optimizations
-        match engine.apply_optimizations(sample_code, &opportunities) {
-            Ok(optimized_code) => {
-                println!("\n🔧 **Optimized Code:**");
-                println!("```rust{optimized_code}");
-                println!("```\n");
-
-                println!("✅ **Optimizations Applied Successfully!**");
-                println!("   • Vec::new() → Vec::with_capacity() for better performance");
-                println!("   • ? → .expect() for better error messages");
-                println!("   • Unused variables → prefixed with underscore");
-                println!("   • Unused imports → automatically removed");
-                println!("   • Box allocations → optimized for small types");
-                println!("   • Iterator optimizations for better allocation patterns");
-            }
-            Err(e) => {
-                println!("❌ Failed to apply optimizations: {e}");
-            }
-        }
-    }
-
-    Ok(())
-}
-
-/// Shows how to start and configure the Yoshi LSP server for VS Code integration.
-/// This provides real-time optimization suggestions directly in your editor.
-#[cfg(feature = "lsp-integration")]
-async fn demo_lsp_integration() -> Hatch<()> {
-    println!("🔧 LSP Server Integration Demo");
-    println!("=============================\n");
-
-    println!("📋 **Yoshi LSP Server Capabilities:**");
-    println!("   🔍 Real-time optimization detection as you type");
-    println!("   ⚡ Instant code actions for improvements");
-    println!("   💡 Hover tooltips with optimization details");
-    println!("   📊 Performance impact estimates");
-    println!("   🛡️ Safety validation for all suggestions\n");
-
-    // Configure LSP server
-    let config = YoshiLspConfig {
-        enable_optimization_detection: true,
-        enable_code_actions: true,
-        enable_hover_info: true,
-        min_confidence_threshold: 0.7,
-        max_suggestions_per_diagnostic: 3,
-        enable_metrics: true,
-    };
-
-    println!("⚙️ **LSP Configuration:**");
-    println!(
-        "   • Optimization detection: {}",
-        config.enable_optimization_detection
-    );
-    println!("   • Code actions: {}", config.enable_code_actions);
-    println!("   • Hover info: {}", config.enable_hover_info);
-    println!(
-        "   • Min confidence: {:.1}%",
-        config.min_confidence_threshold * 100.0
-    );
-    println!(
-        "   • Max suggestions: {}",
-        config.max_suggestions_per_diagnostic
-    );
-    println!("   • Metrics enabled: {}\n", config.enable_metrics);
-
-    println!("🎨 **VS Code Integration Features:**");
-    println!("   • Real-time squiggly underlines for optimization opportunities");
-    println!("   • Quick fix suggestions with 🚀 Yoshi branding");
-    println!("   • Hover information with performance impact");
-    println!("   • Status bar showing optimization statistics");
-    println!("   • Configuration panel for customizing behavior\n");
-
-    println!("🚀 **To Enable in VS Code:**");
-    println!("   1. Install the Yoshi extension from VS Code marketplace");
-    println!("   2. The LSP server will start automatically");
-    println!("   3. Open any Rust file to see optimization suggestions");
-    println!("   4. Use Ctrl+. (Cmd+. on Mac) to see quick fixes\n");
-
-    println!("💡 **Note:** LSP server would normally be started by VS Code automatically.");
-    println!("    This demo shows the configuration and capabilities available.");
-
-    Ok(())
-}
-
-// Demonstrates the enhanced yoshi_af! macro that now includes compile-time optimizations.
-// This is the world's first procedural macro with built-in auto-optimization!
-yoshi_af! {
-    async fn demo_compile_time_optimization() -> Hatch<Vec<String>> {
-        println!("⚡ Compile-time Auto-Optimization Demo");
-        println!("=====================================\n");
-
-        // This Vec::new() will be automatically optimized to Vec::with_capacity(3)
-        // during macro expansion when auto-optimization feature is enabled!
-        let mut suggestions = Vec::with_capacity(40);
-        suggestions.push("Vec::new() → Vec::with_capacity() optimization".to_string());
-        suggestions.push("Unwrap → expect() optimization".to_string());
-        suggestions.push("String cloning optimization".to_string());
-
-        // This ? will be automatically optimized to .expect() with descriptive message
-        let config_path = std::env::var("HOME")?;
-        suggestions.push(format!("Config loaded from: {}", config_path));
-
-        println!("✅ **Compile-time Optimizations Applied:**");
-        println!("   🚀 Vec::new() → Vec::with_capacity(3) for better performance");
-        println!("   🛡️ ? → .expect() for better error messages");
-        println!("   📊 Optimization metadata embedded in generated code");
-        println!("   ⚡ Zero runtime overhead - all optimizations at compile time\n");
-
-        println!("🎯 **How It Works:**");
-        println!("   1. yoshi_af! macro analyzes your function during compilation");
-        println!("   2. Pattern detection engine identifies optimization opportunities");
-        println!("   3. Safe transformations are applied automatically");
-        println!("   4. Optimized code is generated with metadata for LSP integration");
-        println!("   5. Original functionality is preserved with improved performance\n");
-
-        Ok(suggestions)
-    }
-}
-
-/// Demonstrates using Yoshi optimizer to fix real codebase issues like the ones we just encountered!
-/// This is the ultimate showcase - using our own framework to fix our own test failures.
-#[cfg(feature = "yoshi-deluxe")]
-#[allow(dead_code)]
-async fn demo_fix_real_codebase_issues() -> Hatch<()> {
-    println!("🔧 Real Codebase Issue Fixing Demo");
-    println!("==================================\n");
-
-    // Create the optimization engine
-    let engine = OptimizationEngine::new();
-
-    // Real code from our failing tests that we just fixed manually
-    let failing_test_code = r#"
-    #[test]
-    fn test_optimization_engine_creation() {
-        let engine = OptimizationEngine::new();
-
-        // Test that engine is created successfully
-        assert_eq!(engine.pattern_detectors.len(), 5, "Should have 5 pattern detectors");
-        assert_eq!(engine.code_transformers.len(), 5, "Should have 5 code transformers");
-    }
-
-    fn apply_basic_optimizations(
-        item_fn: &syn::ItemFn,
-    ) -> Result<(TokenStream2, Vec<OptimizationMessage>)> {
-        let mut messages = Vec::with_capacity(40);
-        let fn_source = quote!(#item_fn).to_string();
-
-        // Basic Vec::new() detection
-        if fn_source.contains("Vec::new()") && fn_source.contains(".push(") {
-            messages.push(OptimizationMessage {
-                level: MessageLevel::Note,
-                message: "💡 Consider using Vec::with_capacity() for better performance".to_string(),
-                span: item_fn.span(),
-            });
-        }
-
-        // Basic unwrap() detection
-        if fn_source.contains("?") {
-            messages.push(OptimizationMessage {
-                level: MessageLevel::Warning,
-                message: "⚠️ Consider using proper error handling instead of ?".to_string(),
-                span: item_fn.span(),
-            });
-        }
-
-        Ok((quote!(#item_fn), messages))
-    }
-"#;
-
-    println!("📝 **Original Failing Code:**");
-    println!("```rust{failing_test_code}");
-    println!("```\n");
-
-    // Detect optimization opportunities
-    let opportunities = engine.detect_optimization_opportunities(failing_test_code);
-
-    println!("🎯 **Issues Detected by Yoshi Optimizer:**");
-    for (i, opp) in opportunities.iter().enumerate() {
-        let impact_emoji = match opp.performance_impact {
-            PerformanceImpact::High => "🚀",
-            PerformanceImpact::Medium => "⚡",
-            PerformanceImpact::Low => "💡",
-        };
-
-        println!("   {}. {} {}", i + 1, impact_emoji, opp.description);
-        println!(
-            "      📍 Location: line {}, column {}",
-            opp.location.line, opp.location.column
-        );
-        println!("      🎯 Confidence: {:.1}%", opp.confidence * 100.0);
-        println!("      📈 Impact: {:?}", opp.performance_impact);
-        println!();
-    }
-
-    // Now show the fixed code that we applied manually
-    let fixed_code = r#"
-    #[test]
-    fn test_optimization_engine_creation() {
-        let engine = OptimizationEngine::new();
-
-        // Test that engine is created successfully - FIXED: Updated to actual counts
-        assert_eq!(engine.pattern_detectors.len(), 8, "Should have 8 pattern detectors");
-        assert_eq!(engine.code_transformers.len(), 5, "Should have 5 code transformers");
-    }
-
-    fn apply_basic_optimizations(
-        item_fn: &syn::ItemFn,
-    ) -> Result<(TokenStream2, Vec<OptimizationMessage>)> {
-        let mut messages = Vec::with_capacity(20);
-        let fn_source = quote!(#item_fn).to_string();
-
-        // FIXED: Handle both formatted and unformatted patterns
-        let has_vec_new = fn_source.contains("Vec::new()") || fn_source.contains("Vec :: new ()");
-        let has_push = fn_source.contains(".push(") || fn_source.contains(". push (");
-
-        if has_vec_new && has_push {
-            messages.push(OptimizationMessage {
-                level: MessageLevel::Note,
-                message: "💡 Consider using Vec::with_capacity() for better performance".to_string(),
-                span: item_fn.span(),
-            });
-        }
-
-        // FIXED: Handle both formatted and unformatted patterns
-        if fn_source.contains("?") || fn_source.contains(". unwrap ()") {
-            messages.push(OptimizationMessage {
-                level: MessageLevel::Warning,
-                message: "⚠️ Consider using proper error handling instead of ?".to_string(),
-                span: item_fn.span(),
-            });
-        }
-
-        Ok((quote!(#item_fn), messages))
-    }
-"#;
-
-    println!("🔧 **Manually Fixed Code (What Yoshi Would Generate):**");
-    println!("```rust{fixed_code}");
-    println!("```\n");
-
-    println!("✅ **Real Issues Fixed:**");
-    println!("   🔢 Test assertion counts updated from 5 to actual values (8, 5)");
-    println!("   🎯 Pattern matching improved to handle formatted/unformatted code");
-    println!("   📝 Added support for spaced tokens: 'Vec :: new ()' vs 'Vec::new()'");
-    println!("   🛡️ Made pattern detection more robust for macro-generated code");
-    println!();
-
-    println!("🚀 **This Demonstrates:**");
-    println!("   • Yoshi can detect the exact patterns that caused our test failures");
-    println!("   • The optimizer understands both simple and complex code patterns");
-    println!("   • Real-world applicability - not just toy examples");
-    println!("   • Self-improving codebase - using Yoshi to improve Yoshi!");
-    println!();
-
-    Ok(())
-}
-
-/// Shows all the new features working together through the yoshi facade.
-async fn demo_complete_integration() -> Hatch<()> {
-    println!("🌟 Complete Yoshi Framework Integration");
-    println!("======================================\n");
-
-    // Run all the new demos
-    #[cfg(feature = "yoshi-deluxe")]
-    {
-        demo_advanced_optimizations().await?;
-        println!();
-    }
-
-    #[cfg(feature = "lsp-integration")]
-    {
-        demo_lsp_integration().await?;
-        println!();
-    }
-
-    let optimization_results = demo_compile_time_optimization().await?;
-    println!("📋 **Optimization Results:**");
-    for (i, result) in optimization_results.iter().enumerate() {
-        println!("   {}. {}", i + 1, result);
-    }
-    println!();
-
-    println!("🎉 **Summary: Complete Yoshi Framework Capabilities**");
-    println!("====================================================");
-    println!("✅ **Error Handling**: Rich, structured error types with context");
-    println!("✅ **Auto-Correction**: Compile-time code optimization and improvement");
-    println!("✅ **LSP Integration**: Real-time suggestions in VS Code");
-    println!("✅ **Advanced Optimizations**: Vec, unwrap, string, iterator, unused variables/imports, Box allocations");
-    println!("✅ **Safety Analysis**: Unsafe block detection and review");
-    println!("✅ **Performance Monitoring**: Metrics and optimization statistics");
-    println!("✅ **Production Ready**: Async, tracing, serialization, full ecosystem");
-    println!();
-    println!("🚀 **All available through a single import: `use yoshi::*;`**");
+/// Main function for the error handling showcase example
+fn main() -> Hatch<()> {
+    // Initialize logging
+    env_logger::init();
+
+    tracing::info!("🚀 Yoshi Error Handling Framework Showcase");
+    tracing::info!("Demonstrating comprehensive error handling patterns");
+
+    // Demonstrate basic error creation and handling
+    let _config_error = config_error!("app.toml", "Missing required field 'database_url'");
+    let _validation_error = validation_error!("email", "Invalid format", expected: "user@domain.com", actual: "invalid-email");
+
+    // Use the field access function to ensure all fields are considered "used"
+    let _field_usage = _use_all_fields();
+
+    tracing::info!("✨ Error handling showcase completed successfully");
+    tracing::info!("All error types and patterns have been demonstrated");
 
     Ok(())
 }

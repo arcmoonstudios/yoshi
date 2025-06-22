@@ -237,7 +237,7 @@ impl DatabaseConnection {
 
     /// Gets the database server port number
     #[must_use]
-    pub fn port(&self) -> u16 {
+    pub const fn port(&self) -> u16 {
         self.port
     }
 
@@ -256,7 +256,7 @@ impl DatabaseConnection {
 
     /// Checks if the connection is healthy and responsive
     #[must_use]
-    pub fn is_healthy(&self) -> bool {
+    pub const fn is_healthy(&self) -> bool {
         // Simulate health check using host and port
         !self.host.is_empty() && self.port > 0 && self.is_active
     }
@@ -284,7 +284,7 @@ impl DatabasePool {
     /// assert_eq!(pool.max_connections(), 10);
     /// ```
     #[must_use]
-    pub fn new(max_connections: u32) -> Self {
+    pub const fn new(max_connections: u32) -> Self {
         Self {
             connections: Vec::new(),
             max_connections,
@@ -296,19 +296,19 @@ impl DatabasePool {
 
     /// Gets the maximum number of connections allowed in this pool
     #[must_use]
-    pub fn max_connections(&self) -> u32 {
+    pub const fn max_connections(&self) -> u32 {
         self.max_connections
     }
 
     /// Gets the current connection timeout duration
     #[must_use]
-    pub fn connection_timeout(&self) -> Duration {
+    pub const fn connection_timeout(&self) -> Duration {
         self.connection_timeout
     }
 
     /// Gets the number of retry attempts for failed operations
     #[must_use]
-    pub fn retry_attempts(&self) -> u32 {
+    pub const fn retry_attempts(&self) -> u32 {
         self.retry_attempts
     }
 
@@ -694,7 +694,7 @@ impl TransactionManager {
 
     /// Executes a query within this transaction
     ///
-    /// Validates the query and adds it to the operations log.
+    /// Validates the query and adds it to the operations tracing.
     /// Returns mock results for demonstration purposes.
     pub fn execute_query(&mut self, query: &str) -> Hatch<Vec<String>> {
         if !self.is_active {
@@ -714,7 +714,7 @@ impl TransactionManager {
             .into());
         }
 
-        // Add to operations log
+        // Add to operations tracing
         self.operations.push(query.to_string());
 
         // Simulate query execution
@@ -737,7 +737,7 @@ impl TransactionManager {
     pub fn commit(mut self) -> Hatch<String> {
         if !self.is_active {
             return Err(DatabaseError::TransactionFailed {
-                transaction_id: self.transaction_id.clone(),
+                transaction_id: self.transaction_id,
                 reason: "Transaction already completed".to_string(),
             }
             .into());
@@ -761,7 +761,7 @@ impl TransactionManager {
     pub fn rollback(mut self) -> Hatch<String> {
         if !self.is_active {
             return Err(DatabaseError::TransactionFailed {
-                transaction_id: self.transaction_id.clone(),
+                transaction_id: self.transaction_id,
                 reason: "Transaction already completed".to_string(),
             }
             .into());
@@ -771,7 +771,7 @@ impl TransactionManager {
 
         // Simulate rollback operations
         for operation in self.operations.iter().rev() {
-            println!("Rolling back: {operation}");
+            tracing::info!("Rolling back: {operation}");
         }
 
         Ok(format!(
@@ -811,7 +811,7 @@ pub struct User {
 impl UserRepository {
     /// Creates a new `UserRepository` with the specified database pool
     #[must_use]
-    pub fn new(pool: DatabasePool) -> Self {
+    pub const fn new(pool: DatabasePool) -> Self {
         Self { pool }
     }
 
@@ -980,63 +980,63 @@ yoshi_af! {
 //--------------------------------------------------------------------------------------------------
 
 fn main() -> Hatch<()> {
-    println!("🗄️ Yoshi Database Operations Example");
+    tracing::info!("🗄️ Yoshi Database Operations Example");
 
     // Create database pool
     let pool = DatabasePool::new(5);
     let mut user_repository = UserRepository::new(pool);
 
     // Example 1: Create a new user
-    println!("\n📝 Creating new user...");
+    tracing::info!("\n📝 Creating new user...");
     match user_repository.create_user("alice", "alice@example.com") {
         Ok(user) => println!("✅ User created: {user:?}"),
         Err(e) => {
-            println!("❌ User creation failed: {e}");
-            if let Some(suggestion) = e.suggestion() {
-                println!("💡 Suggestion: {suggestion}");
+            tracing::info!("❌ User creation failed: {e}");
+            if let Some(suggestion) = e.signpost() {
+                tracing::info!("💡 Suggestion: {suggestion}");
             }
         }
     }
 
     // Example 2: Find user by ID
-    println!("\n🔍 Finding user by ID...");
+    tracing::info!("\n🔍 Finding user by ID...");
     match user_repository.find_user_by_id(1) {
         Ok(Some(user)) => println!("✅ User found: {user:?}"),
         Ok(None) => println!("ℹ️ User not found"),
         Err(e) => {
-            println!("❌ User lookup failed: {e}");
-            if let Some(suggestion) = e.suggestion() {
-                println!("💡 Suggestion: {suggestion}");
+            tracing::info!("❌ User lookup failed: {e}");
+            if let Some(suggestion) = e.signpost() {
+                tracing::info!("💡 Suggestion: {suggestion}");
             }
         }
     }
 
     // Example 3: Update user email
-    println!("\n✏️ Updating user email...");
+    tracing::info!("\n✏️ Updating user email...");
     match user_repository.update_user_email(1, "alice.updated@example.com") {
         Ok(()) => println!("✅ User email updated successfully"),
         Err(e) => {
-            println!("❌ Email update failed: {e}");
-            if let Some(suggestion) = e.suggestion() {
-                println!("💡 Suggestion: {suggestion}");
+            tracing::info!("❌ Email update failed: {e}");
+            if let Some(suggestion) = e.signpost() {
+                tracing::info!("💡 Suggestion: {suggestion}");
             }
         }
     }
 
     // Example 4: Error handling demonstration
-    println!("\n⚠️ Demonstrating error handling...");
+    tracing::error!("\n⚠️ Demonstrating error handling...");
     match user_repository.update_user_email(1, "invalid-email") {
         Ok(()) => println!("✅ Unexpected success"),
         Err(e) => {
-            println!("❌ Expected validation error: {e}");
-            if let Some(suggestion) = e.suggestion() {
-                println!("💡 Suggestion: {suggestion}");
+            tracing::error!("❌ Expected validation error: {e}");
+            if let Some(suggestion) = e.signpost() {
+                tracing::info!("💡 Suggestion: {suggestion}");
             }
         }
     }
 
     // Example 5: Query builder demonstration
-    println!("\n🔧 Query builder demonstration...");
+    tracing::info!("\n🔧 Query builder demonstration...");
     let query_result = QueryBuilder::select("users")
         .fields(&["username", "email"])
         .where_clause("active = true")
@@ -1046,15 +1046,15 @@ fn main() -> Hatch<()> {
     match query_result {
         Ok(query) => println!("✅ Query built: {query}"),
         Err(e) => {
-            println!("❌ Query building failed: {e}");
-            if let Some(suggestion) = e.suggestion() {
-                println!("💡 Suggestion: {suggestion}");
+            tracing::info!("❌ Query building failed: {e}");
+            if let Some(suggestion) = e.signpost() {
+                tracing::info!("💡 Suggestion: {suggestion}");
             }
         }
     }
 
     // Example 6: Transaction demonstration
-    println!("\n💳 Transaction demonstration...");
+    tracing::info!("\n💳 Transaction demonstration...");
     let mut transaction = TransactionManager::begin("demo_transaction".to_string());
 
     let query1_result =
@@ -1074,12 +1074,12 @@ fn main() -> Hatch<()> {
     }
 
     // Example 6: Auto-correction demonstration
-    println!("\n🔧 Auto-correction demonstration...");
+    tracing::info!("\n🔧 Auto-correction demonstration...");
     match enhanced_database_operations() {
         Ok(result) => println!("✅ Auto-correction result: {result}"),
         Err(e) => println!("❌ Auto-correction failed: {e}"),
     }
 
-    println!("\n🎉 Database operations example completed successfully!");
+    tracing::info!("\n🎉 Database operations example completed successfully!");
     Ok(())
 }

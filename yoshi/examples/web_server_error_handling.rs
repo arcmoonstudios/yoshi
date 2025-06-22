@@ -20,8 +20,6 @@
 // **Contact:** LordXyn@proton.me
 // **Author:** Lord Xyn
 
-use std::collections::HashMap;
-use std::time::{Duration, SystemTime};
 use yoshi::*;
 
 //--------------------------------------------------------------------------------------------------
@@ -168,7 +166,7 @@ impl DatabaseConnection {
     /// Initializes a database connection with a 30-second timeout
     /// and 3 retry attempts for failed connections.
     #[must_use]
-    pub fn new(connection_string: String) -> Self {
+    pub const fn new(connection_string: String) -> Self {
         Self {
             connection_string,
             timeout: Duration::from_secs(30),
@@ -178,13 +176,13 @@ impl DatabaseConnection {
 
     /// Gets the configured retry count for this connection
     #[must_use]
-    pub fn retry_count(&self) -> u32 {
+    pub const fn retry_count(&self) -> u32 {
         self.retry_count
     }
 
     /// Gets the connection timeout duration
     #[must_use]
-    pub fn timeout(&self) -> Duration {
+    pub const fn timeout(&self) -> Duration {
         self.timeout
     }
 
@@ -303,7 +301,7 @@ impl AuthenticationService {
     ///
     /// Initializes the service with a 24-hour token expiry duration.
     #[must_use]
-    pub fn new(secret_key: String) -> Self {
+    pub const fn new(secret_key: String) -> Self {
         Self {
             secret_key,
             token_expiry: Duration::from_secs(24 * 60 * 60), // 24 hours
@@ -312,7 +310,7 @@ impl AuthenticationService {
 
     /// Gets the configured token expiry duration
     #[must_use]
-    pub fn token_expiry(&self) -> Duration {
+    pub const fn token_expiry(&self) -> Duration {
         self.token_expiry
     }
 
@@ -641,7 +639,7 @@ yoshi_af! {
 //--------------------------------------------------------------------------------------------------
 
 fn main() -> Hatch<()> {
-    println!("🚀 Yoshi Web Server Error Handling Example");
+    tracing::error!("🚀 Yoshi Web Server Error Handling Example");
 
     // Create web server
     let mut server = WebServer::new(
@@ -685,7 +683,7 @@ fn main() -> Hatch<()> {
             "token_for_admin".to_string()
         }
         Err(e) => {
-            println!("❌ Login failed: {e}");
+            tracing::info!("❌ Login failed: {e}");
             return Err(e);
         }
     };
@@ -722,20 +720,20 @@ fn main() -> Hatch<()> {
             response.status, response.body
         ),
         Err(e) => {
-            println!("❌ Expected error handled gracefully: {e}");
+            tracing::error!("❌ Expected error handled gracefully: {e}");
             if let Some(suggestion) = e.suggestion() {
-                println!("💡 Suggestion: {suggestion}");
+                tracing::info!("💡 Suggestion: {suggestion}");
             }
         }
     }
 
     // Example 6: Auto-correction demonstration
-    println!("\n🔧 Auto-correction demonstration...");
+    tracing::info!("\n🔧 Auto-correction demonstration...");
     match enhanced_error_handling() {
         Ok(result) => println!("✅ Auto-correction result: {result}"),
         Err(e) => println!("❌ Auto-correction failed: {e}"),
     }
 
-    println!("🎉 Web server error handling example completed successfully!");
+    tracing::error!("🎉 Web server error handling example completed successfully!");
     Ok(())
 }

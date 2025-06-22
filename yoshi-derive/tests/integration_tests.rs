@@ -34,8 +34,8 @@
 use std::error::Error;
 use std::fmt::{Debug, Display};
 use std::io;
+use yoshi_core::NoStdIo;
 use yoshi_derive::{yoshi_af, YoshiError};
-use yoshi_std::NoStdIo;
 
 //--------------------------------------------------------------------------------------------------
 // Basic Derive Tests - Fundamental Functionality
@@ -141,20 +141,14 @@ fn test_auto_inference_transient_detection() {
 //--------------------------------------------------------------------------------------------------
 
 #[derive(Debug, YoshiError)]
-#[yoshi(
-    default_severity = 150,
-    namespace = "test",
-    error_code_base = 1000,
-    generate_helpers = true
-)]
+#[yoshi(default_severity = 150, namespace = "test", generate_helpers = true)]
 enum ConfiguredError {
     #[yoshi(
         display = "Network connection failed: {message}",
         kind = "Network",
         severity = 200,
-        suggestion = "Check network connectivity and retry",
+        signpost = "Check network connectivity and retry",
         transient = true,
-        code = 1001,
         category = "connectivity"
     )]
     NetworkFailure { message: String },
@@ -163,15 +157,14 @@ enum ConfiguredError {
         display = "Authentication failed with code {code}",
         kind = "Security",
         severity = 220,
-        suggestion = "Verify credentials and permissions",
-        code = 1002
+        signpost = "Verify credentials and permissions"
     )]
     AuthFailure { code: u32 },
 
-    #[yoshi(transparent, code = 1003)]
+    #[yoshi(transparent)]
     Io(NoStdIo),
 
-    #[yoshi(from, code = 1004)]
+    #[yoshi(from)]
     Parse(serde_json::Error),
 }
 
@@ -208,7 +201,8 @@ fn test_transparent_forwarding() {
 
 #[test]
 fn test_from_trait_generation() {
-    let json_err = serde_json::from_str::<serde_json::Value>("invalid json").unwrap_err();
+    let json_err = serde_json::from_str::<serde_json::Value>("invalid json")
+        .expect_err("Expected JSON parsing to fail");
     let wrapped_err = ConfiguredError::from(json_err);
 
     assert!(matches!(wrapped_err, ConfiguredError::Parse(_)));
@@ -407,20 +401,20 @@ fn test_large_enum_helper_methods() {
 //--------------------------------------------------------------------------------------------------
 
 #[derive(Debug, YoshiError)]
-enum SimpleError {
-    #[yoshi(suggestion = "Check network connectivity")]
+enum AnyError {
+    #[yoshi(signpost = "Check network connectivity")]
     NetworkUnavailable,
 
-    #[yoshi(suggestion = "Validate input format")]
+    #[yoshi(signpost = "Validate input format")]
     InvalidJson { content: String },
 
-    #[yoshi(suggestion = "Check authentication")]
+    #[yoshi(signpost = "Check authentication")]
     Unauthorized,
 }
 
 #[test]
 fn test_simple_error_functionality() {
-    let err = SimpleError::NetworkUnavailable;
+    let err = AnyError::NetworkUnavailable;
 
     // Test basic functionality
     assert!(!format!("{err}").is_empty());
@@ -429,7 +423,7 @@ fn test_simple_error_functionality() {
 
 #[test]
 fn test_simple_error_with_fields() {
-    let json_err = SimpleError::InvalidJson {
+    let json_err = AnyError::InvalidJson {
         content: "invalid".to_string(),
     };
 
@@ -593,7 +587,8 @@ fn test_standard_library_integration() {
 #[test]
 fn test_json_integration() {
     let json_str = r#"{"invalid": json syntax}"#;
-    let json_err = serde_json::from_str::<serde_json::Value>(json_str).unwrap_err();
+    let json_err = serde_json::from_str::<serde_json::Value>(json_str)
+        .expect_err("Expected JSON parsing to fail");
     let integration_err = IntegrationError::from(json_err);
 
     assert!(matches!(integration_err, IntegrationError::Json(_)));
@@ -622,9 +617,12 @@ fn test_error_creation_performance() {
     let start = Instant::now();
 
     // Create many error instances to test performance
-    for i in 0..10000 {
-        let _err = BasicError::Network;
-        let _complex = ConfiguredError::AuthFailure { code: i as u32 };
+    for i in 0u32..10000 {
+        let err = BasicError::Network;
+        let complex = ConfiguredError::AuthFailure { code: i };
+        // Use the variables to avoid warnings
+        drop(err);
+        drop(complex);
     }
 
     let duration = start.elapsed();
@@ -750,7 +748,7 @@ fn test_all_error_types_compile_and_work() {
     let configured = ConfiguredError::AuthFailure { code: 401 };
     let source = SourceError::Chained(io::Error::other("test"));
     let large = LargeEnum::Variant1;
-    let autofix = SimpleError::NetworkUnavailable;
+    let autofix = AnyError::NetworkUnavailable;
     let validation = ValidationError::InvalidField {
         field: "test".to_string(),
         reason: "test".to_string(),

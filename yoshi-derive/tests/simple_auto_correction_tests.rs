@@ -129,9 +129,9 @@ fn test_code_transformation_engine() {
 
 #[test]
 fn test_autofix_generation() {
-    // Test that autofix suggestions are generated
+    // Test that autofix signposts are generated
     // The macro generates various autofix capabilities:
-    // - Autofix suggestions for error handling
+    // - Autofix signposts for error handling
     // - Quick fixes for common patterns
     // - LSP integration for IDE support
     // - Diagnostic information for developers
@@ -223,7 +223,7 @@ fn test_auto_correction_validation_summary() {
 
     // ✅ Pattern Detection Engine: Successfully identifies all Rust constructs
     // ✅ Code Transformation Engine: Applies appropriate enhancements
-    // ✅ Autofix Generation: Creates suggestions and quick fixes
+    // ✅ Autofix Generation: Creates signposts and quick fixes
     // ✅ LSP Integration: Provides IDE support capabilities
     // ✅ Comprehensive Support: Handles all major Rust constructs
     // ✅ Maximum Flexibility: User-friendly syntax requirements

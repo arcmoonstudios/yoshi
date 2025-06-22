@@ -217,9 +217,13 @@ fn test_auto_fixes_validation() {
 
     let fixes = error.auto_fixes();
     assert!(!fixes.is_empty());
-    assert!(fixes[0].description.contains("Expected"));
-    assert!(fixes[0].description.contains("user@domain.com"));
-    assert!(fixes[0].description.contains("invalid-email"));
+    assert!(fixes.first().unwrap().description.contains("Expected"));
+    assert!(fixes
+        .first()
+        .unwrap()
+        .description
+        .contains("user@domain.com"));
+    assert!(fixes.first().unwrap().description.contains("invalid-email"));
 }
 
 #[test]
@@ -232,9 +236,9 @@ fn test_auto_fixes_not_found() {
 
     let fixes = error.auto_fixes();
     assert!(!fixes.is_empty());
-    assert!(fixes[0].description.contains("Resource"));
-    assert!(fixes[0].description.contains("missing.txt"));
-    assert!(fixes[0].description.contains("file"));
+    assert!(fixes.first().unwrap().description.contains("Resource"));
+    assert!(fixes.first().unwrap().description.contains("missing.txt"));
+    assert!(fixes.first().unwrap().description.contains("file"));
 }
 
 #[test]
@@ -247,7 +251,11 @@ fn test_auto_fixes_generic() {
 
     let fixes = error.auto_fixes();
     assert!(!fixes.is_empty());
-    assert!(fixes[0].description.contains("Check the error details"));
+    assert!(fixes
+        .first()
+        .unwrap()
+        .description
+        .contains("Check the error details"));
 }
 
 #[test]
@@ -277,7 +285,7 @@ fn test_yoshi_autofix_structure() {
 
     assert_eq!(autofix.description.as_ref(), "Test fix description");
     assert_eq!(autofix.fix_code.as_ref(), "// Test fix code");
-    assert_eq!(autofix.confidence, 0.9);
+    assert!((autofix.confidence - 0.9).abs() < f32::EPSILON);
     assert_eq!(autofix.safety_level, YoshiCore::AutoFixSafetyLevel::Safe);
     assert!(autofix.target_file.is_some());
 }
@@ -294,7 +302,9 @@ fn test_autofix_safety_levels() {
 
     // Test ordering
     for i in 0..levels.len() - 1 {
-        assert!(levels[i] <= levels[i + 1]);
+        if let (Some(current), Some(next)) = (levels.get(i), levels.get(i + 1)) {
+            assert!(current <= next);
+        }
     }
 }
 

@@ -16,7 +16,7 @@ enum ComplexError {
 
 /// Test another enum variant
 #[derive(Debug, YoshiError)]
-enum SimpleError {
+enum AnyError {
     InvalidInput,
     NetworkTimeout,
     DatabaseError,
@@ -35,7 +35,7 @@ mod tests {
 
     #[test]
     fn test_simple_error_compiles() {
-        let _error = SimpleError::InvalidInput;
+        let _error = AnyError::InvalidInput;
         // If this compiles, the derive macro worked
         assert!(true);
     }
@@ -47,7 +47,7 @@ mod tests {
         let _complex = ComplexError::Database {
             _query: "SELECT * FROM test".to_string(),
         };
-        let _simple = SimpleError::NetworkTimeout;
+        let _simple = AnyError::NetworkTimeout;
 
         // If all these compile, VectorStream processing is working
         assert!(true);
@@ -78,10 +78,10 @@ mod tests {
             _ => panic!("Wrong variant"),
         }
 
-        // Test all variants of SimpleError
-        let _input = SimpleError::InvalidInput;
-        let _timeout = SimpleError::NetworkTimeout;
-        let _db = SimpleError::DatabaseError;
+        // Test all variants of AnyError
+        let _input = AnyError::InvalidInput;
+        let _timeout = AnyError::NetworkTimeout;
+        let _db = AnyError::DatabaseError;
 
         // If all compile, the macro handles all enum variants correctly
         assert!(true);

@@ -111,8 +111,8 @@ fn test_error_context_chaining() {
     error = error.with_metadata("user_id", "12345");
 
     // Verify metadata is accessible
-    let contexts: Vec<_> = error.contexts().collect();
-    assert!(!contexts.is_empty());
+    let nests: Vec<_> = error.nests().collect();
+    assert!(!nests.is_empty());
 }
 
 #[test]
@@ -140,10 +140,10 @@ fn test_error_suggestions() {
 
     error = error.with_signpost("Please provide a valid email address with proper domain");
 
-    assert!(error.suggestion().is_some());
+    assert!(error.signpost().is_some());
     assert!(error
-        .suggestion()
-        .expect("suggestion should be present")
+        .signpost()
+        .expect("signpost should be present")
         .contains("valid email"));
 }
 
@@ -252,5 +252,5 @@ fn test_error_chaining_basic() {
     let error_with_suggestion = error_with_metadata.with_signpost("Check configuration");
 
     // Verify components are present
-    assert!(error_with_suggestion.suggestion().is_some());
+    assert!(error_with_suggestion.signpost().is_some());
 }

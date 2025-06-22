@@ -59,7 +59,7 @@
 //! ```rust
 //! # #[cfg(feature = "std")]
 //! # {
-//! use yoshi_core::{Hatch, LayText, `HatchExt`, Hatchable, yum};
+//! use yoshi_core::{Hatch, LayText, HatchExt, Hatchable, yum};
 //!
 //! /// Example: File processing with rich error context
 //! fn process_data_file(path: &str) -> Hatch<String> {
@@ -271,8 +271,8 @@ mod serde_helpers {
 #[cfg(feature = "serde")]
 use serde_helpers::{
     deserialize_arc_str, deserialize_arc_str_desc, deserialize_arc_str_fix,
-    deserialize_arc_str_map, serialize_arc_str, serialize_arc_str_desc, serialize_arc_str_fix,
-    serialize_arc_str_map,
+    deserialize_arc_str_map, deserialize_arc_str_vec, serialize_arc_str, serialize_arc_str_desc,
+    serialize_arc_str_fix, serialize_arc_str_map, serialize_arc_str_vec,
 };
 
 //============================================================================
@@ -570,7 +570,7 @@ impl SystemTime {
     /// `Some(duration)` if this `SystemTime` is later than `earlier`,
     /// `None` if this `SystemTime` is earlier (negative duration not supported)
     #[must_use]
-    pub const fn duration_since(&self, earlier: SystemTime) -> Option<u64> {
+    pub const fn duration_since(&self, earlier: Self) -> Option<u64> {
         if self.timestamp >= earlier.timestamp {
             Some(self.timestamp - earlier.timestamp)
         } else {
@@ -998,10 +998,11 @@ pub fn get_error_count() -> usize {
 /// assert_ne!(hash, 0);
 /// ```
 #[inline]
+#[must_use]
 pub fn compute_strategy_hash(strategy_name: &str) -> StrategyHash {
     // FNV-1a hash algorithm - fast and good distribution
-    const FNV_OFFSET_BASIS: u64 = 14695981039346656037;
-    const FNV_PRIME: u64 = 1099511628211;
+    const FNV_OFFSET_BASIS: u64 = 14_695_981_039_346_656_037;
+    const FNV_PRIME: u64 = 1_099_511_628_211;
 
     let mut hash = FNV_OFFSET_BASIS;
     for byte in strategy_name.bytes() {
@@ -1015,10 +1016,11 @@ pub fn compute_strategy_hash(strategy_name: &str) -> StrategyHash {
 ///
 /// Computes a 32-bit hash for parameter identification.
 #[inline]
+#[must_use]
 pub fn compute_parameter_hash(parameter: &str) -> ParameterHash {
     // FNV-1a hash algorithm (32-bit version)
-    const FNV_OFFSET_BASIS: u32 = 2166136261;
-    const FNV_PRIME: u32 = 16777619;
+    const FNV_OFFSET_BASIS: u32 = 2_166_136_261;
+    const FNV_PRIME: u32 = 16_777_619;
 
     let mut hash = FNV_OFFSET_BASIS;
     for byte in parameter.bytes() {
@@ -1032,9 +1034,10 @@ pub fn compute_parameter_hash(parameter: &str) -> ParameterHash {
 ///
 /// Computes a 64-bit hash for error pattern identification.
 #[inline]
+#[must_use]
 pub fn compute_pattern_hash(error_type: &str, variant_name: &str) -> PatternHash {
     // Combine error type and variant name for unique pattern identification
-    let combined = format!("{}::{}", error_type, variant_name);
+    let combined = format!("{error_type}::{variant_name}");
     compute_strategy_hash(&combined)
 }
 
@@ -1042,6 +1045,7 @@ pub fn compute_pattern_hash(error_type: &str, variant_name: &str) -> PatternHash
 ///
 /// Computes a 32-bit hash for error category classification.
 #[inline]
+#[must_use]
 pub fn compute_category_hash(category: &str) -> CategoryHash {
     compute_parameter_hash(category)
 }
@@ -1077,6 +1081,7 @@ pub fn compute_category_hash(category: &str) -> CategoryHash {
 ///     }
 /// }
 /// ```
+#[must_use]
 pub fn create_custom_strategy(strategy_name: &str, parameters: &[&str]) -> ErrorRecoveryStrategy {
     ErrorRecoveryStrategy::Custom {
         strategy_hash: compute_strategy_hash(strategy_name),
@@ -1084,7 +1089,7 @@ pub fn create_custom_strategy(strategy_name: &str, parameters: &[&str]) -> Error
             .iter()
             .map(|p| compute_parameter_hash(p))
             .collect(),
-        parameter_count: parameters.len() as u8,
+        parameter_count: u8::try_from(parameters.len()).unwrap_or(255),
     }
 }
 
@@ -1092,7 +1097,7 @@ pub fn create_custom_strategy(strategy_name: &str, parameters: &[&str]) -> Error
 // YOSHI CORE API - COMPLETE NO-STD ERROR HANDLING ECOSYSTEM
 //============================================================================
 
-/// **YoshiCore API - Complete No-Std Error Handling Ecosystem**
+/// **`YoshiCore` API - Complete No-Std Error Handling Ecosystem**
 ///
 /// This module provides a single, comprehensive API for all no-std error handling needs.
 /// Import this module to get access to all core types, traits, and functionality without
@@ -1115,7 +1120,6 @@ pub fn create_custom_strategy(strategy_name: &str, parameters: &[&str]) -> Error
 /// ```
 #[allow(non_snake_case)]
 pub mod YoshiCore {
-    //! Complete no-std error handling API in a single namespace
 
     // Re-export all core types
     pub use super::{
@@ -1130,8 +1134,11 @@ pub mod YoshiCore {
         increment_error_counter,
         intern_string,
         AutoFixSafetyLevel,
+        AutofixEntry,
         CategoryHash,
         CircuitBreakerState,
+        ContextualAutofix,
+        DiagnosticInfo,
         ErrorPattern,
         ErrorPrediction,
         ErrorRecoveryStrategy,
@@ -1151,6 +1158,8 @@ pub mod YoshiCore {
         ThreadId,
         Yoshi,
         YoshiAutoFix,
+        // LSP autofix types
+        YoshiAutoFixable,
         YoshiKind,
         YoshiLocation,
     };
@@ -2518,6 +2527,14 @@ impl Display for NoStdIo {
 impl Error for NoStdIo {}
 
 //============================================================================
+// TRUE DYNAMIC ADAPTABILITY - BIDIRECTIONAL HATCH <-> RESULT CONVERSION
+//============================================================================
+
+// Note: Due to orphan rules, we use trait methods instead of From implementations
+
+// Duplicate HatchExt trait removed - using the original one below with dynamic adaptability extensions
+
+//============================================================================
 // CONTEXT AND LOCATION SYSTEM
 //============================================================================
 
@@ -2724,27 +2741,27 @@ macro_rules! yoshi_location {
 macro_rules! yum {
     ($err:expr) => {{
         let _y: &$crate::Yoshi = &$err;
-        #[cfg(feature = "std")]
-        eprintln!("🍽️  Yoshi consumed error [{}]: {}", _y.instance_id(), _y);
+        #[cfg(all(feature = "std", feature = "tracing"))]
+        tracing::error!("🍽️  Yoshi consumed error [{}]: {}", _y.instance_id(), _y);
         // Display enhanced error information
-        #[cfg(feature = "std")]
+        #[cfg(all(feature = "std", feature = "tracing"))]
         {
             if let Some(_laytext) = _y.laytext() {
-                eprintln!("   📝 Nest Message: {}", _laytext);
+                tracing::debug!("   📝 Nest Message: {}", _laytext);
             }
 
             if let Some(_signpost) = _y.signpost() {
-                eprintln!("   팻말 (Signpost): {}", _signpost);
+                tracing::info!("   팻말 (Signpost): {}", _signpost);
             }
 
             if let Some(_source_nest) = _y.source_nest() {
-                eprintln!("   🥚 Nested Error: {}", _source_nest);
+                tracing::error!("   🥚 Nested Error: {}", _source_nest);
             }
 
             // Analysis information
             let analysis = _y.analyze_nests();
             if analysis.total_nests > 0 {
-                eprintln!(
+                tracing::debug!(
                     "   📊 Analysis: {} nests, {} metadata entries, severity: {}",
                     analysis.total_nests,
                     analysis.metadata_entries,
@@ -2755,6 +2772,80 @@ macro_rules! yum {
 
         _y
     }};
+}
+
+//============================================================================
+// ENHANCED RESULT EXTENSIONS FOR DYNAMIC ADAPTABILITY
+//============================================================================
+
+/// **Result Extensions for seamless error conversion**
+///
+/// These extensions enable automatic conversion between `Result<T, Yoshi>` and
+/// `Result<T, AnyError>` for maximum compatibility with derive macros.
+pub trait ResultExt<T> {
+    /// Convert a `Result<T, Yoshi>` to `Result<T, AnyError>`
+    ///
+    /// # Errors
+    ///
+    /// Returns the converted error if the original result was an error.
+    fn into_any_error_result(self) -> Result<T, AnyError>;
+
+    /// Convert a `Result<T, AnyError>` to `Result<T, Yoshi>`
+    ///
+    /// # Errors
+    ///
+    /// Returns the converted error if the original result was an error.
+    fn into_yoshi_result(self) -> std::result::Result<T, Yoshi>;
+}
+
+impl<T> ResultExt<T> for std::result::Result<T, Yoshi> {
+    fn into_any_error_result(self) -> Result<T, AnyError> {
+        self.map_err(AnyError::from)
+    }
+
+    fn into_yoshi_result(self) -> std::result::Result<T, Yoshi> {
+        self
+    }
+}
+
+impl<T> ResultExt<T> for Result<T, AnyError> {
+    fn into_any_error_result(self) -> Result<T, AnyError> {
+        self
+    }
+
+    fn into_yoshi_result(self) -> std::result::Result<T, Yoshi> {
+        self.map_err(AnyError::into_yoshi)
+    }
+}
+
+//============================================================================
+// TRUE DYNAMIC ADAPTABILITY - HELPER FUNCTIONS FOR SEAMLESS CONVERSION
+//============================================================================
+
+/// **Convert any Result<T, E> to Result<T, `AnyError`> where E: Into<AnyError>**
+///
+/// This function provides universal compatibility - any Result type with an error
+/// that can convert to `AnyError` will automatically work with our Result type.
+///
+/// # Errors
+///
+/// Returns the converted error if the original result was an error.
+pub fn to_any_error_result<T, E>(result: std::result::Result<T, E>) -> Result<T, AnyError>
+where
+    E: Into<AnyError>,
+{
+    result.map_err(Into::into)
+}
+
+/// **Convert Result<T, `AnyError`> to Result<T, Yoshi>**
+///
+/// This function enables conversion from `AnyError` back to Yoshi when needed.
+///
+/// # Errors
+///
+/// Returns the converted error if the original result was an error.
+pub fn to_yoshi_result<T>(result: Result<T, AnyError>) -> std::result::Result<T, Yoshi> {
+    result.map_err(AnyError::into_yoshi)
 }
 
 /// Enhanced structured context with performance optimizations and type safety.
@@ -2983,6 +3074,87 @@ impl Nest {
         self
     }
 
+    /// Adds a suggestion with shared storage optimization (backwards compatibility alias).
+    ///
+    /// This method is an alias for [`with_signpost()`](Self::with_signpost) provided for backwards
+    /// compatibility with existing code that uses the `with_suggestion()` method name.
+    ///
+    /// # Arguments
+    ///
+    /// * `s` - The suggestion message, convertible to `String`
+    ///
+    /// # Returns
+    ///
+    /// The `Nest` instance with the suggestion added.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use yoshi_core::Nest;
+    ///
+    /// let nest = Nest::new("File not found")
+    ///     .with_suggestion("Ensure the file path is correct and accessible.");
+    ///
+    /// assert_eq!(nest.suggestion.as_deref(), Some("Ensure the file path is correct and accessible."));
+    /// ```
+    #[must_use]
+    #[inline]
+    pub fn with_suggestion(self, s: impl Into<String>) -> Self {
+        self.with_signpost(s)
+    }
+
+    /// Returns the suggestion from this nest (backwards compatibility alias).
+    ///
+    /// This method provides direct access to the suggestion field for backwards
+    /// compatibility with existing code that uses the `suggestion()` method name.
+    ///
+    /// # Returns
+    ///
+    /// An `Option` containing a reference to the suggestion string, or `None`
+    /// if no suggestion is available.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use yoshi_core::Nest;
+    ///
+    /// let nest = Nest::new("File not found")
+    ///     .with_signpost("Check the file path");
+    ///
+    /// assert_eq!(nest.suggestion(), Some("Check the file path"));
+    /// ```
+    #[inline]
+    #[must_use]
+    pub fn suggestion(&self) -> Option<&str> {
+        self.suggestion.as_deref()
+    }
+
+    /// Returns the signpost from this nest.
+    ///
+    /// This method provides direct access to the suggestion field using the
+    /// preferred "signpost" terminology.
+    ///
+    /// # Returns
+    ///
+    /// An `Option` containing a reference to the signpost string, or `None`
+    /// if no signpost is available.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use yoshi_core::Nest;
+    ///
+    /// let nest = Nest::new("File not found")
+    ///     .with_signpost("Check the file path");
+    ///
+    /// assert_eq!(nest.signpost(), Some("Check the file path"));
+    /// ```
+    #[inline]
+    #[must_use]
+    pub fn signpost(&self) -> Option<&str> {
+        self.suggestion.as_deref()
+    }
+
     /// Attaches a typed shell with enhanced type safety.
     ///
     /// This method allows attaching typed payloads with better type tracking
@@ -3120,7 +3292,7 @@ impl Nest {
     /// ```
     #[must_use]
     #[inline]
-    pub fn with_priority(mut self, priority: u8) -> Self {
+    pub const fn with_priority(mut self, priority: u8) -> Self {
         self.priority = priority;
         self
     }
@@ -3153,7 +3325,7 @@ impl Nest {
     /// ```
     #[must_use]
     #[inline]
-    pub fn with_location(mut self, location: YoshiLocation) -> Self {
+    pub const fn with_location(mut self, location: YoshiLocation) -> Self {
         self.location = Some(location);
         self
     }
@@ -3312,7 +3484,7 @@ impl YoshiBacktrace {
     ///
     /// This provides compatibility with the std backtrace status API.
     #[must_use]
-    pub fn status(&self) -> BacktraceStatus {
+    pub const fn status(&self) -> BacktraceStatus {
         if self.locations.is_empty() {
             BacktraceStatus::Disabled
         } else {
@@ -4244,6 +4416,35 @@ impl Yoshi {
         self.nests.last()
     }
 
+    /// Returns the primary nest (backwards compatibility alias).
+    ///
+    /// This method is an alias for [`primary_nest()`](Self::primary_nest) provided for backwards
+    /// compatibility with existing code that uses the `primary_context()` method name.
+    ///
+    /// # Returns
+    ///
+    /// An `Option` containing a reference to the primary `Nest`, or `None` if no nests exist.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use yoshi_core::{Yoshi, YoshiKind};
+    ///
+    /// let err = Yoshi::new(YoshiKind::Internal {
+    ///     message: "base error".into(),
+    ///     source: None,
+    ///     component: None,
+    /// })
+    /// .nest("primary context");
+    ///
+    /// assert!(err.primary_context().is_some());
+    /// ```
+    #[inline]
+    #[must_use]
+    pub fn primary_context(&self) -> Option<&Nest> {
+        self.primary_nest()
+    }
+
     /// Returns an iterator over all nests associated with this error.
     ///
     /// Nests are ordered from oldest (first added) to newest (most recent, primary).
@@ -4277,6 +4478,38 @@ impl Yoshi {
         self.nests.iter()
     }
 
+    /// Returns an iterator over all nests (backwards compatibility alias).
+    ///
+    /// This method is an alias for [`nests()`](Self::nests) provided for backwards
+    /// compatibility with existing code that uses the `contexts()` method name.
+    ///
+    /// # Returns
+    ///
+    /// An iterator over references to all `Nest` instances attached to this error.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use yoshi_core::{Yoshi, YoshiKind};
+    ///
+    /// let err = Yoshi::new(YoshiKind::Internal {
+    ///     message: "base error".into(),
+    ///     source: None,
+    ///     component: None,
+    /// })
+    /// .nest("context 1")
+    /// .nest("context 2");
+    ///
+    /// let messages: Vec<_> = err.contexts()
+    ///     .filter_map(|c| c.message.as_deref())
+    ///     .collect();
+    /// assert_eq!(messages, vec!["context 1", "context 2"]);
+    /// ```
+    #[inline]
+    pub fn contexts(&self) -> impl Iterator<Item = &Nest> {
+        self.nests()
+    }
+
     /// Returns the suggestion from the primary nest, if any.
     ///
     /// This is a convenience method to quickly access the most relevant
@@ -4306,6 +4539,37 @@ impl Yoshi {
     pub fn signpost(&self) -> Option<&str> {
         self.primary_nest()
             .and_then(|nest| nest.suggestion.as_deref())
+    }
+
+    /// Returns the suggestion from the primary nest, if any (backwards compatibility alias).
+    ///
+    /// This method is an alias for [`signpost()`](Self::signpost) provided for backwards
+    /// compatibility with existing code that uses the `suggestion()` method name.
+    ///
+    /// # Returns
+    ///
+    /// An `Option` containing a reference to the suggestion string, or `None`
+    /// if no suggestion is available.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use yoshi_core::{Yoshi, YoshiKind};
+    /// # use std::io;
+    ///
+    /// # #[cfg(feature = "std")]
+    /// # {
+    /// let io_error = io::Error::new(io::ErrorKind::PermissionDenied, "access denied");
+    /// let err = Yoshi::from(io_error)
+    ///     .with_signpost("Check file permissions.");
+    ///
+    /// assert_eq!(err.suggestion().unwrap(), "Check file permissions.");
+    /// # }
+    /// ```
+    #[inline]
+    #[must_use]
+    pub fn suggestion(&self) -> Option<&str> {
+        self.signpost()
     }
 
     /// Returns a typed shell from any nest, if any.
@@ -4357,7 +4621,7 @@ impl Yoshi {
     ///
     /// This method provides thematic access to the underlying error source while
     /// maintaining full backwards compatibility with the standard `Error` trait.
-    /// The name "source_nest" evokes the idea of errors being nested within each other,
+    /// The name "`source_nest`" evokes the idea of errors being nested within each other,
     /// like eggs in a nest.
     ///
     /// # Returns
@@ -4454,6 +4718,40 @@ impl Yoshi {
     #[inline]
     #[must_use]
     pub fn lay(self, msg: impl Into<String>) -> Self {
+        self.nest(msg)
+    }
+
+    /// Adds contextual information using the `.context()` method (backwards compatibility alias).
+    ///
+    /// This method is an alias for [`nest()`](Self::nest) provided for backwards
+    /// compatibility with existing code that uses the `context()` method name.
+    ///
+    /// # Arguments
+    ///
+    /// * `msg` - The context message to attach.
+    ///
+    /// # Returns
+    ///
+    /// The modified `Yoshi` error instance with the new context.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use yoshi_core::{Yoshi, YoshiKind};
+    ///
+    /// let err = Yoshi::new(YoshiKind::Internal {
+    ///     message: "base error".into(),
+    ///     source: None,
+    ///     component: None,
+    /// })
+    /// .context("while processing request");
+    ///
+    /// assert!(err.to_string().contains("while processing request"));
+    /// ```
+    #[track_caller]
+    #[inline]
+    #[must_use]
+    pub fn context(self, msg: impl Into<String>) -> Self {
         self.nest(msg)
     }
 
@@ -4746,7 +5044,7 @@ impl Error for Yoshi {
 ///             message: "Division by zero is not allowed".into(),
 ///             expected: Some("non-zero".into()),
 ///             actual: Some("0.0".into()),
-///         }));
+///         }).into());
 ///     }
 ///     Ok(a / b)
 /// }
@@ -4755,11 +5053,30 @@ impl Error for Yoshi {
 /// assert!(result.is_ok());
 /// assert_eq!(result.unwrap(), 5.0);
 /// ```
-/// Performance-optimized Result alias for `no_std` builds.
+/// **Primary Result Type - Drop-in replacement for `anyhow::Result`**
+///
+/// This is the main Result type that defaults to `AnyError`, providing seamless
+/// compatibility with existing error handling patterns while enabling all
+/// Yoshi's advanced features.
+///
+/// # Examples
+///
+/// ```rust
+/// use yoshi_core::{Result, AnyError};
+///
+/// fn might_fail() -> Result<String> {
+///     Ok("success".to_string())
+/// }
+/// ```
+pub type Result<T, E = AnyError> = core::result::Result<T, E>;
+
+/// **Yoshi-specific Result Type**
 ///
 /// This type alias simplifies the use of `Result` where the error type is
 /// fixed to [`Yoshi`]. Uses `core::result::Result` for `no_std` compatibility.
-pub type Result<T, E = Yoshi> = core::result::Result<T, E>;
+pub type YoshiResult<T> = core::result::Result<T, Yoshi>;
+
+// DynamicResult defined later in the file with bidirectional conversion support
 
 /// Ergonomic type alias for `Result<T, Yoshi>` with thematic naming (PRESERVED).
 ///
@@ -4940,7 +5257,7 @@ pub trait LayText<T> {
 
 impl<T> LayText<T> for Hatch<T> {
     #[track_caller]
-    fn lay(self, message: impl Into<String>) -> Hatch<T> {
+    fn lay(self, message: impl Into<String>) -> Self {
         self.map_err(|e| e.lay(message))
     }
 }
@@ -5002,6 +5319,29 @@ pub trait HatchExt<T>
 where
     Self: Sized,
 {
+    /// **TRUE DYNAMIC ADAPTABILITY**: Convert a Hatch<T> to Result<T>
+    ///
+    /// # Errors
+    ///
+    /// Returns the converted error if the original result was an error.
+    fn to_result(self) -> Result<T>;
+
+    /// **TRUE DYNAMIC ADAPTABILITY**: Convert a Result<T> to Hatch<T>
+    ///
+    /// # Errors
+    ///
+    /// Returns the converted error if the original result was an error.
+    fn to_hatch(self) -> Hatch<T>;
+
+    /// **TRUE DYNAMIC ADAPTABILITY**: Create an error result from any type that converts to the appropriate error type
+    fn from_error<E>(error: E) -> Self
+    where
+        E: Into<AnyError>;
+
+    /// **TRUE DYNAMIC ADAPTABILITY**: Add context to an error result (alias for nest)
+    #[must_use]
+    fn context(self, context: impl Into<String>) -> Self;
+
     /// Builds a nest around the error, adding a contextual message.
     ///
     /// If `self` is `Ok`, it is returned unchanged. If `self` is `Err`, its error
@@ -5126,32 +5466,49 @@ where
     fn meta(self, k: impl Into<String>, v: impl Into<String>) -> Hatch<T>;
 }
 
-impl<T, E> HatchExt<T> for core::result::Result<T, E>
-where
-    E: Into<Yoshi>,
-{
+/// **Implementation for Hatch<T> (Result<T, Yoshi>)**
+impl<T> HatchExt<T> for Hatch<T> {
+    fn to_result(self) -> Result<T> {
+        self.map_err(AnyError::from)
+    }
+
+    fn to_hatch(self) -> Hatch<T> {
+        self
+    }
+
+    fn from_error<E>(error: E) -> Self
+    where
+        E: Into<AnyError>,
+    {
+        Err(error.into().into_yoshi())
+    }
+
+    fn context(self, context: impl Into<String>) -> Self {
+        self.nest(context)
+    }
+
     #[track_caller]
     #[inline]
     fn nest(self, msg: impl Into<String>) -> Hatch<T> {
-        self.map_err(|e| e.into().nest(msg))
+        self.map_err(|e| e.nest(msg))
     }
 
     #[track_caller]
     #[inline]
     fn with_signpost(self, s: impl Into<String>) -> Hatch<T> {
-        self.map_err(|e| e.into().with_signpost(s))
+        self.map_err(|e| e.with_signpost(s))
     }
 
     #[track_caller]
     #[inline]
     fn with_shell(self, p: impl Any + Send + Sync + 'static) -> Hatch<T> {
-        self.map_err(|e| e.into().with_shell(p))
+        self.map_err(|e| e.with_shell(p))
     }
 
     #[track_caller]
     #[inline]
     fn with_priority(self, priority: u8) -> Hatch<T> {
-        self.map_err(|e| e.into().with_priority(priority))
+        self.map_err(|e| e.with_priority(priority))
     }
 
     #[track_caller]
@@ -5169,7 +5526,135 @@ where
     #[track_caller]
     #[inline]
     fn meta(self, k: impl Into<String>, v: impl Into<String>) -> Hatch<T> {
-        self.map_err(|e| e.into().with_metadata(k, v))
+        self.map_err(|e| e.with_metadata(k, v))
+    }
+}
+
+/// **Implementation for Result<T> (Result<T, AnyError>)**
+impl<T> HatchExt<T> for Result<T> {
+    fn to_result(self) -> Result<T> {
+        self
+    }
+
+    fn to_hatch(self) -> Hatch<T> {
+        self.map_err(AnyError::into_yoshi)
+    }
+
+    fn from_error<E>(error: E) -> Self
+    where
+        E: Into<AnyError>,
+    {
+        Err(error.into())
+    }
+
+    fn context(self, context: impl Into<String>) -> Self {
+        self.map_err(|e| e.context(context.into()))
+    }
+
+    #[track_caller]
+    #[inline]
+    fn nest(self, msg: impl Into<String>) -> Hatch<T> {
+        self.map_err(|e| e.into_yoshi().nest(msg))
+    }
+
+    #[track_caller]
+    #[inline]
+    fn with_signpost(self, s: impl Into<String>) -> Hatch<T> {
+        self.map_err(|e| e.into_yoshi().with_signpost(s))
+    }
+
+    #[track_caller]
+    #[inline]
+    fn with_shell(self, p: impl Any + Send + Sync + 'static) -> Hatch<T> {
+        self.map_err(|e| e.into_yoshi().with_shell(p))
+    }
+
+    #[track_caller]
+    #[inline]
+    fn with_priority(self, priority: u8) -> Hatch<T> {
+        self.map_err(|e| e.into_yoshi().with_priority(priority))
+    }
+
+    #[track_caller]
+    #[inline]
+    fn nst(self, msg: impl Into<String>) -> Hatch<T> {
+        self.nest(msg)
+    }
+
+    #[track_caller]
+    #[inline]
+    fn help(self, s: impl Into<String>) -> Hatch<T> {
+        self.with_signpost(s)
+    }
+
+    #[track_caller]
+    #[inline]
+    fn meta(self, k: impl Into<String>, v: impl Into<String>) -> Hatch<T> {
+        self.map_err(|e| e.into_yoshi().with_metadata(k, v))
+    }
+}
+
+/// **Implementation for Result<T, String> - commonly used in tests**
+impl<T> HatchExt<T> for core::result::Result<T, String> {
+    fn to_result(self) -> Result<T> {
+        self.map_err(|e| AnyError::from(Yoshi::from(e)))
+    }
+
+    fn to_hatch(self) -> Hatch<T> {
+        self.map_err(Into::into)
+    }
+
+    fn from_error<E>(error: E) -> Self
+    where
+        E: Into<AnyError>,
+    {
+        Err(error.into().into_yoshi().to_string())
+    }
+
+    fn context(self, context: impl Into<String>) -> Self {
+        self.map_err(|e| Yoshi::from(e).nest(context.into()).to_string())
+    }
+
+    #[track_caller]
+    #[inline]
+    fn nest(self, msg: impl Into<String>) -> Hatch<T> {
+        self.map_err(|e| Yoshi::from(e).nest(msg))
+    }
+
+    #[track_caller]
+    #[inline]
+    fn with_signpost(self, s: impl Into<String>) -> Hatch<T> {
+        self.map_err(|e| Yoshi::from(e).with_signpost(s))
+    }
+
+    #[track_caller]
+    #[inline]
+    fn with_shell(self, p: impl Any + Send + Sync + 'static) -> Hatch<T> {
+        self.map_err(|e| Yoshi::from(e).with_shell(p))
+    }
+
+    #[track_caller]
+    #[inline]
+    fn with_priority(self, priority: u8) -> Hatch<T> {
+        self.map_err(|e| Yoshi::from(e).with_priority(priority))
+    }
+
+    #[track_caller]
+    #[inline]
+    fn nst(self, msg: impl Into<String>) -> Hatch<T> {
+        self.nest(msg)
+    }
+
+    #[track_caller]
+    #[inline]
+    fn help(self, s: impl Into<String>) -> Hatch<T> {
+        self.with_signpost(s)
+    }
+
+    #[track_caller]
+    #[inline]
+    fn meta(self, k: impl Into<String>, v: impl Into<String>) -> Hatch<T> {
+        self.map_err(|e| Yoshi::from(e).with_metadata(k, v))
     }
 }
 
@@ -5194,7 +5679,7 @@ impl From<String> for Yoshi {
     /// ```
     #[track_caller]
     fn from(s: String) -> Self {
-        Yoshi::new(YoshiKind::Internal {
+        Self::new(YoshiKind::Internal {
             message: s.into(),
             source: None,
             component: None,
@@ -5219,7 +5704,7 @@ impl From<&str> for Yoshi {
     /// ```
     #[track_caller]
     fn from(s: &str) -> Self {
-        Yoshi::new(YoshiKind::Internal {
+        Self::new(YoshiKind::Internal {
             message: s.to_string().into(),
             source: None,
             component: None,
@@ -5242,7 +5727,7 @@ impl From<NoStdIo> for Yoshi {
     /// ```
     #[track_caller]
     fn from(e: NoStdIo) -> Self {
-        Yoshi::new(YoshiKind::Io(e))
+        Self::new(YoshiKind::Io(e))
     }
 }
 
@@ -5269,7 +5754,7 @@ impl From<std::io::Error> for Yoshi {
     #[track_caller]
     fn from(error: std::io::Error) -> Self {
         let no_std_io = NoStdIo::from_std_io_error(&error);
-        Yoshi::new(YoshiKind::Io(no_std_io))
+        Self::new(YoshiKind::Io(no_std_io))
     }
 }
 
@@ -5282,7 +5767,7 @@ impl From<std::time::SystemTimeError> for Yoshi {
     /// preserving the original error information.
     #[track_caller]
     fn from(error: std::time::SystemTimeError) -> Self {
-        Yoshi::new(YoshiKind::Internal {
+        Self::new(YoshiKind::Internal {
             message: format!("System time error: {error}").into(),
             source: None,
             component: Some("system_time".into()),
@@ -5299,12 +5784,12 @@ impl From<std::env::VarError> for Yoshi {
     #[track_caller]
     fn from(error: std::env::VarError) -> Self {
         match error {
-            std::env::VarError::NotPresent => Yoshi::new(YoshiKind::Config {
+            std::env::VarError::NotPresent => Self::new(YoshiKind::Config {
                 message: "Environment variable not present".into(),
                 source: None,
                 config_path: Some("environment_variables".into()),
             }),
-            std::env::VarError::NotUnicode(_) => Yoshi::new(YoshiKind::Config {
+            std::env::VarError::NotUnicode(_) => Self::new(YoshiKind::Config {
                 message: "Environment variable contains invalid Unicode".into(),
                 source: None,
                 config_path: Some("environment_variables".into()),
@@ -5321,7 +5806,7 @@ impl From<tokio::sync::AcquireError> for Yoshi {
     /// The semaphore acquisition error is wrapped in a `YoshiKind::ResourceExhausted` variant.
     #[track_caller]
     fn from(_error: tokio::sync::AcquireError) -> Self {
-        Yoshi::new(YoshiKind::ResourceExhausted {
+        Self::new(YoshiKind::ResourceExhausted {
             resource: "semaphore".into(),
             limit: "semaphore_permits".into(),
             current: "all_permits_acquired".into(),
@@ -5439,4 +5924,625 @@ pub struct YoshiAutoFix {
     pub range: Option<Range>,
 }
 
+/// **DIAGNOSTIC INFORMATION** - Comprehensive error diagnostic data for LSP integration.
+///
+/// This struct provides detailed information about errors for IDE integration,
+/// autofix suggestions, and enhanced developer experience.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct DiagnosticInfo {
+    /// The type name of the error
+    pub error_type: &'static str,
+    /// The specific variant name
+    pub variant: &'static str,
+    /// Whether autofix suggestions are available
+    pub autofix_available: bool,
+    /// Number of quick fixes available
+    pub quick_fix_count: usize,
+    /// Number of metadata entries
+    pub metadata_count: usize,
+}
+
+/// Trait for LSP autofix integration - defines interface for error autofix suggestions
+///
+/// This trait provides comprehensive autofix capabilities for LSP integration with
+/// compile-time optimization and runtime introspection capabilities.
+pub trait YoshiAutoFixable {
+    /// Returns all available autofix suggestions for this error type
+    fn autofix_suggestions() -> &'static [AutofixEntry];
+
+    /// Returns the specific autofix suggestion for this error variant instance
+    fn variant_autofix(&self) -> Option<&'static AutofixEntry> {
+        let variant_name = self.variant_name();
+        Self::autofix_suggestions()
+            .iter()
+            .find(|entry| entry.variant_name.as_ref() == variant_name)
+    }
+
+    /// Returns quick fixes for this error variant instance
+    fn quick_fixes(&self) -> &'static [&'static str];
+
+    /// Enhanced LSP integration: Get autofix suggestion with variant context
+    fn contextual_autofix(&self) -> Option<ContextualAutofix> {
+        self.variant_autofix().map(|entry| ContextualAutofix {
+            entry: entry.clone(),
+            context: alloc::collections::BTreeMap::new(),
+            related_errors: alloc::vec::Vec::new(),
+        })
+    }
+
+    /// Get the variant name for this error instance
+    fn variant_name(&self) -> &'static str;
+}
+
+/// Autofix entry for LSP integration with comprehensive metadata
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct AutofixEntry {
+    /// Error variant name for diagnostic correlation
+    #[cfg_attr(
+        feature = "serde",
+        serde(
+            serialize_with = "serialize_arc_str_desc",
+            deserialize_with = "deserialize_arc_str_desc"
+        )
+    )]
+    pub variant_name: Arc<str>,
+    /// Autofix suggestion text for IDE code actions
+    #[cfg_attr(
+        feature = "serde",
+        serde(
+            serialize_with = "serialize_arc_str_desc",
+            deserialize_with = "deserialize_arc_str_desc"
+        )
+    )]
+    pub suggestion: Arc<str>,
+    /// Category for error classification
+    #[cfg_attr(
+        feature = "serde",
+        serde(
+            serialize_with = "serialize_arc_str_desc",
+            deserialize_with = "deserialize_arc_str_desc"
+        )
+    )]
+    pub category: Arc<str>,
+    /// Severity level for prioritization
+    #[cfg_attr(
+        feature = "serde",
+        serde(
+            serialize_with = "serialize_arc_str_desc",
+            deserialize_with = "deserialize_arc_str_desc"
+        )
+    )]
+    pub severity: Arc<str>,
+    /// Confidence level (0.0-1.0)
+    pub confidence: f64,
+}
+
+/// Contextual autofix information with enhanced error correlation
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct ContextualAutofix {
+    /// The base autofix entry
+    pub entry: AutofixEntry,
+    /// Error context for enhanced diagnostics (using `BTreeMap` for no-std compatibility)
+    #[cfg_attr(
+        feature = "serde",
+        serde(
+            serialize_with = "serialize_arc_str_map",
+            deserialize_with = "deserialize_arc_str_map"
+        )
+    )]
+    pub context: alloc::collections::BTreeMap<Arc<str>, Arc<str>>,
+    /// Related error information
+    #[cfg_attr(
+        feature = "serde",
+        serde(
+            serialize_with = "serialize_arc_str_vec",
+            deserialize_with = "deserialize_arc_str_vec"
+        )
+    )]
+    pub related_errors: alloc::vec::Vec<Arc<str>>,
+}
+
 // Duplicate ErrorRecoveryStrategy removed - using the one defined earlier
+
+//============================================================================
+// ANYERROR - UNIVERSAL ERROR TYPE FOR TRUE DYNAMIC ADAPTABILITY
+//============================================================================
+
+/// **`AnyError` Type - Universal error wrapper for seamless interoperability**
+///
+/// This provides a simple interface that's compatible with existing error handling
+/// while preserving all of Yoshi's advanced features. By placing this in yoshi-core,
+/// we enable true dynamic adaptability without circular dependencies.
+///
+/// The derive macros can generate implementations for both `Yoshi` and `AnyError`
+/// directly, enabling seamless interoperability in all contexts.
+///
+/// # Design Philosophy
+///
+/// - **True Dynamic Adaptability**: No manual `.into()` calls required
+/// - **Zero Circular Dependencies**: Lives in core, accessible everywhere
+/// - **Full Feature Preservation**: All Yoshi capabilities available
+/// - **Production Ready**: Handles all edge cases automatically
+///
+/// # Examples
+///
+/// ```rust
+/// use yoshi_core::{AnyError, Yoshi, YoshiKind};
+///
+/// // Create from message
+/// let err = AnyError::new("Something went wrong");
+///
+/// // Convert from Yoshi
+/// let yoshi_err = Yoshi::new(YoshiKind::Internal {
+///     message: "Internal error".into(),
+///     source: None,
+///     component: None,
+/// });
+/// let any_err = AnyError::from(yoshi_err);
+///
+/// // Access underlying Yoshi features
+/// let underlying = any_err.yoshi();
+/// ```
+#[derive(Debug, Clone)]
+pub struct AnyError {
+    /// The underlying Yoshi error with all advanced features
+    inner: Yoshi,
+}
+
+impl AnyError {
+    /// Create a new `AnyError` from a message
+    ///
+    /// This creates an `Internal` error kind with the provided message.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use yoshi_core::AnyError;
+    ///
+    /// let err = AnyError::new("Database connection failed");
+    /// assert!(err.to_string().contains("Database connection failed"));
+    /// ```
+    pub fn new(message: impl Into<String>) -> Self {
+        Self {
+            inner: Yoshi::new(YoshiKind::Internal {
+                message: message.into().into(),
+                source: None,
+                component: None,
+            }),
+        }
+    }
+
+    /// Create a `AnyError` from any error type (std environments only)
+    ///
+    /// This method is only available when the `std` feature is enabled,
+    /// as it requires the `std::error::Error` trait.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # #[cfg(feature = "std")]
+    /// # {
+    /// use yoshi_core::AnyError;
+    /// use std::io;
+    ///
+    /// let io_err = io::Error::new(io::ErrorKind::NotFound, "file not found");
+    /// let any_err = AnyError::from_error(io_err);
+    /// # }
+    /// ```
+    #[cfg(feature = "std")]
+    pub fn from_error(error: impl std::error::Error + Send + Sync + 'static) -> Self {
+        Self {
+            inner: Yoshi::foreign(error),
+        }
+    }
+
+    /// Add context to this error (like `anyhow::Context`)
+    ///
+    /// This method adds contextual information to the error, creating
+    /// a nested error chain that preserves the original error while
+    /// adding additional context.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use yoshi_core::AnyError;
+    ///
+    /// let err = AnyError::new("Connection failed")
+    ///     .context("While connecting to database")
+    ///     .context("During application startup");
+    ///
+    /// let error_string = err.to_string();
+    /// assert!(error_string.contains("Connection failed"));
+    /// assert!(error_string.contains("While connecting to database"));
+    /// ```
+    #[must_use]
+    pub fn context(mut self, msg: impl Into<String>) -> Self {
+        self.inner = self.inner.nest(msg.into());
+        self
+    }
+
+    /// Get the underlying Yoshi error for advanced features
+    ///
+    /// This provides access to all of Yoshi's advanced error handling
+    /// capabilities while maintaining the simple `AnyError` interface.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use yoshi_core::{AnyError, YoshiKind};
+    ///
+    /// let err = AnyError::new("Test error");
+    /// let yoshi = err.yoshi();
+    ///
+    /// // Access Yoshi-specific features
+    /// assert_eq!(yoshi.instance_id() > 0, true);
+    /// ```
+    #[must_use]
+    pub const fn yoshi(&self) -> &Yoshi {
+        &self.inner
+    }
+
+    /// Convert into the underlying Yoshi error
+    ///
+    /// This consumes the `AnyError` and returns the underlying Yoshi,
+    /// useful when you need direct access to Yoshi-specific methods.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use yoshi_core::AnyError;
+    ///
+    /// let err = AnyError::new("Test error");
+    /// let yoshi = err.into_yoshi();
+    ///
+    /// // Now you have direct access to Yoshi methods
+    /// assert!(yoshi.instance_id() > 0);
+    /// ```
+    #[must_use]
+    pub fn into_yoshi(self) -> Yoshi {
+        self.inner
+    }
+
+    /// Get an iterator over the nests (context chain) of this error
+    ///
+    /// This provides access to the underlying Yoshi's nest chain for compatibility
+    /// with existing code that expects to iterate over error contexts.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use yoshi_core::AnyError;
+    ///
+    /// let err = AnyError::new("Base error")
+    ///     .context("Level 1")
+    ///     .context("Level 2");
+    ///
+    /// let nests: Vec<_> = err.nests().collect();
+    /// assert_eq!(nests.len(), 2);
+    /// ```
+    pub fn nests(&self) -> impl Iterator<Item = &Nest> {
+        self.inner.nests()
+    }
+
+    /// Get the signpost (autofix suggestion) for this error, if any
+    ///
+    /// This provides access to the underlying Yoshi's signpost for compatibility
+    /// with existing code that expects autofix suggestions.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use yoshi_core::AnyError;
+    ///
+    /// let mut err = AnyError::new("Test error");
+    /// assert!(err.signpost().is_none());
+    ///
+    /// err = err.with_signpost("Try this fix");
+    /// assert!(err.signpost().is_some());
+    /// ```
+    #[must_use]
+    pub fn signpost(&self) -> Option<&str> {
+        self.inner.signpost()
+    }
+
+    /// Add a signpost (autofix suggestion) to this error
+    ///
+    /// This provides a way to add autofix suggestions through the `AnyError` interface.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use yoshi_core::AnyError;
+    ///
+    /// let err = AnyError::new("Test error")
+    ///     .with_signpost("Try this fix");
+    ///
+    /// assert!(err.signpost().is_some());
+    /// ```
+    #[must_use]
+    pub fn with_signpost(mut self, suggestion: impl Into<String>) -> Self {
+        self.inner = self.inner.with_signpost(suggestion);
+        self
+    }
+}
+
+//============================================================================
+// CONVERSION IMPLEMENTATIONS FOR TRUE DYNAMIC ADAPTABILITY
+//============================================================================
+
+impl From<Yoshi> for AnyError {
+    fn from(yoshi: Yoshi) -> Self {
+        Self { inner: yoshi }
+    }
+}
+
+impl From<AnyError> for Yoshi {
+    fn from(any_error: AnyError) -> Self {
+        any_error.inner
+    }
+}
+
+//============================================================================
+// TRUE DYNAMIC ADAPTABILITY - CUSTOM RESULT TYPE WITH AUTOMATIC CONVERSIONS
+//============================================================================
+
+/// **Dynamic Result Type - True bidirectional adaptability between Yoshi and `AnyError`**
+///
+/// This Result type provides seamless interoperability between Yoshi and `AnyError`,
+/// automatically converting in both directions without manual `.into()` calls.
+/// This is the key to achieving true dynamic adaptability.
+#[derive(Debug, Clone)]
+pub enum DynamicResult<T> {
+    /// Success value
+    Ok(T),
+    /// Error value that can be either Yoshi or `AnyError`
+    Err(AnyError),
+}
+
+impl<T> DynamicResult<T> {
+    /// Create an Ok result
+    pub const fn ok(value: T) -> Self {
+        Self::Ok(value)
+    }
+
+    /// Create an error result from any type that can convert to `AnyError`
+    pub fn error<E>(error: E) -> Self
+    where
+        E: Into<AnyError>,
+    {
+        Self::Err(error.into())
+    }
+
+    /// Check if the result is Ok
+    pub const fn is_ok(&self) -> bool {
+        matches!(self, Self::Ok(_))
+    }
+
+    /// Check if the result is Err
+    pub const fn is_err(&self) -> bool {
+        matches!(self, Self::Err(_))
+    }
+
+    /// Convert to `core::result::Result`<T, AnyError>
+    ///
+    /// # Errors
+    ///
+    /// Returns the error if the result was an error.
+    pub fn into_any_error_result(self) -> core::result::Result<T, AnyError> {
+        match self {
+            Self::Ok(val) => Ok(val),
+            Self::Err(err) => Err(err),
+        }
+    }
+
+    /// Convert to `core::result::Result`<T, Yoshi>
+    ///
+    /// # Errors
+    ///
+    /// Returns the converted error if the result was an error.
+    pub fn into_yoshi_result(self) -> core::result::Result<T, Yoshi> {
+        match self {
+            Self::Ok(val) => Ok(val),
+            Self::Err(err) => Err(err.into_yoshi()),
+        }
+    }
+
+    /// Map the Ok value
+    pub fn map<U, F>(self, f: F) -> DynamicResult<U>
+    where
+        F: FnOnce(T) -> U,
+    {
+        match self {
+            Self::Ok(val) => DynamicResult::Ok(f(val)),
+            Self::Err(err) => DynamicResult::Err(err),
+        }
+    }
+
+    /// Map the Err value
+    pub fn map_err<F>(self, f: F) -> DynamicResult<T>
+    where
+        F: FnOnce(AnyError) -> AnyError,
+    {
+        match self {
+            Self::Ok(val) => DynamicResult::Ok(val),
+            Self::Err(err) => DynamicResult::Err(f(err)),
+        }
+    }
+}
+
+/// **Automatic conversion from core::result::Result<T, Yoshi> to DynamicResult<T>**
+impl<T> From<core::result::Result<T, Yoshi>> for DynamicResult<T> {
+    fn from(result: core::result::Result<T, Yoshi>) -> Self {
+        match result {
+            Ok(val) => Self::Ok(val),
+            Err(err) => Self::Err(AnyError::from(err)),
+        }
+    }
+}
+
+/// **Automatic conversion from core::result::Result<T, AnyError> to DynamicResult<T>**
+impl<T> From<core::result::Result<T, AnyError>> for DynamicResult<T> {
+    fn from(result: core::result::Result<T, AnyError>) -> Self {
+        match result {
+            Ok(val) => Self::Ok(val),
+            Err(err) => Self::Err(err),
+        }
+    }
+}
+
+/// **Automatic conversion from DynamicResult<T> to core::result::Result<T, AnyError>**
+impl<T> From<DynamicResult<T>> for core::result::Result<T, AnyError> {
+    fn from(dynamic: DynamicResult<T>) -> Self {
+        dynamic.into_any_error_result()
+    }
+}
+
+/// **Automatic conversion from DynamicResult<T> to core::result::Result<T, Yoshi>**
+impl<T> From<DynamicResult<T>> for core::result::Result<T, Yoshi> {
+    fn from(dynamic: DynamicResult<T>) -> Self {
+        dynamic.into_yoshi_result()
+    }
+}
+
+// Note: We can't have a generic implementation due to conflicts with specific implementations above
+
+/// **Universal Result Conversion for any error type that converts to AnyError**
+///
+/// This provides the broadest compatibility - any Result<T, E> where E: Into<AnyError>
+/// can be automatically converted to Result<T, AnyError>.
+pub fn into_any_error_result<T, E>(
+    result: core::result::Result<T, E>,
+) -> core::result::Result<T, AnyError>
+where
+    E: Into<AnyError>,
+{
+    result.map_err(Into::into)
+}
+
+/// **Universal Result Conversion from AnyError to Yoshi**
+///
+/// This enables conversion from AnyError results back to Yoshi results when needed.
+pub fn into_yoshi_result<T>(
+    result: core::result::Result<T, AnyError>,
+) -> core::result::Result<T, Yoshi> {
+    result.map_err(Into::into)
+}
+
+/// **Dynamic Error Creation - Automatic conversion from any error type**
+///
+/// This function enables automatic conversion from any error type to AnyError,
+/// providing true dynamic adaptability for Result types.
+pub fn any_err<T, E>(error: E) -> core::result::Result<T, AnyError>
+where
+    E: Into<AnyError>,
+{
+    Err(error.into())
+}
+
+/// **Dynamic Yoshi Error Creation - Automatic conversion to Yoshi**
+///
+/// This function enables automatic conversion from any error type to Yoshi,
+/// providing compatibility with Yoshi-specific result types.
+pub fn yoshi_err<T, E>(error: E) -> core::result::Result<T, Yoshi>
+where
+    E: Into<Yoshi>,
+{
+    Err(error.into())
+}
+
+impl core::fmt::Display for AnyError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        self.inner.fmt(f)
+    }
+}
+
+#[cfg(feature = "std")]
+impl std::error::Error for AnyError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        self.inner.source()
+    }
+}
+
+// Additional From implementations for common types
+impl From<String> for AnyError {
+    fn from(msg: String) -> Self {
+        Self::new(msg)
+    }
+}
+
+impl From<&str> for AnyError {
+    fn from(msg: &str) -> Self {
+        Self::new(msg)
+    }
+}
+
+#[cfg(feature = "std")]
+impl From<std::io::Error> for AnyError {
+    fn from(err: std::io::Error) -> Self {
+        Self::from_error(err)
+    }
+}
+
+#[cfg(feature = "std")]
+impl From<std::fmt::Error> for AnyError {
+    fn from(err: std::fmt::Error) -> Self {
+        Self::from_error(err)
+    }
+}
+
+/// **AnyResult Type - Result with AnyError for dynamic adaptability**
+///
+/// This provides a Result type that uses AnyError as the default error type,
+/// enabling seamless interoperability with derive macros.
+///
+/// # Examples
+///
+/// ```rust
+/// use yoshi_core::{AnyResult, AnyError};
+///
+/// fn might_fail() -> AnyResult<String> {
+///     Ok("success".to_string())
+/// }
+///
+/// fn will_fail() -> AnyResult<String> {
+///     Err(AnyError::new("something went wrong"))
+/// }
+/// ```
+pub type AnyResult<T> = core::result::Result<T, AnyError>;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_anyerror_accessibility() {
+        let _err = AnyError::new("test");
+        let _result: AnyResult<()> = Ok(());
+    }
+
+    #[test]
+    fn test_anyerror_from_yoshi() {
+        let yoshi_err = Yoshi::new(YoshiKind::Internal {
+            message: "test".into(),
+            source: None,
+            component: None,
+        });
+        let any_err = AnyError::from(yoshi_err);
+        assert!(any_err.to_string().contains("test"));
+    }
+
+    #[test]
+    fn test_anyerror_conversions() {
+        // Test string conversion
+        let err1 = AnyError::from("test error");
+        assert!(err1.to_string().contains("test error"));
+
+        // Test context addition
+        let err2 = AnyError::new("base error").context("additional context");
+        let error_string = err2.to_string();
+        assert!(error_string.contains("base error"));
+    }
+}

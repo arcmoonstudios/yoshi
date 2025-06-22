@@ -9,6 +9,73 @@
 
 The main entry point for the Yoshi error handling framework. This crate re-exports everything you need from the Yoshi ecosystem.
 
+## 🚀 **Instant Migration - Zero Breaking Changes**
+
+### **From `anyhow` (5 seconds)**
+
+```rust
+// Before
+use anyhow::{Result, Context};
+
+fn read_config() -> Result<String> {
+    let content = std::fs::read_to_string("config.toml")
+        .context("Failed to read config file")?;
+    Ok(content)
+}
+
+// After - Just change the import!
+use yoshi::simple::{Result, Context};
+
+fn read_config() -> Result<String> {
+    let content = std::fs::read_to_string("config.toml")
+        .context("Failed to read config file")?;
+    Ok(content)
+}
+```
+
+### **From `thiserror` (10 seconds)**
+
+```rust
+// Before
+use thiserror::Error;
+
+#[derive(Error, Debug)]
+pub enum MyError {
+    #[error("IO error: {0}")]
+    Io(#[from] std::io::Error),
+}
+
+// After - Just change the import!
+use yoshi::simple::Error;
+
+#[derive(Error, Debug)]
+pub enum MyError {
+    #[error("IO error: {0}")]
+    Io(#[from] std::io::Error),
+}
+```
+
+### **Gradual Enhancement**
+
+Once migrated, gradually unlock Yoshi's advanced features:
+
+```rust
+use yoshi::simple::{Result, advanced};
+
+fn enhanced_function() -> Result<String> {
+    let result = std::fs::read_to_string("file.txt")
+        .context("Reading file")?;
+
+    // Add Yoshi's advanced features gradually
+    advanced::signpost(
+        Ok(result),
+        "Ensure the file exists and is readable"
+    )
+}
+```
+
+**📚 See [MIGRATION.md](MIGRATION.md) for complete migration guide**
+
 ## Quick Start
 
 ### 1. Installation

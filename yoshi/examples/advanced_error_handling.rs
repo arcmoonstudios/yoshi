@@ -20,7 +20,6 @@
 // **Author:** Lord Xyn
 
 use yoshi::*;
-
 //--------------------------------------------------------------------------------------------------
 // Advanced Error Types
 //--------------------------------------------------------------------------------------------------
@@ -161,7 +160,7 @@ pub struct CircuitState {
 /// Status of a circuit breaker.
 ///
 /// Represents the current operational state of a circuit breaker.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CircuitStatus {
     /// Circuit is closed, allowing requests
     Closed,
@@ -322,7 +321,7 @@ impl ErrorHandler {
     ///
     /// Returns current error occurrence counts by type.
     #[must_use]
-    pub fn get_error_stats(&self) -> &HashMap<String, u32> {
+    pub const fn get_error_stats(&self) -> &HashMap<String, u32> {
         &self.error_stats
     }
 }
@@ -579,8 +578,9 @@ pub struct RetryOperation {
 ///
 /// Shows sophisticated error handling techniques including recovery strategies,
 /// circuit breakers, and batch processing with partial failures.
-pub fn demonstrate_advanced_patterns() -> Hatch<()> {
-    println!("=== Advanced Error Handling Demonstration ===");
+fn demonstrate_advanced_error_handling() -> Hatch<()> {
+    tracing::error!("=== Advanced Error Handling Demonstration ===");
+    tracing::error!("=== Advanced Error Handling Demonstration ===");
 
     let mut error_handler = ErrorHandler::new();
 
@@ -613,11 +613,11 @@ pub fn demonstrate_advanced_patterns() -> Hatch<()> {
 
     match process_batch_operations(&operations, &mut error_handler) {
         Ok(result) => {
-            println!("Batch processing completed:");
-            println!("  Total operations: {}", result.total_operations);
-            println!("  Successful: {}", result.successful.len());
-            println!("  Failed: {}", result.failed.len());
-            println!("  Success rate: {:.2}%", result.success_rate * 100.0);
+            tracing::info!("Batch processing completed:");
+            tracing::info!("  Total operations: {}", result.total_operations);
+            tracing::error!("  Failed: {}", result.failed.len());
+            tracing::info!("  Failed: {}", result.failed.len());
+            tracing::info!("  Success rate: {:.2}%", result.success_rate * 100.0);
 
             for success in &result.successful {
                 println!(
@@ -627,6 +627,12 @@ pub fn demonstrate_advanced_patterns() -> Hatch<()> {
             }
 
             for failure in &result.failed {
+                tracing::error!(
+                    "  ✗ [{}] {} - {}",
+                    failure.index,
+                    failure.operation,
+                    failure.error
+                );
                 println!(
                     "  ✗ [{}] {} - {}",
                     failure.index, failure.operation, failure.error
@@ -634,14 +640,16 @@ pub fn demonstrate_advanced_patterns() -> Hatch<()> {
             }
         }
         Err(e) => {
-            println!("Batch processing failed: {e}");
+            tracing::error!("Batch processing failed: {e}");
+            tracing::info!("Batch processing failed: {e}");
         }
     }
 
-    // Display error statistics
-    println!("\nError Statistics:");
+    tracing::error!("\nError Statistics:");
+    tracing::info!("\nError Statistics:");
     for (error_type, count) in error_handler.get_error_stats() {
-        println!("  {error_type}: {count} occurrences");
+        tracing::error!("  {error_type}: {count} occurrences");
+        tracing::info!("  {error_type}: {count} occurrences");
     }
 
     Ok(())
@@ -652,7 +660,12 @@ pub fn demonstrate_advanced_patterns() -> Hatch<()> {
 /// Runs comprehensive examples of sophisticated error handling patterns
 /// and recovery strategies using the Yoshi framework.
 pub fn main() -> Hatch<()> {
-    demonstrate_advanced_patterns()?;
-    println!("\n=== Advanced Error Handling Complete ===");
+    // Initialize logging
+    env_logger::init();
+
+    // Run the demonstration
+    demonstrate_advanced_error_handling()?;
+
+    tracing::error!("\n=== Advanced Error Handling Complete ===");
     Ok(())
 }

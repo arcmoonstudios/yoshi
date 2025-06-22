@@ -119,7 +119,7 @@ fn test_error_debug_formatting() {
         source: None,
         error_code: Some(500),
     })
-    .context("During API call")
+    .nest("During API call")
     .with_signpost("Check network connectivity");
 
     let debug_output = format!("{error:?}");
@@ -197,9 +197,9 @@ fn test_error_context_chain_debug() {
         source: None,
         component: None,
     })
-    .context("First context")
-    .context("Second context")
-    .context("Third context")
+    .nest("First context")
+    .nest("Second context")
+    .nest("Third context")
     .with_signpost("Try this solution")
     .with_priority(150);
 
@@ -227,7 +227,7 @@ fn test_concurrent_error_debugging() {
                     source: None,
                     component: None,
                 })
-                .context(format!("Thread {i} context"));
+                .nest(format!("Thread {i} context"));
 
                 let debug_output = format!("{error:?}");
                 (error.instance_id(), debug_output)
@@ -303,7 +303,7 @@ fn test_error_diagnostic_information() {
         duration: std::time::Duration::from_secs(30),
         expected_max: Some(std::time::Duration::from_secs(10)),
     })
-    .context("Database operation timeout")
+    .nest("Database operation timeout")
     .with_signpost("Increase timeout or optimize query");
 
     // Test comprehensive diagnostic output
@@ -326,14 +326,14 @@ fn test_error_introspection_methods() {
         source: None,
         component: None,
     })
-    .context("Test context")
+    .nest("Test context")
     .with_signpost("Test suggestion");
 
     // Test various introspection methods
     let _id = error.instance_id();
     let _kind = error.kind();
-    let contexts: Vec<_> = error.contexts().collect();
-    let suggestion = error.suggestion();
+    let contexts: Vec<_> = error.nests().collect();
+    let suggestion = error.signpost();
 
     assert!(!contexts.is_empty());
     assert!(suggestion.is_some());

@@ -19,8 +19,8 @@
 // **Contact:** LordXyn@proton.me
 // **Author:** Lord Xyn
 
+use tracing;
 use yoshi::*;
-
 //--------------------------------------------------------------------------------------------------
 // Basic Error Types
 //--------------------------------------------------------------------------------------------------
@@ -254,22 +254,22 @@ pub fn process_with_context(operation: &str, data: &str) -> Hatch<String> {
 /// This function shows various ways to create, handle, and propagate errors
 /// using the Yoshi framework's basic features.
 pub fn demonstrate_basic_patterns() -> Hatch<()> {
-    println!("=== Basic Error Handling Demonstration ===");
+    tracing::error!("=== Basic Error Handling Demonstration ===");
 
     // Example 1: Simple error creation
     let simple_error = yoshi!(message: "Something went wrong");
-    println!("Simple error: {simple_error}");
+    tracing::error!("Simple error: {simple_error}");
 
     // Example 2: Error with context
     let contextual_error = yoshi!(message: "Operation failed");
-    println!("Contextual error: {contextual_error}");
+    tracing::error!("Contextual error: {contextual_error}");
 
     // Example 3: Converting std::io::Error
     match fs::read_to_string("nonexistent.txt") {
         Ok(_) => println!("File read successfully"),
         Err(e) => {
             let yoshi_error = io_error_to_yoshi(e).lay("Failed to read configuration file");
-            println!("Converted I/O error: {yoshi_error}");
+            tracing::error!("Converted I/O error: {yoshi_error}");
         }
     }
 
@@ -299,6 +299,6 @@ pub fn main() -> Hatch<()> {
         }
     }
 
-    println!("\n=== Basic Error Handling Complete ===");
+    tracing::error!("\n=== Basic Error Handling Complete ===");
     Ok(())
 }

@@ -4,21 +4,12 @@ resolver = "2"
 # ── member crates ─────────────────────────────────────────────────────────────
 members = [
     "yoshi",        # façade
-    "yoshi-deluxe", # deluxe features
     "yoshi-derive", # procedural macros
     "yoshi-std",    # core engine
-    "yoshi-core",   # no_std foundation
-
-    # ── tool crates ───────────────────────────────────────────────────────────────
-    "yoshi-benches",  # comprehensive benchmarks
-    "yoshi-analyzer", # analyzer tool
-
-    # ── yoshi-mcp extension ───────────────────────────────────────────────────────
-    "yoshi-mcp", # VS Code extension with local LLM inference
 ]
 
-# exclude the benches or analyzer crates from publishing
-exclude = ["yoshi-benches", "yoshi-analyzer"]
+# exclude the benches crate from publishing
+exclude = ["yoshi-benches"]
 
 # ── shared build profiles ─────────────────────────────────────────────────────
 [profile.dev]

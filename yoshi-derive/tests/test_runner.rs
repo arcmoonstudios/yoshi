@@ -31,8 +31,8 @@
 
 use std::error::Error;
 use std::time::Instant;
+use yoshi_core::NoStdIo;
 use yoshi_derive::YoshiError;
-use yoshi_std::NoStdIo;
 
 //--------------------------------------------------------------------------------------------------
 // Debug Helper Macros
@@ -252,10 +252,7 @@ fn test_memory_usage() {
     println!("MemoryTestError alignment: {small_align} bytes");
 
     // Should be reasonably sized
-    assert!(
-        small_size <= 64,
-        "Error size too large: {small_size} bytes"
-    );
+    assert!(small_size <= 64, "Error size too large: {small_size} bytes");
 
     // Test that errors don't have excessive memory overhead
     let errors = vec![
@@ -369,7 +366,7 @@ fn test_std_error_compatibility() {
         assert!(depth < 10, "Error chain too deep");
     }
 
-    println!("Error chain depth: {depth}");
+    eprintln!("Error chain depth: {depth}");
     assert!(depth > 0, "Should have at least one source error");
 }
 
@@ -520,8 +517,7 @@ fn test_comprehensive_integration() {
         default_severity = 150,
         namespace = "integration",
         auto_inference = true,
-        generate_helpers = true,
-        error_code_base = 9000
+        generate_helpers = true
     )]
     enum IntegrationTestError {
         #[yoshi(
@@ -529,8 +525,7 @@ fn test_comprehensive_integration() {
             kind = "Network",
             severity = 200,
             transient = true,
-            suggestion = "Check network connectivity and retry",
-            code = 9001,
+            signpost = "Check network connectivity and retry",
             category = "network"
         )]
         NetworkFailure { reason: String, code: u32 },
@@ -539,7 +534,7 @@ fn test_comprehensive_integration() {
             display = "Validation error in {field}: {message}",
             kind = "Validation",
             severity = 160,
-            suggestion = "Check input format and constraints",
+            signpost = "Check input format and constraints",
             code = 9002
         )]
         ValidationError { field: String, message: String },
@@ -562,7 +557,7 @@ fn test_comprehensive_integration() {
         code: 504,
     };
 
-    println!("Network Error Tests:");
+    eprintln!("Network Error Tests:");
     println!("  Display: {network_err}");
     println!("  Debug: {network_err:?}");
 
@@ -575,7 +570,7 @@ fn test_comprehensive_integration() {
         message: "invalid format".to_string(),
     };
 
-    println!("\nValidation Error Tests:");
+    eprintln!("\nValidation Error Tests:");
     println!("  Display: {validation_err}");
     println!("  Debug: {validation_err:?}");
 
@@ -588,7 +583,7 @@ fn test_comprehensive_integration() {
         "File not found",
     ));
 
-    println!("\nIO Error Tests:");
+    eprintln!("\nIO Error Tests:");
     println!("  Source: {:?}", io_err.source().is_some());
     println!("  Display: {io_err}");
 
@@ -599,7 +594,7 @@ fn test_comprehensive_integration() {
     let json_str = r#"{"invalid": json}"#;
     if let Err(json_parse_err) = serde_json::from_str::<serde_json::Value>(json_str) {
         let wrapped_err = IntegrationTestError::from(json_parse_err);
-        println!("\nJSON Error Tests:");
+        eprintln!("\nJSON Error Tests:");
         println!("  Display: {wrapped_err}");
         assert!(matches!(wrapped_err, IntegrationTestError::JsonError(_)));
     }

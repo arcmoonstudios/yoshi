@@ -1,54 +1,69 @@
-# yoshi-std/Cargo.toml
 [package]
 name = "yoshi-std"
 version = "0.1.6"
 edition = "2021"
-rust-version = "1.87.0"                                               # MSRV
-authors = ["Lord Xyn <LordXyn@proton.me>"]
+rust-version = "1.87.0"
+authors = [ "Lord Xyn <LordXyn@proton.me>",]
 repository = "https://github.com/arcmoonstudios/yoshi"
 license = "MIT OR Apache-2.0"
 description = "Core, std-only error type for the Yoshi framework."
-keywords = ["error", "error-handling", "yoshi", "std-only", "no-std"]
-categories = ["development-tools", "rust-patterns"]
+keywords = [ "error", "error-handling", "yoshi", "std-only", "no-std",]
+categories = [ "development-tools", "rust-patterns",]
 
 [dependencies]
-yoshi-core = { path = "../yoshi-core", version = "0.1.6", default-features = false }
-serde = { version = "1.0.219", optional = true, features = ["derive"] }
-tokio = { version = "1.45.1", optional = true, features = ["time"] }
-serde_json = { version = "1.0.140", optional = true }
-tracing = { version = "0.1.41", optional = true }
-miette = { version = "7.6.0", optional = true }
+log = "0.4"
 
 [features]
-default = ["std", "derive", "serde", "tracing", "async"]
-derive = ["yoshi-core/alloc"]                               # ensure alloc for derive macros
-serde = ["dep:serde", "dep:serde_json", "yoshi-core/serde"]
-std = ["yoshi-core/std"]
-tracing = ["dep:tracing"]
-async = ["dep:tokio"]
-# Async runtime features
-tokio = ["dep:tokio"]
-async-std = []        # Placeholder for async-std support
-# JSON serialization features
-serde_json = ["dep:serde_json"]
-# Stable SIMD optimizations using std::arch (no unstable features)
+default = [ "std", "derive", "serde", "tracing", "async",]
+derive = [ "yoshi-core/alloc",]
+serde = [ "dep:serde", "dep:serde_json", "yoshi-core/serde",]
+std = [ "yoshi-core/std",]
+tracing = [ "dep:tracing",]
+async = [ "dep:tokio",]
+tokio = [ "dep:tokio",]
+async-std = []
+serde_json = [ "dep:serde_json",]
 simd-optimized = []
-# LSP integration support (placeholder for compatibility)
 lsp-integration = []
 
 [lib]
 name = "yoshi_std"
 path = "src/lib.rs"
 
-# docs.rs specific configuration for robust builds
+[dev-dependencies]
+env_logger = "0.10"
+
+[dependencies.yoshi-core]
+path = "../yoshi-core"
+version = "0.1.6"
+default-features = false
+
+[dependencies.serde]
+version = "1.0.219"
+optional = true
+features = [ "derive",]
+
+[dependencies.tokio]
+version = "1.45.1"
+optional = true
+features = [ "time",]
+
+[dependencies.serde_json]
+version = "1.0.140"
+optional = true
+
+[dependencies.tracing]
+version = "0.1.41"
+optional = true
+
+[dependencies.miette]
+version = "7.6.0"
+optional = true
+
 [package.metadata.docs.rs]
-# CRITICAL: Conservative feature set - NO experimental features
-features = ["std", "serde", "tracing"]
+features = [ "std", "serde", "tracing",]
 no-default-features = false
-# CRITICAL: Force stable toolchain, disable experimental features
-rustdoc-args = ["--cfg", "docsrs"]
-# Conservative rustc args for stable compatibility
-rustc-args = ["--cap-lints=warn"]
-targets = ["x86_64-unknown-linux-gnu"]
-# FORCE stable toolchain - this should prevent nightly
+rustdoc-args = [ "--cfg", "docsrs",]
+rustc-args = [ "--cap-lints=warn",]
+targets = [ "x86_64-unknown-linux-gnu",]
 default-target = "x86_64-unknown-linux-gnu"

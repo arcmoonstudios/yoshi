@@ -25,8 +25,8 @@
 
 use std::error::Error;
 use std::fmt::Debug;
+use yoshi_core::NoStdIo;
 use yoshi_derive::YoshiError;
-use yoshi_std::NoStdIo;
 
 //--------------------------------------------------------------------------------------------------
 // Minimal Configuration Tests
@@ -77,7 +77,7 @@ enum MaxComplexityError {
         display = "Ultra complex error: {operation} failed with {details}",
         kind = "UltraComplex",
         severity = 255,
-        suggestion = "This is an ultra-complex error requiring comprehensive handling",
+        signpost = "This is an ultra-complex error requiring comprehensive handling",
         transient = true,
         code = 5001,
         category = "ultra-complex"
@@ -111,8 +111,10 @@ fn test_max_complexity_error() {
     assert!(display.contains("test_details"));
 
     // Test that it implements Error trait
-    use std::error::Error;
-    let _: &dyn Error = &err;
+    {
+        use std::error::Error;
+        let _: &dyn Error = &err;
+    }
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -245,7 +247,7 @@ enum UnicodeError {
 
     #[yoshi(
         display = "Emoji test 🔥🚀⚡",
-        suggestion = "Try using ASCII characters only 🤔"
+        signpost = "Try using ASCII characters only 🤔"
     )]
     EmojiTest,
 }

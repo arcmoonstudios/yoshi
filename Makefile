@@ -1,7 +1,4 @@
 # Makefile
-#![deny(unsafe_code)]
-#![warn(missing_docs)]
-#!
 #! **Brief:** ArcMoon Studios Enterprise Makefile with CI/Dev Mode Upgrade System and Git Safety Layer.
 #!
 #! **Module Classification:** Performance-Critical
@@ -29,17 +26,12 @@
 #! - Worst-Case Scenarios: Network-dependent cargo upgrade operations
 #! - Optimization Opportunities: Parallel cargo operations and incremental builds
 #!
+# **License Terms:** Full open source freedom; dual licensing allows choice between MIT and Apache 2.0
 # **GitHub:** [ArcMoon Studios](https://github.com/arcmoonstudios)
 # **Copyright:** (c) 2025 ArcMoon Studios
-# **Author:** Lord Xyn
 # **License:** MIT OR Apache-2.0
 # **License File:** /LICENSE
-# **License Terms:** Full open source freedom; dual licensing allows choice between MIT and Apache 2.0
-# **Effective Date:** 2025-05-30 | **Open Source Release**
-# **Contact:** LordXyn@proton.me
-# **Quality Certification:** Elite Level (≥99.99% composite score)
-# **Agent Mode:** Enhanced with mathematical optimization
-# **Last Validation:** 2025-05-29
+# **Author:** Lord Xyn
 
 # Cross-platform shell detection
 SHELL := $(shell echo $$0)

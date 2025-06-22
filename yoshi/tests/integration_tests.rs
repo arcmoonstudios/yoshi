@@ -45,17 +45,27 @@ fn test_yoshi_crate_basic_functionality() {
 #[test]
 fn test_comprehensive_error_handling() {
     // Test the full error handling pipeline
-    let result: Result<()> = Err(Yoshi::new(YoshiKind::Internal {
+    // Use AnyError for compatibility with anyhow-style error handling
+    let yoshi_error = Yoshi::new(YoshiKind::Internal {
         message: "Test error for comprehensive handling".into(),
         source: None,
         component: Some("test_component".into()),
-    }));
+    });
+    let result: Result<()> = Err(AnyError::from(yoshi_error));
 
-    let enhanced = result
-        .context("During integration test execution")
+    // Test that we can convert from string directly
+    let string_result: Result<()> = Err(AnyError::from("Simple error message"));
+    assert!(string_result.is_err());
+
+    // Test that we can convert from io::Error
+    let io_error = std::io::Error::new(std::io::ErrorKind::NotFound, "File not found");
+    let io_result: Result<()> = Err(AnyError::from(io_error));
+    assert!(io_result.is_err());
+
+    let enhanced = HatchExt::context(result, "During integration test execution")
         .with_signpost("Check test configuration")
         .with_priority(150)
-        .ctx("Integration test context")
+        .nest("Integration test context")
         .help("This is a test error for validation");
 
     assert!(enhanced.is_err());
@@ -73,13 +83,14 @@ fn test_io_error_integration() {
     use std::io::{self, ErrorKind};
 
     let io_error = io::Error::new(ErrorKind::NotFound, "Integration test file not found");
-    let result: Result<String> = Err(io_error_to_yoshi(io_error));
+    let result: Result<String> = Err(AnyError::from(io_error_to_yoshi(io_error)));
 
-    let enhanced = result.context("During file operation in integration test");
+    let enhanced = HatchExt::context(result, "During file operation in integration test");
     assert!(enhanced.is_err());
 
     let error = enhanced.expect_err("Should be an error");
-    let contexts: Vec<_> = error.contexts().collect();
+    let yoshi_error = error.into_yoshi();
+    let contexts: Vec<_> = yoshi_error.contexts().collect();
     assert!(!contexts.is_empty());
 }
 
@@ -90,11 +101,11 @@ fn test_type_alias_ergonomics() {
     }
 
     fn returns_error() -> Result<i32> {
-        Err(Yoshi::new(YoshiKind::Internal {
+        Err(AnyError::from(Yoshi::new(YoshiKind::Internal {
             message: "Integration test error".into(),
             source: None,
             component: Some("type_alias_test".into()),
-        }))
+        })))
     }
 
     assert_eq!(returns_success(), "integration_success");
@@ -108,28 +119,31 @@ fn test_type_alias_ergonomics() {
 #[test]
 fn test_error_boundary_validation() {
     // Test error propagation through multiple layers
-    fn level_3() -> Result<String> {
-        Err(Yoshi::new(YoshiKind::Internal {
-            message: "Level 3 error".into(),
-            source: None,
-            component: Some("level_3".into()),
-        }))
-        .context("Level 3: Core operation")
+    fn level_3() -> std::result::Result<String, AnyError> {
+        HatchExt::context(
+            Err(AnyError::from(Yoshi::new(YoshiKind::Internal {
+                message: "Level 3 error".into(),
+                source: None,
+                component: Some("level_3".into()),
+            }))),
+            "Level 3: Core operation",
+        )
     }
 
-    fn level_2() -> Result<String> {
-        level_3().context("Level 2: Business logic")
+    fn level_2() -> std::result::Result<String, AnyError> {
+        HatchExt::context(level_3(), "Level 2: Business logic")
     }
 
-    fn level_1() -> Result<String> {
-        level_2().context("Level 1: API layer")
+    fn level_1() -> std::result::Result<String, AnyError> {
+        HatchExt::context(level_2(), "Level 1: API layer")
     }
 
     let result = level_1();
     assert!(result.is_err());
 
     let error = result.expect_err("Should be an error");
-    let contexts: Vec<_> = error.contexts().collect();
+    let yoshi_error = error.into_yoshi();
+    let contexts: Vec<_> = yoshi_error.contexts().collect();
     assert!(contexts.len() >= 3);
 }
 
@@ -138,18 +152,18 @@ fn test_graceful_degradation() {
     // Test that errors don't cause panics
     let operations = [
         || -> Result<()> {
-            Err(Yoshi::new(YoshiKind::Internal {
+            Err(AnyError::from(Yoshi::new(YoshiKind::Internal {
                 message: "Operation 1 failed".into(),
                 source: None,
                 component: Some("op1".into()),
-            }))
+            })))
         },
         || -> Result<()> {
-            Err(Yoshi::new(YoshiKind::Internal {
+            Err(AnyError::from(Yoshi::new(YoshiKind::Internal {
                 message: "Operation 2 failed".into(),
                 source: None,
                 component: Some("op2".into()),
-            }))
+            })))
         },
         || -> Result<()> { Ok(()) },
     ];
@@ -232,11 +246,13 @@ fn test_api_stability() {
 #[test]
 fn test_end_to_end_workflow() {
     // Simulate a complete error handling workflow
-    let result = simulate_complex_operation()
-        .context("During complex operation simulation")
-        .with_signpost("Check system configuration")
-        .ctx("End-to-end test")
-        .help("This is part of the integration test suite");
+    let result = HatchExt::context(
+        simulate_complex_operation(),
+        "During complex operation simulation",
+    )
+    .with_signpost("Check system configuration")
+    .nest("End-to-end test")
+    .help("This is part of the integration test suite");
 
     match result {
         Ok(_) => {
@@ -255,11 +271,11 @@ fn test_end_to_end_workflow() {
 
 fn simulate_complex_operation() -> Result<String> {
     // Simulate a complex operation that might fail
-    Err(Yoshi::new(YoshiKind::Internal {
+    Err(AnyError::from(Yoshi::new(YoshiKind::Internal {
         message: "Simulated complex operation failure".into(),
         source: None,
         component: Some("simulation".into()),
-    }))
+    })))
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -295,11 +311,13 @@ fn test_comprehensive_integration() {
         assert!(error.severity() > 0);
 
         // Test context addition
-        let enhanced: Result<()> = Err(error).context("Integration test context");
+        let enhanced: std::result::Result<(), AnyError> =
+            HatchExt::context(Err(AnyError::from(error)), "Integration test context");
         assert!(enhanced.is_err());
 
         let enhanced_error = enhanced.expect_err("Should be an error");
-        let contexts: Vec<_> = enhanced_error.contexts().collect();
+        let yoshi_enhanced = enhanced_error.into_yoshi();
+        let contexts: Vec<_> = yoshi_enhanced.contexts().collect();
         assert!(!contexts.is_empty());
     }
 }

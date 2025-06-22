@@ -30,6 +30,15 @@
 //! - **Ergonomic error handling** - `Hatch<T>`, `Lay`, and contextual error management
 //! - **Unified facade** - Single entry point encapsulating yoshi-core, yoshi-std, yoshi-deluxe, and yoshi-derive
 //!
+//! **Migration-Ready `AnyError` Yoshi API - Drop-in Replacement for anyhow/thiserror**
+//!
+//! This module provides a simplified API that's compatible with existing error handling
+//! patterns while preserving Yoshi's advanced capabilities under the hood.
+//!
+//! # Migration Examples
+//!
+//! See the examples directory for complete migration examples from anyhow and thiserror.
+//!
 //! ## Core Components
 //!
 //! ### The `yoshi!` Macro - Adaptive Error Creation
@@ -56,20 +65,8 @@
 //!
 //! ### The `yoshi_af!` Macro - Auto-Fix Error Enums
 //!
-//! Generate LSP-integrated error enums with comprehensive autofix capabilities:
-//!
-//! ```rust
-//! use yoshi::{YoshiError, Error};
-//!
-//! #[derive(Debug, YoshiError)]
-//! pub enum MyError {
-//!     #[yoshi(display = "File not found: {path}", suggestion = "Check if the file exists")]
-//!     FileNotFound { path: String },
-//!
-//!     #[yoshi(display = "Network error: {code}", suggestion = "Retry the request")]
-//!     NetworkError { code: u16 },
-//! }
-//! ```
+//! Generate LSP-integrated error enums with comprehensive autofix capabilities.
+//! See the examples directory for complete usage examples.
 //!
 //! ## Key Types
 //!
@@ -93,7 +90,7 @@
 //!  - Foreign error wrapping with thread-safe source preservation
 //!  - Context chaining with lock-free metadata and suggestion integration
 //! + Auto-correction `yoshi_af!` macro with LSP-integrated enum generation
-//!  - Compile-time error pattern detection with O(log n) analysis complexity
+//!  - Compile-time error pattern detection with O(tracing n) analysis complexity
 //!  - Automatic derive trait injection with memory-safe code generation
 //!  - IDE integration with real-time autofix suggestions and validation
 //!  - Comprehensive error handling with formal API contracts and safety guarantees
@@ -109,13 +106,136 @@
 // **Contact:** LordXyn@proton.me
 // **Author:** Lord Xyn
 
+/// **Simple Error Trait - Drop-in replacement for `thiserror::Error`**
+///
+/// This trait provides the same interface as `thiserror::Error` but generates
+/// Yoshi errors under the hood with all advanced features available.
+pub use std::error::Error;
+
+/// **`AnyError` Type - Re-exported from yoshi-std for compatibility**
+///
+/// This provides a simple interface that's compatible with existing error handling
+/// while preserving all of Yoshi's advanced features.
+pub use yoshi_std::AnyError;
+
+/// **Simple Result Type - Re-exported from yoshi-std**
+///
+/// This is exactly the same as `anyhow::Result<T>` but uses Yoshi's error system.
+pub use yoshi_std::Result;
+
+// Note: Automatic AnyError conversion is provided by individual From implementations
+// in yoshi-std for specific types. A blanket impl is not possible due to orphan rules.
+
+/// **Context Trait - Drop-in replacement for `anyhow::Context`**
+///
+/// This provides the same `.context()` method as anyhow but generates Yoshi errors.
+pub trait Context<T> {
+    /// Add context to an error result
+    fn context(self, msg: impl Into<String>) -> Result<T, AnyError>;
+
+    /// Add context with a closure (lazy evaluation)
+    fn with_context<F>(self, f: F) -> Result<T, AnyError>
+    where
+        F: FnOnce() -> String;
+}
+
+impl<T, E> Context<T> for std::result::Result<T, E>
+where
+    E: std::error::Error + Send + Sync + 'static,
+{
+    fn context(self, msg: impl Into<String>) -> Result<T, AnyError> {
+        self.map_err(|e| AnyError::from_error(e).context(msg.into()))
+    }
+
+    fn with_context<F>(self, f: F) -> Result<T, AnyError>
+    where
+        F: FnOnce() -> String,
+    {
+        self.map_err(|e| AnyError::from_error(e).context(f()))
+    }
+}
+
+/// **Convenience macro for creating simple errors**
+///
+/// This provides a familiar interface for creating errors quickly.
+#[macro_export]
+macro_rules! simple_error {
+    ($msg:expr) => {
+        $crate::simple::AnyError::new($msg)
+    };
+    ($fmt:expr, $($args:expr),+ $(,)?) => {
+        $crate::simple::AnyError::new(format!($fmt, $($args),+))
+    };
+}
+
+/// **Convenience function for creating simple errors**
+pub fn error(message: impl Into<String>) -> AnyError {
+    AnyError::new(message)
+}
+
+/// **Convenience function for wrapping errors**
+pub fn wrap(error: impl std::error::Error + Send + Sync + 'static) -> AnyError {
+    AnyError::from_error(error)
+}
+
+/// **Advanced Features Access**
+///
+/// When you need Yoshi's advanced features, use these functions to access them.
+pub mod advanced {
+    use super::{AnyError, Hatch, Result};
+    #[allow(unused_imports)]
+    use crate::HatchExt;
+
+    /// Convert a simple Result to a Hatch for advanced features
+    pub fn to_hatch<T>(result: Result<T, AnyError>) -> Hatch<T> {
+        result.map_err(super::AnyError::into_yoshi)
+    }
+
+    /// Convert a Hatch to a simple Result for compatibility
+    pub fn from_hatch<T>(hatch: Hatch<T>) -> Result<T, AnyError> {
+        hatch.map_err(AnyError::from)
+    }
+
+    /// Add a nest (context) with advanced features
+    pub fn nest<T>(result: Result<T, AnyError>, msg: impl Into<String>) -> Result<T, AnyError> {
+        result.map_err(|e| {
+            let yoshi = e.into_yoshi().nest(msg);
+            AnyError::from(yoshi)
+        })
+    }
+
+    /// Add a signpost (suggestion) to an error
+    pub fn signpost<T>(
+        result: Result<T, AnyError>,
+        suggestion: impl Into<String>,
+    ) -> Result<T, AnyError> {
+        result.map_err(|e| {
+            let yoshi = e.into_yoshi().with_signpost(suggestion);
+            AnyError::from(yoshi)
+        })
+    }
+
+    /// Add metadata to an error
+    pub fn metadata<T>(
+        result: Result<T, AnyError>,
+        key: impl Into<String>,
+        value: impl Into<String>,
+    ) -> Result<T, AnyError> {
+        result.map_err(|e| {
+            let yoshi = e.into_yoshi().with_metadata(key, value);
+            AnyError::from(yoshi)
+        })
+    }
+}
+
 // Core re-exports from yoshi-std (which includes yoshi-core)
-pub use yoshi_std::{Yoshi, YoshiKind, YoshiLocation};
+pub use yoshi_std::{PerformanceImpact, Yoshi, YoshiKind, YoshiLocation};
 
 // Re-export yoshi_std itself for derive macro compatibility
 pub use yoshi_std;
 
-// Re-export yoshi_core for derive macro compatibility
+// Re-export yoshi_core for derive macro compatibility (examples need this)
+#[cfg(any(feature = "std", feature = "derive"))]
 pub use yoshi_core;
 
 // Standard library re-exports from yoshi-std (when std is available)
@@ -178,6 +298,10 @@ pub use uuid::Uuid;
 #[cfg(all(feature = "convenience", feature = "tracing"))]
 pub use tracing::{debug, error, info, instrument, trace, warn};
 
+// Re-export tracing for main binary and examples
+#[cfg(feature = "tracing")]
+pub use tracing;
+
 // Essential standard library items
 #[cfg(feature = "std")]
 pub use std::{
@@ -221,34 +345,6 @@ pub type YoshiString = String;
 #[cfg(feature = "derive")]
 pub use yoshi_derive::{yoshi_af, YoshiError};
 
-// Deluxe functionality re-exports (when yoshi-deluxe feature is enabled)
-#[cfg(feature = "yoshi-deluxe")]
-pub use yoshi_deluxe as deluxe;
-
-// Auto-correction system re-exports for full functionality
-#[cfg(feature = "yoshi-deluxe")]
-pub use yoshi_deluxe::{
-    AppliedCorrection, CompilerDiagnostic, CorrectionProposal, CorrectionStrategy, DiagnosticLevel,
-    DiagnosticSpan, ProjectCorrection, SafetyLevel, SystemConfig, YoshiACSystem,
-};
-
-// THE TRIGGER PROCESSOR - The core actuator for automated error correction
-// TODO: Implement TriggerProcessor in yoshi-deluxe
-// #[cfg(feature = "yoshi-deluxe")]
-// pub use yoshi_deluxe::diagnostics::TriggerProcessor;
-
-// LSP integration re-exports (when lsp-integration feature is enabled)
-#[cfg(feature = "lsp-integration")]
-pub use yoshi_deluxe::{start_lsp_server, YoshiLspConfig, YoshiLspServer};
-
-// Advanced optimization re-exports for complete functionality
-// TODO: Implement optimization types in yoshi-deluxe
-// #[cfg(feature = "yoshi-deluxe")]
-// pub use yoshi_deluxe::{
-//     CodeLocation, OptimizationContext, OptimizationEngine, OptimizationOpportunity, PatternType,
-//     PerformanceImpact, TransformationResult,
-// };
-
 // Re-export tokio for complete facade - users should only need 'use yoshi::*;'
 #[cfg(feature = "full")]
 pub use tokio;
@@ -279,6 +375,7 @@ pub use tokio;
 /// });
 /// ```
 ///
+
 /// ## 3. Error Wrapping with Context
 /// ```rust
 /// use yoshi::yoshi;
@@ -370,50 +467,43 @@ macro_rules! yoshi {
     };
 }
 
-// yoshi_af! macro already re-exported above
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-/// Convenience function for creating simple internal errors
-///
-/// This is equivalent to `yoshi!(message: msg)` but can be used in contexts
-/// where the macro syntax is not preferred.
-///
-/// # Examples
-///
-/// ```rust
-/// use yoshi::error;
-///
-/// let err = error("Something went wrong");
-/// ```
-pub fn error(message: impl Into<std::sync::Arc<str>>) -> Yoshi {
-    Yoshi::new(YoshiKind::Internal {
-        message: message.into(),
-        source: None,
-        component: None,
-    })
+    #[test]
+    fn test_simple_error_creation() {
+        let err = AnyError::new("test error");
+        assert_eq!(err.to_string(), "Internal error: test error");
+    }
+
+    #[test]
+    fn test_context_trait() {
+        let result: std::result::Result<(), std::io::Error> = Err(std::io::Error::new(
+            std::io::ErrorKind::NotFound,
+            "file not found",
+        ));
+
+        let with_context = result.context("Failed to read config");
+        assert!(with_context.is_err());
+        if let Err(err) = with_context {
+            assert!(err.to_string().contains("Failed to read config"));
+        } else {
+            panic!("Expected error but got Ok");
+        }
+    }
+
+    #[test]
+    fn test_advanced_features() {
+        let result: Result<(), AnyError> = Err(AnyError::new("base error"));
+        let enhanced = advanced::signpost(result, "Try checking the file path");
+
+        assert!(enhanced.is_err());
+        let yoshi = if let Err(err) = enhanced {
+            err.into_yoshi()
+        } else {
+            panic!("Expected error but got Ok");
+        };
+        assert!(yoshi.signpost().is_some());
+    }
 }
-
-/// Convenience function for wrapping foreign errors
-///
-/// This is equivalent to `yoshi!(error: err)` but can be used in contexts
-/// where the macro syntax is not preferred.
-///
-/// # Examples
-///
-/// ```rust
-/// use yoshi::wrap;
-///
-/// let io_err = std::io::Error::new(std::io::ErrorKind::NotFound, "file not found");
-/// let err = wrap(io_err);
-/// ```
-pub fn wrap(err: impl std::error::Error + Send + Sync + 'static) -> Yoshi {
-    Yoshi::foreign(err)
-}
-
-// Arc is already re-exported above in std::sync
-
-// Re-export std::error::Error for derive macros
-#[cfg(feature = "std")]
-pub use std::error::Error;
-
-/// Common result type alias for functions that may fail with Yoshi errors
-pub type Result<T> = std::result::Result<T, Yoshi>;

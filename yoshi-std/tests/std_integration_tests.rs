@@ -17,7 +17,7 @@
 // **Author:** Lord Xyn
 
 use std::io::{self, ErrorKind};
-use yoshi_std::{io_error_to_yoshi, HatchExt, Result, Yoshi, YoshiKind};
+use yoshi_std::{io_error_to_yoshi, Hatch, HatchExt, Result, Yoshi, YoshiKind};
 
 #[test]
 fn test_io_error_conversion() {
@@ -32,13 +32,15 @@ fn test_io_error_conversion() {
 #[test]
 fn test_io_error_with_context() {
     let io_error = io::Error::new(ErrorKind::PermissionDenied, "Access denied");
-    let result: Result<String> = Err(io_error_to_yoshi(io_error));
+    // Create a Hatch result first, then convert to Result using true dynamic adaptability
+    let hatch_result: Hatch<String> = Err(io_error_to_yoshi(io_error));
+    let result: Result<String> = hatch_result.to_result();
 
-    let enriched = result.context("While reading configuration file");
+    let enriched = result.nest("While reading configuration file");
     assert!(enriched.is_err());
 
     let error = enriched.unwrap_err();
-    let contexts: Vec<_> = error.contexts().collect();
+    let contexts: Vec<_> = error.nests().collect();
     assert!(!contexts.is_empty());
 }
 
@@ -79,42 +81,46 @@ fn test_basic_error_creation() {
 
 #[test]
 fn test_error_context_chain() {
-    let result: Result<String> = Err(Yoshi::new(YoshiKind::Internal {
+    // Create a Hatch result first, then convert to Result using true dynamic adaptability
+    let hatch_result: Hatch<String> = Err(Yoshi::new(YoshiKind::Internal {
         message: "Base error".into(),
         source: None,
         component: None,
     }));
+    let result: Result<String> = hatch_result.to_result();
 
     let enriched = result
-        .context("First context")
-        .context("Second context")
+        .nest("First context")
+        .nest("Second context")
         .with_signpost("Try this solution");
 
     assert!(enriched.is_err());
     let error = enriched.unwrap_err();
-    assert!(error.suggestion().is_some());
+    assert!(error.signpost().is_some());
     assert!(error
-        .suggestion()
-        .expect("suggestion should be present")
+        .signpost()
+        .expect("signpost should be present")
         .contains("Try this solution"));
 }
 
 #[test]
 fn test_error_metadata() {
-    let result: Result<String> = Err(Yoshi::new(YoshiKind::Internal {
+    // Create a Hatch result first, then convert to Result using true dynamic adaptability
+    let hatch_result: Hatch<String> = Err(Yoshi::new(YoshiKind::Internal {
         message: "Metadata test".into(),
         source: None,
         component: None,
     }));
+    let result: Result<String> = hatch_result.to_result();
 
     let enriched = result
         .meta("key1", "value1")
         .meta("key2", "value2")
-        .context("Test context");
+        .nest("Test context");
 
     assert!(enriched.is_err());
     let error = enriched.unwrap_err();
-    let contexts: Vec<_> = error.contexts().collect();
+    let contexts: Vec<_> = error.nests().collect();
     assert!(!contexts.is_empty());
 }
 
@@ -162,7 +168,7 @@ fn test_debug_formatting() {
         source: None,
         component: None,
     })
-    .context("Test context")
+    .nest("Test context")
     .with_signpost("Test suggestion");
 
     let debug_output = format!("{error:?}");
@@ -220,7 +226,7 @@ fn test_custom_error_type_conversion() {
 
     impl From<CustomError> for Yoshi {
         fn from(err: CustomError) -> Self {
-            Yoshi::new(YoshiKind::Internal {
+            Self::new(YoshiKind::Internal {
                 message: err.to_string().into(),
                 source: None,
                 component: Some("custom_service".into()),

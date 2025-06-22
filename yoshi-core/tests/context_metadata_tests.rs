@@ -33,8 +33,8 @@ fn test_error_with_metadata() {
     error = error.with_metadata("operation", "test_operation");
     let _id = error.instance_id(); // Instance ID is always valid
 
-    let contexts: Vec<_> = error.contexts().collect();
-    assert!(!contexts.is_empty());
+    let nests: Vec<_> = error.nests().collect();
+    assert!(!nests.is_empty());
 }
 
 #[test]
@@ -48,10 +48,10 @@ fn test_error_with_suggestion() {
 
     error = error.with_signpost("Please provide a valid email address");
     let _id = error.instance_id(); // Instance ID is always valid
-    assert!(error.suggestion().is_some());
+    assert!(error.signpost().is_some());
     assert!(error
-        .suggestion()
-        .expect("suggestion should be present")
+        .signpost()
+        .expect("signpost should be present")
         .contains("valid email"));
 }
 
@@ -79,8 +79,8 @@ fn test_multiple_metadata() {
     .with_metadata("key3", "value3");
 
     let _id = error.instance_id(); // Instance ID is always valid
-    let contexts: Vec<_> = error.contexts().collect();
-    assert!(!contexts.is_empty());
+    let nests: Vec<_> = error.nests().collect();
+    assert!(!nests.is_empty());
 }
 
 #[test]
@@ -95,8 +95,8 @@ fn test_context_chaining() {
     .lay("Third context");
 
     let _id = error.instance_id(); // Instance ID is always valid
-    let contexts: Vec<_> = error.contexts().collect();
-    assert!(contexts.len() >= 3);
+    let nests: Vec<_> = error.nests().collect();
+    assert!(nests.len() >= 3);
 }
 
 #[test]
@@ -175,12 +175,12 @@ fn test_error_context_iteration() {
     .lay("Context 2")
     .with_metadata("key", "value");
 
-    let contexts: Vec<_> = error.contexts().collect();
-    assert!(!contexts.is_empty());
+    let nests: Vec<_> = error.nests().collect();
+    assert!(!nests.is_empty());
 
     // Check that we can iterate multiple times
-    let contexts2: Vec<_> = error.contexts().collect();
-    assert_eq!(contexts.len(), contexts2.len());
+    let nests2: Vec<_> = error.nests().collect();
+    assert_eq!(nests.len(), nests2.len());
 }
 
 #[test]
@@ -193,10 +193,10 @@ fn test_error_suggestion_retrieval() {
     })
     .with_signpost("Use at least 8 characters with mixed case");
 
-    assert!(error.suggestion().is_some());
-    let suggestion = error.suggestion().expect("suggestion should be present");
-    assert!(suggestion.contains("8 characters"));
-    assert!(suggestion.contains("mixed case"));
+    assert!(error.signpost().is_some());
+    let signpost = error.signpost().expect("signpost should be present");
+    assert!(signpost.contains("8 characters"));
+    assert!(signpost.contains("mixed case"));
 }
 
 #[test]
@@ -211,8 +211,8 @@ fn test_error_metadata_types() {
     .with_metadata("boolean_key", "true")
     .with_metadata("json_key", r#"{"nested": "value"}"#);
 
-    let contexts: Vec<_> = error.contexts().collect();
-    assert!(!contexts.is_empty());
+    let nests: Vec<_> = error.nests().collect();
+    assert!(!nests.is_empty());
 }
 
 #[test]
@@ -283,8 +283,8 @@ fn test_error_lay_method() {
     .lay("Additional context");
 
     let _id = error.instance_id(); // Instance ID is always valid
-    let contexts: Vec<_> = error.contexts().collect();
-    assert!(!contexts.is_empty());
+    let nests: Vec<_> = error.nests().collect();
+    assert!(!nests.is_empty());
 }
 
 #[test]
@@ -310,9 +310,9 @@ fn test_complex_context_scenario() {
     error = error.with_priority(200);
 
     assert!(error.instance_id() == initial_id); // Instance ID should remain the same
-    assert!(error.suggestion().is_some());
-    let contexts: Vec<_> = error.contexts().collect();
-    assert!(!contexts.is_empty());
+    assert!(error.signpost().is_some());
+    let nests: Vec<_> = error.nests().collect();
+    assert!(!nests.is_empty());
 }
 
 #[test]
@@ -344,8 +344,8 @@ fn test_error_with_shell_payload() {
     .with_shell(test_data);
 
     let _id = error.instance_id(); // Instance ID is always valid
-    let contexts: Vec<_> = error.contexts().collect();
-    assert!(!contexts.is_empty());
+    let nests: Vec<_> = error.nests().collect();
+    assert!(!nests.is_empty());
 }
 
 #[test]
@@ -360,6 +360,6 @@ fn test_multiple_shell_payloads() {
     .with_shell(true);
 
     let _id = error.instance_id(); // Instance ID is always valid
-    let contexts: Vec<_> = error.contexts().collect();
-    assert!(!contexts.is_empty());
+    let nests: Vec<_> = error.nests().collect();
+    assert!(!nests.is_empty());
 }

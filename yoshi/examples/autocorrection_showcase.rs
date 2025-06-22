@@ -72,17 +72,17 @@ pub enum AutocorrectionError {
 impl std::fmt::Display for AutocorrectionError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            AutocorrectionError::FileOperationFailed { path, reason, .. } => {
+            Self::FileOperationFailed { path, reason, .. } => {
                 write!(f, "File operation failed: {path} - {reason}")
             }
-            AutocorrectionError::NetworkTimeout {
+            Self::NetworkTimeout {
                 service,
                 timeout_ms,
                 ..
             } => {
                 write!(f, "Network timeout: {service} after {timeout_ms}ms")
             }
-            AutocorrectionError::ResourceExhausted {
+            Self::ResourceExhausted {
                 resource, usage, ..
             } => {
                 write!(f, "Resource exhausted: {resource} at {usage}% capacity")
@@ -106,7 +106,7 @@ impl std::error::Error for AutocorrectionError {}
 ///
 /// A `Hatch<String>` with the result or error handling demonstration.
 pub fn demonstrate_basic_autocorrection() -> Hatch<String> {
-    println!("=== Basic Autocorrection Demonstration ===");
+    tracing::info!("=== Basic Autocorrection Demonstration ===");
 
     // Pattern: File operation without retry
     fn risky_file_operation(path: &str) -> Hatch<String> {
@@ -165,10 +165,10 @@ pub fn demonstrate_basic_autocorrection() -> Hatch<String> {
     match risky_file_operation("test.txt") {
         Ok(content) => println!("✓ File read successfully: {content}"),
         Err(e) => {
-            println!("✗ File operation failed: {e}");
+            tracing::info!("✗ File operation failed: {e}");
             println!(
                 "  🔧 Suggestion: {}",
-                e.suggestion().unwrap_or("No suggestion available")
+                e.signpost().unwrap_or("No suggestion available")
             );
         }
     }
@@ -176,10 +176,10 @@ pub fn demonstrate_basic_autocorrection() -> Hatch<String> {
     match risky_network_call("unreliable_service") {
         Ok(result) => println!("✓ Network call succeeded: {result}"),
         Err(e) => {
-            println!("✗ Network call failed: {e}");
+            tracing::info!("✗ Network call failed: {e}");
             println!(
                 "  🔧 Suggestion: {}",
-                e.suggestion().unwrap_or("No suggestion available")
+                e.signpost().unwrap_or("No suggestion available")
             );
         }
     }
@@ -187,10 +187,10 @@ pub fn demonstrate_basic_autocorrection() -> Hatch<String> {
     match risky_resource_usage() {
         Ok(()) => println!("✓ Resource usage within limits"),
         Err(e) => {
-            println!("✗ Resource exhausted: {e}");
+            tracing::info!("✗ Resource exhausted: {e}");
             println!(
                 "  🔧 Suggestion: {}",
-                e.suggestion().unwrap_or("No suggestion available")
+                e.signpost().unwrap_or("No suggestion available")
             );
         }
     }
@@ -207,7 +207,7 @@ pub fn demonstrate_basic_autocorrection() -> Hatch<String> {
 ///
 /// A `Hatch<AutocorrectionReport>` containing analysis and suggestions.
 pub fn demonstrate_advanced_autocorrection() -> Hatch<AutocorrectionReport> {
-    println!("\n=== Advanced Autocorrection Demonstration ===");
+    tracing::info!("\n=== Advanced Autocorrection Demonstration ===");
 
     // Complex patterns for future yoshi_af! analysis
     // Pattern: Distributed transaction without compensation
@@ -267,7 +267,7 @@ pub fn demonstrate_advanced_autocorrection() -> Hatch<AutocorrectionReport> {
             });
         }
         Err(e) => {
-            println!("Distributed transaction failed: {e}");
+            tracing::info!("Distributed transaction failed: {e}");
         }
     }
 
@@ -283,7 +283,7 @@ pub fn demonstrate_advanced_autocorrection() -> Hatch<AutocorrectionReport> {
             });
         }
         Err(e) => {
-            println!("Concurrent operations failed: {e}");
+            tracing::info!("Concurrent operations failed: {e}");
         }
     }
 
@@ -299,7 +299,7 @@ pub fn demonstrate_advanced_autocorrection() -> Hatch<AutocorrectionReport> {
             });
         }
         Err(e) => {
-            println!("Resource management failed: {e}");
+            tracing::info!("Resource management failed: {e}");
         }
     }
 
@@ -323,7 +323,7 @@ pub fn demonstrate_advanced_autocorrection() -> Hatch<AutocorrectionReport> {
 ///
 /// A `Hatch<()>` indicating completion of the demonstration.
 pub fn demonstrate_realworld_autocorrection() -> Hatch<()> {
-    println!("\n=== Real-World Autocorrection Demonstration ===");
+    tracing::info!("\n=== Real-World Autocorrection Demonstration ===");
 
     // Real-world patterns for future yoshi_af! analysis
     fn database_operations() -> Hatch<Vec<String>> {
@@ -367,24 +367,24 @@ pub fn demonstrate_realworld_autocorrection() -> Hatch<()> {
         Err(e) => println!("✗ Web service failed: {e}"),
     }
 
-    println!("\n🔧 Future yoshi_af! Analysis Results:");
-    println!("  📊 Database Operations:");
-    println!("    - Detected: Individual DB connections per query");
-    println!("    - Suggestion: Implement connection pooling");
-    println!("    - Auto-fix: Available (confidence: 95%)");
+    tracing::info!("\n🔧 Future yoshi_af! Analysis Results:");
+    tracing::info!("  📊 Database Operations:");
+    tracing::info!("    - Detected: Individual DB connections per query");
+    tracing::info!("    - Suggestion: Implement connection pooling");
+    tracing::info!("    - Auto-fix: Available (confidence: 95%)");
 
-    println!("  🌐 Web Service Handler:");
-    println!("    - Detected: Missing input validation");
-    println!("    - Detected: No rate limiting");
-    println!("    - Detected: No response caching");
-    println!("    - Suggestions: Add validation, rate limiting, and caching layers");
-    println!("    - Auto-fix: Available (confidence: 88%)");
+    tracing::info!("  🌐 Web Service Handler:");
+    tracing::info!("    - Detected: Missing input validation");
+    tracing::info!("    - Detected: No rate limiting");
+    tracing::info!("    - Detected: No response caching");
+    tracing::info!("    - Suggestions: Add validation, rate limiting, and caching layers");
+    tracing::info!("    - Auto-fix: Available (confidence: 88%)");
 
-    println!("\n🚀 yoshi-deluxe Integration:");
-    println!("  - Pattern Detection Engine: Active");
-    println!("  - Code Transformation Engine: Ready");
-    println!("  - Auto-correction Success Rate: 87%");
-    println!("  - Performance Impact: < 1% compile time increase");
+    tracing::info!("\n🚀 yoshi-deluxe Integration:");
+    tracing::info!("  - Pattern Detection Engine: Active");
+    tracing::info!("  - Code Transformation Engine: Ready");
+    tracing::info!("  - Auto-correction Success Rate: 87%");
+    tracing::info!("  - Performance Impact: < 1% compile time increase");
 
     Ok(())
 }
@@ -481,7 +481,7 @@ fn use_resource(resource: &str) -> Hatch<String> {
 
 /// Simulates resource release.
 fn release_resource(resource: String) -> Hatch<()> {
-    println!("Released resource: {resource}");
+    tracing::info!("Released resource: {resource}");
     Ok(())
 }
 
@@ -497,7 +497,7 @@ fn execute_query(connection: &str, query: &str) -> Hatch<String> {
 
 /// Simulates database connection closure.
 fn close_db_connection(connection: String) -> Hatch<()> {
-    println!("Closed connection: {connection}");
+    tracing::info!("Closed connection: {connection}");
     Ok(())
 }
 
@@ -520,15 +520,15 @@ fn generate_response(processed_request: &str) -> Hatch<String> {
 /// Shows how all components work together to provide comprehensive
 /// autocorrection capabilities in a real development workflow.
 pub fn demonstrate_complete_workflow() -> Hatch<()> {
-    println!("\n=== Complete Autocorrection Workflow ===");
+    tracing::info!("\n=== Complete Autocorrection Workflow ===");
 
     // Step 1: Basic autocorrection
     let basic_result = demonstrate_basic_autocorrection()?;
-    println!("✓ Basic autocorrection: {basic_result}");
+    tracing::info!("✓ Basic autocorrection: {basic_result}");
 
     // Step 2: Advanced pattern detection
     let advanced_report = demonstrate_advanced_autocorrection()?;
-    println!("✓ Advanced analysis completed:");
+    tracing::info!("✓ Advanced analysis completed:");
     println!(
         "  - Patterns detected: {}",
         advanced_report.patterns_detected
@@ -552,14 +552,14 @@ pub fn demonstrate_complete_workflow() -> Hatch<()> {
     // Step 3: Real-world scenarios
     demonstrate_realworld_autocorrection()?;
 
-    println!("\n🎉 Autocorrection Showcase Complete!");
-    println!("📈 Summary:");
-    println!("  - yoshi_af! macro: Fully functional");
-    println!("  - Pattern detection: Active");
-    println!("  - Auto-fix generation: Available");
-    println!("  - Integration with yoshi-deluxe: Seamless");
-    println!("  - Compile-time analysis: Enabled");
-    println!("  - Runtime suggestions: Provided");
+    tracing::info!("\n🎉 Autocorrection Showcase Complete!");
+    tracing::info!("📈 Summary:");
+    tracing::info!("  - yoshi_af! macro: Fully functional");
+    tracing::info!("  - Pattern detection: Active");
+    tracing::info!("  - Auto-fix generation: Available");
+    tracing::info!("  - Integration with yoshi-deluxe: Seamless");
+    tracing::info!("  - Compile-time analysis: Enabled");
+    tracing::info!("  - Runtime suggestions: Provided");
 
     Ok(())
 }
@@ -569,18 +569,18 @@ pub fn demonstrate_complete_workflow() -> Hatch<()> {
 /// Runs comprehensive examples of the `yoshi_af`! macro and yoshi-deluxe
 /// autocorrection features, showing real-world usage patterns.
 pub fn main() -> Hatch<()> {
-    println!("🚀 Yoshi Autocorrection Showcase");
-    println!("Demonstrating yoshi_af! macro and yoshi-deluxe integration\n");
+    tracing::info!("🚀 Yoshi Autocorrection Showcase");
+    tracing::info!("Demonstrating yoshi_af! macro and yoshi-deluxe integration\n");
 
     demonstrate_complete_workflow()?;
 
-    println!("\n✨ The Yoshi framework provides:");
-    println!("  🔍 Intelligent error pattern detection");
-    println!("  🔧 Automated fix suggestions");
-    println!("  ⚡ Compile-time code analysis");
-    println!("  🎯 Runtime error correlation");
-    println!("  📊 Performance impact analysis");
-    println!("  🛡️ Production-ready error handling");
+    tracing::info!("\n✨ The Yoshi framework provides:");
+    tracing::error!("  🔍 Intelligent error pattern detection");
+    tracing::info!("  🔧 Automated fix suggestions");
+    tracing::info!("  ⚡ Compile-time code analysis");
+    tracing::error!("  🎯 Runtime error correlation");
+    tracing::info!("  📊 Performance impact analysis");
+    tracing::error!("  🛡️ Production-ready error handling");
 
     Ok(())
 }

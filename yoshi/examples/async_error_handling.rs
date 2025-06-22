@@ -180,7 +180,8 @@ impl AsyncHttpClient {
     ///
     /// The client is initialized with default settings: 30-second timeout,
     /// 3 retry attempts, and 1-second retry delay.
-    #[must_use] pub fn new(base_url: String) -> Self {
+    #[must_use]
+    pub const fn new(base_url: String) -> Self {
         Self {
             base_url,
             timeout: Duration::from_secs(30),
@@ -192,7 +193,8 @@ impl AsyncHttpClient {
     /// Configures the request timeout for this client.
     ///
     /// Returns a new client instance with the specified timeout duration.
-    #[must_use] pub fn with_timeout(mut self, timeout: Duration) -> Self {
+    #[must_use]
+    pub const fn with_timeout(mut self, timeout: Duration) -> Self {
         self.timeout = timeout;
         self
     }
@@ -200,7 +202,8 @@ impl AsyncHttpClient {
     /// Configures retry behavior for this client.
     ///
     /// Sets the number of retry attempts and delay between retries.
-    #[must_use] pub fn with_retry(mut self, attempts: u32, delay: Duration) -> Self {
+    #[must_use]
+    pub const fn with_retry(mut self, attempts: u32, delay: Duration) -> Self {
         self.retry_attempts = attempts;
         self.retry_delay = delay;
         self
@@ -369,7 +372,8 @@ impl TaskManager {
     /// Creates a new task manager with the specified concurrency limit.
     ///
     /// The manager will prevent more than `max_concurrent` tasks from running simultaneously.
-    #[must_use] pub fn new(max_concurrent: usize) -> Self {
+    #[must_use]
+    pub fn new(max_concurrent: usize) -> Self {
         Self {
             tasks: HashMap::new(),
             max_concurrent,
@@ -389,7 +393,7 @@ impl TaskManager {
         // Check concurrent limit
         if self.active_count >= self.max_concurrent {
             return Err(AsyncError::TaskFailed {
-                task_id: task_id.clone(),
+                task_id,
                 message: format!("Max concurrent tasks reached: {}", self.max_concurrent),
             }
             .into());
@@ -407,18 +411,18 @@ impl TaskManager {
         self.active_count += 1;
 
         // Spawn the task
-        let task_id_clone = task_id.clone();
+        let task_id_clone = task_id;
         tokio::spawn(async move {
             // Update status to running
-            println!("Task {task_id_clone} started");
+            tracing::info!("Task {task_id_clone} started");
 
             // Execute the future
             match future.await {
                 Ok(_) => {
-                    println!("Task {task_id_clone} completed successfully");
+                    tracing::info!("Task {task_id_clone} completed successfully");
                 }
                 Err(e) => {
-                    println!("Task {task_id_clone} failed: {e}");
+                    tracing::info!("Task {task_id_clone} failed: {e}");
                 }
             }
         });
@@ -482,12 +486,14 @@ impl TaskManager {
     /// Gets the status information for a specific task.
     ///
     /// Returns None if the task ID is not found.
-    #[must_use] pub fn get_task_status(&self, task_id: &str) -> Option<&TaskInfo> {
+    #[must_use]
+    pub fn get_task_status(&self, task_id: &str) -> Option<&TaskInfo> {
         self.tasks.get(task_id)
     }
 
     /// Returns the current number of active (running) tasks.
-    #[must_use] pub fn get_active_count(&self) -> usize {
+    #[must_use]
+    pub const fn get_active_count(&self) -> usize {
         self.active_count
     }
 }
@@ -511,7 +517,8 @@ impl StreamProcessor {
     ///
     /// The processor will use the given buffer size for chunking and will
     /// stop processing if the error threshold is exceeded.
-    #[must_use] pub fn new(buffer_size: usize, error_threshold: usize) -> Self {
+    #[must_use]
+    pub const fn new(buffer_size: usize, error_threshold: usize) -> Self {
         Self {
             buffer_size,
             error_threshold,
@@ -547,7 +554,7 @@ impl StreamProcessor {
                     }
 
                     // Log error but continue processing
-                    println!("Stream error at position {position}: {e} (continuing)");
+                    tracing::error!("Stream error at position {position}: {e} (continuing)");
                 }
             }
 
@@ -590,12 +597,13 @@ impl StreamProcessor {
     /// Resets the error count to zero.
     ///
     /// This can be used to reset error tracking after implementing recovery measures.
-    pub fn reset_error_count(&mut self) {
+    pub const fn reset_error_count(&mut self) {
         self.error_count = 0;
     }
 
     /// Returns the current error count.
-    #[must_use] pub fn get_error_count(&self) -> usize {
+    #[must_use]
+    pub const fn get_error_count(&self) -> usize {
         self.error_count
     }
 }
@@ -620,7 +628,8 @@ impl WebSocketManager {
     /// Creates a new WebSocket manager for the specified URL.
     ///
     /// The manager is initialized with default reconnection settings.
-    #[must_use] pub fn new(url: String) -> Self {
+    #[must_use]
+    pub const fn new(url: String) -> Self {
         Self {
             url,
             is_connected: false,
@@ -647,7 +656,7 @@ impl WebSocketManager {
 
         self.is_connected = true;
         self.reconnect_attempts = 0;
-        println!("WebSocket connected to {}", self.url);
+        tracing::info!("WebSocket connected to {}", self.url);
 
         Ok(())
     }
@@ -674,7 +683,7 @@ impl WebSocketManager {
             .into());
         }
 
-        println!("Message sent: {message}");
+        tracing::info!("Message sent: {message}");
         Ok(())
     }
 
@@ -728,14 +737,15 @@ impl WebSocketManager {
     }
 
     /// Returns whether the WebSocket is currently connected.
-    #[must_use] pub fn is_connected(&self) -> bool {
+    #[must_use]
+    pub const fn is_connected(&self) -> bool {
         self.is_connected
     }
 
     /// Manually disconnects the WebSocket connection.
     pub fn disconnect(&mut self) {
         self.is_connected = false;
-        println!("WebSocket disconnected");
+        tracing::info!("WebSocket disconnected");
     }
 }
 
@@ -761,10 +771,10 @@ yoshi_af! {
 
 #[tokio::main]
 async fn main() -> Hatch<()> {
-    println!("🚀 Yoshi Async Error Handling Example");
+    tracing::error!("🚀 Yoshi Async Error Handling Example");
 
     // Example 1: HTTP Client with retry logic
-    println!("\n🌐 HTTP Client demonstration...");
+    tracing::info!("\n🌐 HTTP Client demonstration...");
     let client = AsyncHttpClient::new("https://api.example.com".to_string())
         .with_timeout(Duration::from_secs(5))
         .with_retry(3, Duration::from_millis(500));
@@ -775,15 +785,15 @@ async fn main() -> Hatch<()> {
             response.status_code, response.body
         ),
         Err(e) => {
-            println!("❌ HTTP request failed: {e}");
+            tracing::info!("❌ HTTP request failed: {e}");
             if let Some(suggestion) = e.suggestion() {
-                println!("💡 Suggestion: {suggestion}");
+                tracing::info!("💡 Suggestion: {suggestion}");
             }
         }
     }
 
     // Example 2: Concurrent task management
-    println!("\n⚡ Concurrent task management...");
+    tracing::info!("\n⚡ Concurrent task management...");
     let mut task_manager = TaskManager::new(3);
 
     // Spawn multiple tasks
@@ -811,35 +821,35 @@ async fn main() -> Hatch<()> {
     match task_manager.wait_for_all().await {
         Ok(completed) => println!("✅ All tasks completed: {completed:?}"),
         Err(e) => {
-            println!("❌ Some tasks failed: {e}");
+            tracing::info!("❌ Some tasks failed: {e}");
             if let Some(suggestion) = e.suggestion() {
-                println!("💡 Suggestion: {suggestion}");
+                tracing::info!("💡 Suggestion: {suggestion}");
             }
         }
     }
 
     // Example 3: Stream processing with error recovery
-    println!("\n📊 Stream processing demonstration...");
+    tracing::info!("\n📊 Stream processing demonstration...");
     let mut stream_processor = StreamProcessor::new(10, 3);
     let data: Vec<i32> = (1..=50).collect();
 
     match stream_processor.process_stream(data).await {
         Ok(results) => println!("✅ Stream processed: {} items", results.len()),
         Err(e) => {
-            println!("❌ Stream processing failed: {e}");
+            tracing::info!("❌ Stream processing failed: {e}");
             if let Some(suggestion) = e.suggestion() {
-                println!("💡 Suggestion: {suggestion}");
+                tracing::info!("💡 Suggestion: {suggestion}");
             }
         }
     }
 
     // Example 4: WebSocket connection with reconnection
-    println!("\n🔌 WebSocket connection demonstration...");
+    tracing::info!("\n🔌 WebSocket connection demonstration...");
     let mut ws_manager = WebSocketManager::new("wss://echo.websocket.org".to_string());
 
     match ws_manager.connect().await {
         Ok(()) => {
-            println!("✅ WebSocket connected");
+            tracing::info!("✅ WebSocket connected");
 
             // Send messages
             for i in 1..=3 {
@@ -847,9 +857,9 @@ async fn main() -> Hatch<()> {
                 match ws_manager.send_message(&message).await {
                     Ok(()) => println!("✅ Message sent: {message}"),
                     Err(e) => {
-                        println!("❌ Message send failed: {e}");
+                        tracing::info!("❌ Message send failed: {e}");
                         if let Some(suggestion) = e.suggestion() {
-                            println!("💡 Suggestion: {suggestion}");
+                            tracing::info!("💡 Suggestion: {suggestion}");
                         }
                     }
                 }
@@ -864,15 +874,15 @@ async fn main() -> Hatch<()> {
             ws_manager.disconnect();
         }
         Err(e) => {
-            println!("❌ WebSocket connection failed: {e}");
+            tracing::info!("❌ WebSocket connection failed: {e}");
             if let Some(suggestion) = e.suggestion() {
-                println!("💡 Suggestion: {suggestion}");
+                tracing::info!("💡 Suggestion: {suggestion}");
             }
         }
     }
 
     // Example 5: Error handling with context
-    println!("\n🔍 Error context demonstration...");
+    tracing::error!("\n🔍 Error context demonstration...");
     let error_demo_result = async {
         let client = AsyncHttpClient::new("https://api.example.com".to_string());
         client
@@ -885,20 +895,20 @@ async fn main() -> Hatch<()> {
     match error_demo_result {
         Ok(response) => println!("✅ Unexpected success: {}", response.body),
         Err(e) => {
-            println!("❌ Expected error with context: {e}");
+            tracing::error!("❌ Expected error with context: {e}");
             if let Some(suggestion) = e.suggestion() {
-                println!("💡 Suggestion: {suggestion}");
+                tracing::info!("💡 Suggestion: {suggestion}");
             }
         }
     }
 
     // Example 6: Auto-correction demonstration
-    println!("\n🔧 Auto-correction demonstration...");
+    tracing::info!("\n🔧 Auto-correction demonstration...");
     match enhanced_async_operations() {
         Ok(result) => println!("✅ Auto-correction result: {result}"),
         Err(e) => println!("❌ Auto-correction failed: {e}"),
     }
 
-    println!("\n🎉 Async error handling example completed successfully!");
+    tracing::error!("\n🎉 Async error handling example completed successfully!");
     Ok(())
 }

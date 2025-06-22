@@ -61,11 +61,11 @@ fn test_result_type_alias() {
     }
 
     fn error_function() -> Result<String> {
-        Err(Yoshi::new(YoshiKind::Internal {
+        Err(AnyError::from(Yoshi::new(YoshiKind::Internal {
             message: "Unit test failure".into(),
             source: None,
             component: Some("unit_test".into()),
-        }))
+        })))
     }
 
     assert_eq!(success_function(), 42);

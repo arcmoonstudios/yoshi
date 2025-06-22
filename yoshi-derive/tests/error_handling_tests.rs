@@ -2,13 +2,18 @@
 #![warn(missing_docs)]
 #![warn(clippy::cargo)]
 #![deny(unsafe_code)]
-#![allow(clippy::io_other_error)]
+#![allow(
+    clippy::io_other_error,
+    clippy::print_stdout,
+    clippy::indexing_slicing,
+    clippy::unwrap_used
+)]
 #![allow(unused_variables, dead_code)]
 
 //! **Brief:** Error handling and validation tests for `YoshiError` derive macro
 //!
 //! This test suite focuses on testing the macro's error handling capabilities,
-//! validation logic, and proper error reporting. These tests help ensure that
+//! validation tracingic, and proper error reporting. These tests help ensure that
 //! the macro provides helpful error messages when misconfigured.
 
 // ~=####====A===r===c===M===o===o===n====S===t===u===d===i===o===s====X|0|$>
@@ -25,8 +30,8 @@
 // **Author:** Lord Xyn
 
 use std::error::Error;
+use yoshi_core::NoStdIo;
 use yoshi_derive::YoshiError;
-use yoshi_std::NoStdIo;
 
 //--------------------------------------------------------------------------------------------------
 // Valid Configurations That Should Work
@@ -64,7 +69,8 @@ fn test_valid_configurations_work() {
     assert!(format!("{transparent}").contains("test"));
 
     // Test from variant
-    let json_err = serde_json::from_str::<serde_json::Value>("invalid json").unwrap_err();
+    let json_err = serde_json::from_str::<serde_json::Value>("invalid json")
+        .expect_err("Expected JSON parsing to fail");
     let from_err = ValidError::from(json_err);
     assert!(matches!(from_err, ValidError::FromError(_)));
 }
@@ -97,7 +103,7 @@ enum ComplexValidError {
         kind = "Network",
         severity = 200,
         transient = true,
-        suggestion = "Check network connectivity"
+        signpost = "Check network connectivity"
     )]
     Network { message: String, code: u32 },
 
@@ -132,7 +138,7 @@ fn test_complex_valid_configuration() {
     assert_eq!(network.error_kind(), "Network");
     assert_eq!(network.severity(), 200);
     assert!(network.is_transient());
-    assert!(network.suggestion().is_some());
+    assert!(network.signpost().is_some());
 
     // Test validation error
     let validation = ComplexValidError::Validation {
@@ -253,7 +259,7 @@ fn test_boundary_conditions() {
     assert_eq!(min_code.error_code(), Some(0));
 
     let max_code = BoundaryError::MaxCode;
-    assert_eq!(max_code.error_code(), Some(4294967295));
+    assert_eq!(max_code.error_code(), Some(4_294_967_295));
 
     let empty = BoundaryError::EmptyDisplay;
     assert_eq!(format!("{empty}"), "");
@@ -548,7 +554,7 @@ enum HelperMethodError {
         severity = 200,
         transient = true,
         code = 1001,
-        suggestion = "Check connectivity"
+        signpost = "Check connectivity"
     )]
     NetworkError,
 
@@ -557,7 +563,7 @@ enum HelperMethodError {
         severity = 150,
         transient = false,
         code = 2001,
-        suggestion = "Validate input"
+        signpost = "Validate input"
     )]
     ValidationError,
 }
@@ -582,26 +588,37 @@ fn test_helper_methods_comprehensive() {
     assert_eq!(network.severity(), 200);
     assert!(network.is_transient());
     assert_eq!(network.error_code(), Some(1001));
-    assert_eq!(network.suggestion(), Some("Check connectivity"));
+    assert_eq!(network.signpost(), Some("Check connectivity"));
 
     assert_eq!(validation.error_kind(), "Validation");
     assert_eq!(validation.severity(), 150);
     assert!(!validation.is_transient());
     assert_eq!(validation.error_code(), Some(2001));
-    assert_eq!(validation.suggestion(), Some("Validate input"));
+    assert_eq!(validation.signpost(), Some("Validate input"));
 
     // Test context methods
     let network_context = network.error_context();
-    assert_eq!(network_context["variant"], "NetworkError");
-    assert_eq!(network_context["kind"], "Network");
-    assert_eq!(network_context["severity"], "200");
-    assert_eq!(network_context["transient"], "true");
-    assert_eq!(network_context["error_code"], "1001");
-    assert_eq!(network_context["suggestion"], "Check connectivity");
+    assert_eq!(network_context.get("variant").unwrap(), "NetworkError");
+    assert_eq!(network_context.get("kind").unwrap(), "Network");
+    assert_eq!(network_context.get("severity").unwrap(), "200");
+    assert_eq!(network_context.get("transient").unwrap(), "true");
+    assert_eq!(network_context.get("error_code").unwrap(), "1001");
+    assert_eq!(
+        network_context.get("signpost").unwrap(),
+        "Check connectivity"
+    );
 
-    // Test related errors (should be empty by default)
-    assert!(network.related_errors().is_empty());
-    assert!(validation.related_errors().is_empty());
+    // Test related errors (should return related error types)
+    let network_related = network.related_errors();
+    assert!(!network_related.is_empty());
+    assert!(network_related.contains(&"Io"));
+    assert!(network_related.contains(&"Timeout"));
+    assert!(network_related.contains(&"Security"));
+
+    let validation_related = validation.related_errors();
+    assert!(!validation_related.is_empty());
+    assert!(validation_related.contains(&"Io"));
+    assert!(validation_related.contains(&"Config"));
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -644,5 +661,5 @@ fn test_error_handling_comprehensive() {
         let _ = err.source();
     }
 
-    println!("All error handling tests passed successfully!");
+    tracing::error!("All error handling tests passed successfully!");
 }

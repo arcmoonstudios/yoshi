@@ -1,4 +1,3 @@
-# yoshi-derive/Cargo.toml
 [package]
 name = "yoshi-derive"
 version = "0.1.6"
@@ -16,68 +15,84 @@ readme = "README.md"
 proc-macro = true
 
 [dependencies]
-# Core proc-macro dependencies
 darling = "0.20.11"
 dashmap = "6.1.0"
 proc-macro2 = "1.0.95"
 once_cell = "1.21.3"
 quote = "1.0.40"
 parking_lot = "0.12"
-
-# High-performance hash optimization dependencies
 ahash = "0.8.12"
 hashbrown = "0.15.4"
-
-# Additional proc-macro dependencies
-syn = { version = "2.0.101", features = ["full", "extra-traits", "derive"] }
-
-# Integration with yoshi framework components
-yoshi-core = { version = "0.1.6", path = "../yoshi-core", features = ["alloc"] }
-yoshi-std = { version = "0.1.6", path = "../yoshi-std", features = ["std"] }
-
-# Optional dependencies for testing features
-trybuild = { version = "1.0.105", optional = true }
-serde = { version = "1.0.219", features = ["derive"], optional = true }
+tracing = { version = "0.1.39", features = ["attributes"] }
+const-fnv1a-hash = "1.1.0"
+crossbeam-queue = "0.3"
+futures = { version = "0.3", optional = true }
+tokio = { version = "1.0", features = [
+    "rt",
+    "sync",
+    "macros",
+], optional = true }
 
 [dev-dependencies]
-# Testing dependencies (always available in tests)
 serde_json = "1.0.140"
-
-# Additional testing utilities
 pretty_assertions = "1.4.1"
 paste = "1.0.15"
-tokio = { version = "1.35", features = ["full"] }
-yoshi-core = { path = "../yoshi-core" }
-yoshi-std = { path = "../yoshi-std" }
+env_logger = "0.10"
 
 [features]
-default = ["std", "auto-optimization", "serde"]
-
-# Standard library support (enabled by default)
-std = ["yoshi-core/std", "yoshi-std/std"]
-
-# Enable performance optimizations for large enums
+default = [
+    "std",
+    "auto-optimization",
+    "serde",
+    "rayon",
+    "optimize-large",
+    "compile-fail-tests",
+    "full-testing",
+]
+std = ["yoshi-core/std"]
+rayon = ["dep:rayon"]
 optimize-large = []
-
-# Enable auto-optimization engine integration (built-in patterns)
 auto-optimization = []
-
-# Enable serde support for testing
 serde = ["dep:serde"]
-
-# Enable compile-fail testing
 compile-fail-tests = ["trybuild"]
-
-# Enable full testing (just a marker feature, doesn't enable yoshi-std since it's always available)
 full-testing = []
+concurrent = ["futures", "tokio"]
+optimization-metrics = []
 
-# docs.rs configuration
+[dependencies.rayon]
+version = "1.10.0"
+optional = true
+
+[dependencies.syn]
+version = "2.0.103"
+features = ["full", "extra-traits", "derive", "visit", "visit-mut"]
+
+[dependencies.yoshi-core]
+version = "0.1.6"
+path = "../yoshi-core"
+features = ["alloc"]
+
+[dependencies.trybuild]
+version = "1.0.105"
+optional = true
+
+[dependencies.serde]
+version = "1.0.219"
+features = ["derive"]
+optional = true
+
+[dev-dependencies.tokio]
+version = "1.45"
+features = ["full"]
+
+[dev-dependencies.yoshi-core]
+path = "../yoshi-core"
+
 [package.metadata.docs.rs]
 rustc-args = ["--cap-lints=warn"]
 rustdoc-args = ["--cfg", "docsrs"]
 targets = ["x86_64-unknown-linux-gnu"]
 
-# Test configurations
 [[test]]
 name = "diagnostic_test"
 path = "tests/diagnostic_test.rs"
@@ -106,7 +121,6 @@ path = "tests/derive_test.rs"
 name = "autofix_trigger_integration"
 path = "tests/autofix_trigger_integration.rs"
 
-# Compile-fail tests (when enabled)
 [[test]]
 name = "compile_fail_tests"
 path = "tests/compile_fail_tests.rs"

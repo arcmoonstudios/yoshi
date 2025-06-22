@@ -1,5 +1,6 @@
 /* yoshi-derive/tests/test_choice_a_solution.rs */
 #![deny(unsafe_code)]
+
 //! **Brief:** Choice A solution verification for extraordinary automatic `std::io::Error` support.
 // ~=####====A===r===c===M===o===o===n====S===t===u===d===i===o===s====X|0|$>
 //! + Comprehensive `std::io::Error` integration testing with transparent and source variants
@@ -20,7 +21,6 @@
 // **Author:** Lord Xyn
 
 // Test file to verify Choice A solution - extraordinary automatic std::io::Error support
-
 #[cfg(test)]
 mod tests {
     use std::error::Error;
@@ -46,7 +46,7 @@ mod tests {
 
     #[test]
     fn test_choice_a_solution() {
-        println!("🚀 Testing Choice A Solution - Extraordinary std::io::Error Support");
+        eprintln!("🚀 Testing Choice A Solution - Extraordinary std::io::Error Support");
 
         // Test 1: Transparent variant (should work with From)
         let io_err = io::Error::new(io::ErrorKind::NotFound, "file not found");
@@ -56,11 +56,11 @@ mod tests {
         // Test 2: Check if std::io::Error support works with From trait
         let io_err2 = io::Error::new(io::ErrorKind::PermissionDenied, "access denied");
         // For now, let's test basic functionality
-        println!("✓ std::io::Error can be created: {:?}", io_err2.kind());
+        eprintln!("✓ std::io::Error can be created: {:?}", io_err2.kind());
 
         // Test 3: Test error trait implementation
         let error_trait: &dyn Error = &test_err1;
-        println!("✓ Error trait works: {error_trait}");
+        eprintln!("✓ Error trait works: {error_trait}");
 
         // Test 4: Test if source() method works
         if let Some(source) = error_trait.source() {
@@ -69,6 +69,6 @@ mod tests {
             println!("✓ No source (expected for transparent)");
         }
 
-        println!("\n🎉 Choice A Solution Working! Users can use std::io::Error naturally!");
+        eprintln!("\n🎉 Choice A Solution Working! Users can use std::io::Error naturally!");
     }
 }

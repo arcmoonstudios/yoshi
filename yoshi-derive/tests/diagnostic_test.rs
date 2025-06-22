@@ -41,17 +41,17 @@ fn test_basic_macro_works() {
     let err = BasicDiagnosticError::Simple;
 
     // Test that basic traits are implemented
-    println!("✓ Macro compiles successfully");
+    tracing::info!("✓ Macro compiles successfully");
 
     // Test Display trait
     let display_str = format!("{err}");
     assert!(!display_str.is_empty(), "Display implementation failed");
-    println!("✓ Display trait works: '{display_str}'");
+    tracing::info!("✓ Display trait works: '{display_str}'");
 
     // Test Debug trait
     let debug_str = format!("{err:?}");
     assert!(!debug_str.is_empty(), "Debug implementation failed");
-    println!("✓ Debug trait works: '{debug_str}'");
+    tracing::debug!("✓ Debug trait works: '{debug_str}'");
 
     // Test Error trait
     let error_trait: &dyn Error = &err;
@@ -60,14 +60,14 @@ fn test_basic_macro_works() {
         !error_display.is_empty(),
         "Error trait implementation failed"
     );
-    println!("✓ Error trait works");
+    tracing::error!("✓ Error trait works");
 
     // Test source method (should be None for basic case)
     assert!(
         error_trait.source().is_none(),
         "Source should be None for basic error"
     );
-    println!("✓ Error source method works");
+    tracing::error!("✓ Error source method works");
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -95,7 +95,7 @@ fn test_fields_work() {
         display_str.contains("test message"),
         "Field interpolation failed: {display_str}"
     );
-    println!("✓ Struct field interpolation works: '{display_str}'");
+    tracing::info!("✓ Struct field interpolation works: '{display_str}'");
 
     let tuple_err = FieldDiagnosticError::TupleError("tuple test".to_string());
     let display_str = format!("{tuple_err}");
@@ -103,7 +103,7 @@ fn test_fields_work() {
         display_str.contains("tuple test"),
         "Tuple field interpolation failed: {display_str}"
     );
-    println!("✓ Tuple field interpolation works: '{display_str}'");
+    tracing::info!("✓ Tuple field interpolation works: '{display_str}'");
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -128,10 +128,10 @@ fn test_yoshi_std_integration() {
     };
 
     // Test conversion to Yoshi
-    let yoshi_err: yoshi_std::Yoshi = err.into();
+    let yoshi_err: yoshi_core::Yoshi = err.into();
 
-    println!("✓ Conversion to yoshi_std::Yoshi works");
-    println!("  Yoshi error: {yoshi_err}");
+    tracing::info!("✓ Conversion to yoshi_std::Yoshi works");
+    tracing::error!("  Yoshi error: {yoshi_err}");
 
     // Test that the conversion preserves information
     let yoshi_str = format!("{yoshi_err}");
@@ -139,7 +139,7 @@ fn test_yoshi_std_integration() {
         yoshi_str.contains("integration test"),
         "Yoshi conversion lost message"
     );
-    println!("✓ Yoshi conversion preserves error information");
+    tracing::error!("✓ Yoshi conversion preserves error information");
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -165,19 +165,19 @@ fn test_auto_inference() {
     assert_eq!(validation_err.variant_name(), "ValidationFailed");
     assert_eq!(io_err.variant_name(), "IoError");
 
-    println!("✓ Auto-inference generates helper methods");
+    tracing::info!("✓ Auto-inference generates helper methods");
 
     // Test that error kinds are inferred
-    println!("  NetworkTimeout kind: {}", network_err.error_kind());
-    println!("  ValidationFailed kind: {}", validation_err.error_kind());
-    println!("  IoError kind: {}", io_err.error_kind());
+    tracing::info!("  NetworkTimeout kind: {}", network_err.error_kind());
+    tracing::info!("  ValidationFailed kind: {}", validation_err.error_kind());
+    tracing::info!("  IoError kind: {}", io_err.error_kind());
 
     // Basic sanity checks
     assert!(!network_err.error_kind().is_empty());
     assert!(!validation_err.error_kind().is_empty());
     assert!(!io_err.error_kind().is_empty());
 
-    println!("✓ Auto-inference assigns error kinds");
+    tracing::error!("✓ Auto-inference assigns error kinds");
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -208,7 +208,7 @@ fn test_source_fields() {
     };
 
     assert!(io_err.source().is_some(), "Source field not detected");
-    println!("✓ Explicit source fields work");
+    tracing::info!("✓ Explicit source fields work");
 
     // Test transparent
     let transparent_err = SourceDiagnosticError::Transparent(std::io::Error::new(
@@ -225,7 +225,7 @@ fn test_source_fields() {
         display_str.contains("transparent error"),
         "Transparent forwarding failed"
     );
-    println!("✓ Transparent errors work");
+    tracing::info!("✓ Transparent errors work");
 
     // Test Other variant
     let other_err = SourceDiagnosticError::Other("other error".to_string());
@@ -234,7 +234,7 @@ fn test_source_fields() {
         display_str.contains("Other"),
         "Other variant display failed"
     );
-    println!("✓ Other variant works");
+    tracing::info!("✓ Other variant works");
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -284,25 +284,25 @@ fn test_complex_configuration() {
         display_str.contains("detailed error info"),
         "Details not in display"
     );
-    println!("✓ Complex display formatting works: '{display_str}'");
+    tracing::info!("✓ Complex display formatting works: '{display_str}'");
 
     // Test helper methods
     assert_eq!(complex_err.variant_name(), "Complex");
     assert_eq!(complex_err.error_kind(), "Complex");
     assert_eq!(complex_err.severity(), 200);
     assert!(complex_err.is_transient());
-    assert_eq!(complex_err.suggestion(), Some("Try a different approach"));
+    assert_eq!(complex_err.signpost(), Some("Try a different approach"));
 
-    println!("✓ Complex configuration works");
-    println!("  Variant: {}", complex_err.variant_name());
-    println!("  Kind: {}", complex_err.error_kind());
-    println!("  Severity: {}", complex_err.severity());
-    println!("  Transient: {}", complex_err.is_transient());
-    println!("  Suggestion: {:?}", complex_err.suggestion());
+    tracing::info!("✓ Complex configuration works");
+    tracing::info!("  Variant: {}", complex_err.variant_name());
+    tracing::info!("  Kind: {}", complex_err.error_kind());
+    tracing::info!("  Severity: {}", complex_err.severity());
+    tracing::info!("  Transient: {}", complex_err.is_transient());
+    tracing::info!("  Suggestion: {:?}", complex_err.signpost());
 
     // Test variant-specific helper method
     assert!(complex_err.is_complex());
-    println!("✓ Variant-specific helper methods work");
+    tracing::info!("✓ Variant-specific helper methods work");
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -328,7 +328,7 @@ fn test_performance_diagnostic() {
     }
 
     let duration = start.elapsed();
-    println!("✓ Performance test: created 2000 errors in {duration:?}");
+    tracing::info!("✓ Performance test: created 2000 errors in {duration:?}");
 
     // Should be very fast
     assert!(
@@ -343,21 +343,21 @@ fn test_performance_diagnostic() {
 
 #[test]
 fn run_diagnostic_summary() {
-    println!("\n🔧 YOSHI-DERIVE DIAGNOSTIC SUMMARY");
-    println!("===================================");
+    tracing::info!("\n🔧 YOSHI-DERIVE DIAGNOSTIC SUMMARY");
+    tracing::info!("===================================");
 
     // If we get here, all the individual tests passed
-    println!("✅ Basic macro compilation: PASS");
-    println!("✅ Field interpolation: PASS");
-    println!("✅ Yoshi-std integration: PASS");
-    println!("✅ Auto-inference: PASS");
-    println!("✅ Source fields: PASS");
-    println!("✅ Complex configuration: PASS");
-    println!("✅ Performance: PASS");
+    tracing::info!("✅ Basic macro compilation: PASS");
+    tracing::info!("✅ Field interpolation: PASS");
+    tracing::info!("✅ Yoshi-std integration: PASS");
+    tracing::info!("✅ Auto-inference: PASS");
+    tracing::info!("✅ Source fields: PASS");
+    tracing::info!("✅ Complex configuration: PASS");
+    tracing::info!("✅ Performance: PASS");
 
-    println!("\n🎉 ALL DIAGNOSTIC TESTS PASSED!");
-    println!("Your YoshiError derive macro is working correctly.");
-    println!("===================================\n");
+    tracing::info!("\n🎉 ALL DIAGNOSTIC TESTS PASSED!");
+    tracing::info!("Your YoshiError derive macro is working correctly.");
+    tracing::info!("===================================\n");
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -383,28 +383,28 @@ fn test_specific_issue() {
     let _err2 = DiagnosticAnalysisError::AstParsingFailure;
 
     // Print everything we can about this error
-    println!("\n🔍 DEBUG INFORMATION");
-    println!("====================");
-    println!("Error Display: '{err}'");
-    println!("Error Debug: '{err:?}'");
+    tracing::info!("\n🔍 DEBUG INFORMATION");
+    tracing::info!("====================");
+    tracing::error!("Error Display: '{err}'");
+    tracing::error!("Error Debug: '{err:?}'");
 
     // Test basic functionality
-    println!("Display: '{err}'");
-    println!("Debug: '{err:?}'");
+    tracing::info!("Display: '{err}'");
+    tracing::debug!("Debug: '{err:?}'");
 
     // Test Error trait
     let error_trait: &dyn Error = &err;
-    println!("Error Trait Display: '{error_trait}'");
-    println!("Error Source: {:?}", error_trait.source());
+    tracing::error!("Error Trait Display: '{error_trait}'");
+    tracing::error!("Error Source: {:?}", error_trait.source());
 
     // Test conversion to Yoshi if possible
     match std::panic::catch_unwind(|| {
-        let yoshi_err: yoshi_std::Yoshi = err.into();
+        let yoshi_err: yoshi_core::Yoshi = err.into();
         format!("{yoshi_err}")
     }) {
         Ok(yoshi_str) => println!("Yoshi Conversion: '{yoshi_str}'"),
         Err(_) => println!("❌ Yoshi conversion failed"),
     }
 
-    println!("====================\n");
+    tracing::info!("====================\n");
 }
