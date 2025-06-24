@@ -7,7 +7,7 @@ fn main() -> Hatch<()> {
     println!("🧪 Testing yopost! macro...");
     
     // Test message-based error creation
-    let err = yopost!(message: "Something went wrong".into());
+    let err = yopost!(message: "Something went wrong");
     println!("Message error: {err}");
     
     // Test formatted message

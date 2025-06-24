@@ -12,7 +12,7 @@ fn test_basic_hatch_usage() -> Hatch<()> {
     // Test divide function
     fn divide(a: f64, b: f64) -> Hatch<f64> {
         if b == 0.0 {
-            Err(yopost!(message: "Division by zero".into()))
+            Err(yopost!(message: "Division by zero"))
         } else {
             Ok(a / b)
         }
@@ -76,25 +76,25 @@ fn test_file_operations() -> Hatch<()> {
 #[test]
 fn test_error_patterns() -> Hatch<()> {
     // Test basic error creation
-    let error = yopost!(message: "Configuration error in app.toml: missing required field".into());
+    let error = yopost!(message: "Configuration error in app.toml: missing required field");
     let error_str = format!("{error}");
     assert!(error_str.contains("Configuration error"));
     assert!(error_str.contains("app.toml"));
 
     // Test error with suggestion
-    let error_with_suggestion = yopost!(message: "Validation error: email invalid format".into());
+    let error_with_suggestion = yopost!(message: "Validation error: email invalid format");
     let error_str = format!("{error_with_suggestion}");
     assert!(error_str.contains("Validation error"));
     assert!(error_str.contains("email"));
 
     // Test business rule error
-    let business_error = yopost!(message: "Business rule violation: max_orders - limit exceeded".into());
+    let business_error = yopost!(message: "Business rule violation: max_orders - limit exceeded");
     let error_str = format!("{business_error}");
     assert!(error_str.contains("Business rule violation"));
     assert!(error_str.contains("max_orders"));
 
     // Test timeout error
-    let timeout_error = yopost!(message: "Operation 'database_query' timed out after 5000ms".into());
+    let timeout_error = yopost!(message: "Operation 'database_query' timed out after 5000ms");
     let error_str = format!("{timeout_error}");
     assert!(error_str.contains("timed out"));
     assert!(error_str.contains("5000ms"));
@@ -107,14 +107,14 @@ fn test_error_patterns() -> Hatch<()> {
 fn test_optimization_patterns() -> Hatch<()> {
     // Test optimization-related error messages
     let optimization_error =
-        yopost!(message: "Optimization opportunity: Vec::new() could use with_capacity()".into());
+        yopost!(message: "Optimization opportunity: Vec::new() could use with_capacity()");
     let error_str = format!("{optimization_error}");
     assert!(error_str.contains("Optimization"));
     assert!(error_str.contains("Vec::new"));
 
     // Test auto-correction suggestion format
     let suggestion_error =
-        yopost!(message: "Auto-correction: Replace .unwrap() with proper error handling".into());
+        yopost!(message: "Auto-correction: Replace .unwrap() with proper error handling");
     let error_str = format!("{suggestion_error}");
     assert!(error_str.contains("Auto-correction"));
     assert!(error_str.contains("unwrap"));
@@ -156,12 +156,10 @@ fn test_error_chaining() -> Hatch<()> {
 #[test]
 fn test_comprehensive_patterns() -> Hatch<()> {
     // Test various error creation patterns
-    let _config_err = yopost!(message: "Configuration error".into());
-    let _validation_err = yopost!(message: "Validation failed - check input format".into());
 
     // Test error conversion
     let std_err = std::io::Error::new(std::io::ErrorKind::NotFound, "File not found");
-    let _yoshi_err = yopost!(error: std_err, with_signpost = "Create the missing file");
+    let _converted = yopost!(error: std_err, with_signpost = "test error conversion");
 
     // Test Result<T> alias
     fn example_function() -> Result<String> {

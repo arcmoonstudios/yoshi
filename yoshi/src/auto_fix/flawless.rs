@@ -1676,11 +1676,11 @@ pub fn apply_simple_corrections(code: &str) -> Hatch<String> {
 ///
 /// This function applies the intelligent conversion logic that detects context
 /// and converts println!/eprintln! to appropriate tracing levels:
-/// - Error indicators (🚨, ❌, "Error:") → tracing::error!
-/// - Warning indicators (⚠️, "Warning:") → tracing::warn!
-/// - Success indicators (🎉, ✅, "Success:") → tracing::info!
-/// - Debug indicators (🔍, "Debug:") → tracing::debug!
-/// - Default → tracing::info!
+/// - Error indicators (🚨, ❌, "Error:") → `tracing::error`!
+/// - Warning indicators (⚠️, "Warning:") → `tracing::warn`!
+/// - Success indicators (🎉, ✅, "Success:") → `tracing::info`!
+/// - Debug indicators (🔍, "Debug:") → `tracing::debug`!
+/// - Default → `tracing::info`!
 fn apply_smart_println_conversion(code: &str) -> String {
     let result = code.to_string();
 

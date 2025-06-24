@@ -10,7 +10,7 @@ use yoshi::execute_auto_docs;
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("🎯 YoshiAF Auto-Documentation Test");
     println!("=====================================");
-
+    
     // Execute the auto-documentation system
     match execute_auto_docs() {
         Ok(()) => {
@@ -19,9 +19,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         Err(e) => {
             println!("❌ Auto-documentation failed: {e}");
+            return Err(e.into());
         }
     }
-
+    
     println!("\n🎉 Test completed!");
     Ok(())
 }

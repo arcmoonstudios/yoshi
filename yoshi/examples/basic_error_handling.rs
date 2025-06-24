@@ -228,7 +228,7 @@ pub fn process_files(file_paths: &[&str]) -> Hatch<Vec<String>> {
 /// A `Hatch<String>` with the processed result or contextual error information.
 pub fn process_with_context(operation: &str, data: &str) -> Hatch<String> {
     if data.is_empty() {
-        return Err(yopost!(message: "Cannot process empty data"));
+        return Err(yopost!(message: "Cannot process empty data".into()));
     }
 
     // Simulate processing that might fail
@@ -256,11 +256,11 @@ pub fn demonstrate_basic_patterns() -> Hatch<()> {
     tracing::error!("=== Basic Error Handling Demonstration ===");
 
     // Example 1: Simple error creation
-    let simple_error = yopost!(message: "Something went wrong");
+    let simple_error = yopost!(message: "Something went wrong".into());
     tracing::error!("Simple error: {simple_error}");
 
     // Example 2: Error with context
-    let contextual_error = yopost!(message: "Operation failed");
+    let contextual_error = yopost!(message: "Operation failed".into());
     tracing::error!("Contextual error: {contextual_error}");
 
     // Example 3: Converting std::io::Error

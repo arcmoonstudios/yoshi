@@ -494,9 +494,9 @@ pub fn process_batch_operations(
 /// Simulates an operation that may fail.
 fn simulate_operation(operation: &str) -> Hatch<String> {
     if operation.contains("fail") {
-        Err(yopost!(message: "Service unavailable: operation_service - Simulated failure"))
+        Err(yopost!(message: "Service unavailable: operation_service - Simulated failure".into()))
     } else if operation.contains("limit") {
-        Err(yopost!(message: "Resource exhausted: cpu (95/100) - Performance degradation"))
+        Err(yopost!(message: "Resource exhausted: cpu (95/100) - Performance degradation".into()))
     } else {
         Ok(format!("Success: {operation}"))
     }

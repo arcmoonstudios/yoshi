@@ -505,7 +505,7 @@ pub struct AutocorrectionSuggestion {
 /// Simulates payment processing for distributed transaction example.
 fn process_payment(user_id: &str, amount: f64) -> Hatch<String> {
     if amount > 1000.0 {
-        Err(yopost!(message: "Payment amount exceeds limit"))
+        Err(yopost!(message: "Payment amount exceeds limit".into()))
     } else {
         Ok(format!("Payment processed for {user_id} amount {amount}"))
     }
@@ -514,7 +514,7 @@ fn process_payment(user_id: &str, amount: f64) -> Hatch<String> {
 /// Simulates inventory update for distributed transaction example.
 fn update_inventory(item_id: &str, quantity: i32) -> Hatch<String> {
     if quantity > 100 {
-        Err(yopost!(message: "Insufficient inventory"))
+        Err(yopost!(message: "Insufficient inventory".into()))
     } else {
         Ok(format!(
             "Inventory updated for {item_id} quantity {quantity}"
@@ -525,7 +525,7 @@ fn update_inventory(item_id: &str, quantity: i32) -> Hatch<String> {
 /// Simulates notification sending for distributed transaction example.
 fn send_notification(user_id: &str, message: &str) -> Hatch<String> {
     if message.len() > 1000 {
-        Err(yopost!(message: "Notification message too long"))
+        Err(yopost!(message: "Notification message too long".into()))
     } else {
         Ok(format!("Notification sent to {user_id}: {message}"))
     }
@@ -534,7 +534,7 @@ fn send_notification(user_id: &str, message: &str) -> Hatch<String> {
 /// Simulates concurrent task processing.
 fn process_concurrent_task(task_id: i32) -> Hatch<String> {
     if task_id % 7 == 0 {
-        Err(yopost!(message: "Task processing failed"))
+        Err(yopost!(message: "Task processing failed".into()))
     } else {
         Ok(format!("Task {task_id} completed"))
     }
@@ -575,7 +575,7 @@ fn close_db_connection(connection: String) -> Hatch<()> {
 /// Simulates request processing.
 fn process_request(request: &str) -> Hatch<String> {
     if request.is_empty() {
-        Err(yopost!(message: "Empty request received"))
+        Err(yopost!(message: "Empty request received".into()))
     } else {
         Ok(format!("Processed: {request}"))
     }

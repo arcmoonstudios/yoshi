@@ -1,4 +1,3 @@
-/* yoshi/src/auto_fix/no_std_compat.rs */
 //! #![yoshi(auto-fix)]
 //! # No-std Compatibility Types for `YoshiAF`
 //!
@@ -9,9 +8,8 @@
 //! **Copyright:** (c) 2025 `ArcMoon` Studios
 //! **Author:** Lord Xyn
 //! **License:** MIT
-
 use core::sync::atomic::{AtomicU32, AtomicU64, Ordering};
-
+#[derive(Hash)]
 /// Enhanced `SystemTime` for `no_std` environments with monotonic counter.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -19,7 +17,6 @@ pub struct SystemTime {
     /// Monotonic timestamp counter for ordering events
     timestamp: u64,
 }
-
 impl SystemTime {
     /// Returns a `SystemTime` with monotonic ordering guarantees.
     ///
@@ -32,34 +29,32 @@ impl SystemTime {
             timestamp: COUNTER.fetch_add(1, Ordering::Relaxed),
         }
     }
-
     /// Returns the internal timestamp for debugging purposes.
-    #[must_use] pub const fn timestamp(&self) -> u64 {
+    #[must_use]
+    pub const fn timestamp(&self) -> u64 {
         self.timestamp
     }
-
     /// Calculates duration since another `SystemTime` (in timestamp units).
-    #[must_use] pub const fn duration_since(&self, earlier: SystemTime) -> Option<u64> {
+    #[must_use]
+    pub const fn duration_since(&self, earlier: SystemTime) -> Option<u64> {
         if self.timestamp >= earlier.timestamp {
             Some(self.timestamp - earlier.timestamp)
         } else {
             None
         }
     }
-
     /// Returns elapsed timestamp units since this `SystemTime`.
-    #[must_use] pub fn elapsed(&self) -> u64 {
+    #[must_use]
+    pub fn elapsed(&self) -> u64 {
         Self::now().timestamp.saturating_sub(self.timestamp)
     }
 }
-
 /// Enhanced `ThreadId` for `no_std` environments with unique identification.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ThreadId {
     /// Unique identifier for tracking execution contexts
     id: u32,
 }
-
 impl ThreadId {
     /// Returns a `ThreadId` with unique identification.
     ///
@@ -68,18 +63,16 @@ impl ThreadId {
     pub fn current() -> Self {
         /// Static variable: `THREAD_COUNTER`.
         static THREAD_COUNTER: AtomicU32 = AtomicU32::new(1);
-
         Self {
             id: THREAD_COUNTER.fetch_add(1, Ordering::Relaxed),
         }
     }
-
     /// Returns the raw thread ID for debugging.
     #[inline]
-    #[must_use] pub const fn as_u32(&self) -> u32 {
+    #[must_use]
+    pub const fn as_u32(&self) -> u32 {
         self.id
     }
-
     /// **`from_u32`**
     ///
     /// This function provides from u32 functionality within the Yoshi error handling framework.
@@ -87,17 +80,16 @@ impl ThreadId {
     /// # Errors
     ///
     /// Returns an error if the operation fails due to invalid input or system constraints.
-    #[must_use] pub const fn from_u32(id: u32) -> Self {
+    #[must_use]
+    pub const fn from_u32(id: u32) -> Self {
         Self { id }
     }
 }
-
 impl core::fmt::Display for ThreadId {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "ThreadId({})", self.id)
     }
 }
-
 /// Structured error kinds for better type safety in `no_std` I/O operations.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum NoStdIoKind {
@@ -114,10 +106,10 @@ pub enum NoStdIoKind {
     /// Other error types not covered by specific variants.
     Other,
 }
-
 impl NoStdIoKind {
     /// Returns a human-readable description of the error kind.
-    #[must_use] pub const fn as_str(&self) -> &'static str {
+    #[must_use]
+    pub const fn as_str(&self) -> &'static str {
         match self {
             Self::NotFound => "not found",
             Self::PermissionDenied => "permission denied",
@@ -127,17 +119,14 @@ impl NoStdIoKind {
             Self::Other => "other error",
         }
     }
-
     /// Returns whether this error kind typically indicates a transient condition.
-    #[must_use] pub const fn is_transient(&self) -> bool {
-        matches!(
-            self,
-            Self::ConnectionRefused | Self::TimedOut | Self::Generic
-        )
+    #[must_use]
+    pub const fn is_transient(&self) -> bool {
+        matches!(self, Self::ConnectionRefused | Self::TimedOut | Self::Generic)
     }
-
     /// Returns a severity level for this error kind (0-100).
-    #[must_use] pub const fn severity(&self) -> u8 {
+    #[must_use]
+    pub const fn severity(&self) -> u8 {
         match self {
             Self::NotFound => 30,
             Self::PermissionDenied => 50,
@@ -148,7 +137,6 @@ impl NoStdIoKind {
         }
     }
 }
-
 impl core::fmt::Display for NoStdIoKind {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.write_str(self.as_str())

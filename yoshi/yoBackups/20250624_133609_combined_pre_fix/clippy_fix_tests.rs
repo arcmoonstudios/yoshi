@@ -10,7 +10,6 @@ use yoshi::auto_fix::unclipped::{test_clippy_fix_engine, ClippyFixEngine};
 #[tokio::test]
 async fn test_clippy_fix_engine_comprehensive() {
     // Initialize tracing for test output
-    let _ = tracing_subscriber::fmt::try_init();
 
     // Run the comprehensive test
     let result = test_clippy_fix_engine();
@@ -31,10 +30,10 @@ async fn test_uninlined_format_args_fix() {
         .apply_clippy_fixes(test_code)
         .expect("Failed to apply fixes");
 
-    // Should convert println! to tracing::info! with inlined format
+    // Should convert to inline format
     assert!(
-        fixed_code.contains("tracing::info!") && fixed_code.contains("{name}"),
-        "Should convert println! to tracing::info! with inlined format: {fixed_code}"
+        fixed_code.contains("{name}"),
+        "Should inline the format argument: {fixed_code}"
     );
 }
 

@@ -1,3 +1,5 @@
+// Consider handling Err case with match or if let Err
+// Pre/post increment warning: avoid increment/decrement in function arguments
 /* yoshi/src/lib.rs */
 #![deny(dead_code)]
 #![deny(unsafe_code)]
@@ -49,7 +51,7 @@
 //! use yoshi::{yoshi, yopost, Hatch, Yoshi, YoshiKind};
 //!
 //! // Simple message-based errors
-//! let err = yopost!(message: "Something went wrong");
+//! let err = yopost!(message: "Something went wrong".into());
 //!
 //! // Structured error kinds
 //! let err = yopost!(kind: YoshiKind::Network {
@@ -138,6 +140,55 @@ pub trait Context<T> {
     /// # Errors
     ///
     /// Returns an error if the operation fails due to invalid input or system constraints.
+    /// **context**
+    ///
+    /// This function provides context functionality within the Yoshi error handling framework.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the operation fails due to invalid input or system constraints.
+    /// **context**
+    ///
+    /// This function provides context functionality within the Yoshi error handling framework.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the operation fails due to invalid input or system constraints.
+/// **context**
+///
+/// This function provides context functionality within the Yoshi error handling framework.
+///
+/// # Errors
+///
+/// Returns an error if the operation fails due to invalid input or system constraints.
+/// **context**
+///
+/// This function provides context functionality within the Yoshi error handling framework.
+///
+/// # Errors
+///
+/// Returns an error if the operation fails due to invalid input or system constraints.
+/// **context**
+///
+/// This function provides context functionality within the Yoshi error handling framework.
+///
+/// # Errors
+///
+/// Returns an error if the operation fails due to invalid input or system constraints.
+/// **context**
+///
+/// This function provides context functionality within the Yoshi error handling framework.
+///
+/// # Errors
+///
+/// Returns an error if the operation fails due to invalid input or system constraints.
+/// **context**
+///
+/// This function provides context functionality within the Yoshi error handling framework.
+///
+/// # Errors
+///
+/// Returns an error if the operation fails due to invalid input or system constraints.
     fn context(self, msg: impl Into<String>) -> Result<T, AnyError>;
 
     /// Add context with a closure (lazy evaluation)
@@ -148,6 +199,55 @@ pub trait Context<T> {
     /// # Errors
     ///
     /// Returns an error if the operation fails due to invalid input or system constraints.
+    /// **with_context**
+    ///
+    /// This function provides with context functionality within the Yoshi error handling framework.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the operation fails due to invalid input or system constraints.
+    /// **with_context**
+    ///
+    /// This function provides with context functionality within the Yoshi error handling framework.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the operation fails due to invalid input or system constraints.
+/// **with_context**
+///
+/// This function provides with context functionality within the Yoshi error handling framework.
+///
+/// # Errors
+///
+/// Returns an error if the operation fails due to invalid input or system constraints.
+/// **with_context**
+///
+/// This function provides with context functionality within the Yoshi error handling framework.
+///
+/// # Errors
+///
+/// Returns an error if the operation fails due to invalid input or system constraints.
+/// **with_context**
+///
+/// This function provides with context functionality within the Yoshi error handling framework.
+///
+/// # Errors
+///
+/// Returns an error if the operation fails due to invalid input or system constraints.
+/// **with_context**
+///
+/// This function provides with context functionality within the Yoshi error handling framework.
+///
+/// # Errors
+///
+/// Returns an error if the operation fails due to invalid input or system constraints.
+/// **with_context**
+///
+/// This function provides with context functionality within the Yoshi error handling framework.
+///
+/// # Errors
+///
+/// Returns an error if the operation fails due to invalid input or system constraints.
     fn with_context<F>(self, f: F) -> Result<T, AnyError>
     where
         F: FnOnce() -> String;
@@ -158,7 +258,7 @@ where
     E: std::error::Error + Send + Sync + 'static,
 {
     fn context(self, msg: impl Into<String>) -> Result<T, AnyError> {
-        self.map_err(|e| AnyError::from_error(e).context(msg.into()))
+        self.map_err(|e| AnyError::from_error(e).context(msg))
     }
 
     fn with_context<F>(self, f: F) -> Result<T, AnyError>
@@ -459,7 +559,7 @@ macro_rules! yoshi_af_enable {
 /// ```rust
 /// use yoshi::yopost;
 ///
-/// let err = yopost!(message: "Something went wrong");
+/// let err = yopost!(message: "Something went wrong".into());
 /// let err = yopost!(message: "Failed to load {}", "config.toml");
 /// ```
 ///
@@ -475,7 +575,7 @@ macro_rules! yopost {
     // Message-based error creation
     (message: $msg:expr) => {
         $crate::Yoshi::new($crate::YoshiKind::Internal {
-            message: $msg.into(),
+            message: $msg,
             source: None,
             component: None,
         })
@@ -509,7 +609,7 @@ macro_rules! yopost {
     // Message with context chaining
     (message: $msg:expr, $($attr_key:ident = $attr_val:expr),+ $(,)?) => {{
         let mut __yoshi_instance = $crate::Yoshi::new($crate::YoshiKind::Internal {
-            message: $msg.into(),
+            message: $msg,
             source: None,
             component: None,
         });
@@ -555,7 +655,7 @@ mod tests {
     /// - Sophisticated `yopost_generate`! macro for boilerplate generation (in yoshi-derive)
     fn test_yopost_macro() {
         // Test the simple yopost! macro for error creation
-        let err = yopost!(message: "Something went wrong");
+        let err = yopost!(message: "Something went wrong".into());
         assert!(err.to_string().contains("Something went wrong"));
 
         // Test formatted message

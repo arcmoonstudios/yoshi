@@ -138,7 +138,7 @@
 ///
 /// fn divide(a: f64, b: f64) -> Hatch<f64> {
 ///     if b == 0.0 {
-///         Err(yopost!(message: "Division by zero"))
+///         Err(yopost!(message: "Division by zero".into()))
 ///     } else {
 ///         Ok(a / b)
 ///     }
@@ -608,10 +608,10 @@ fn _use_all_fields() {
 #[macro_export]
 macro_rules! config_error {
     ($file:expr, $msg:expr) => {
-        yoshi::yopost!(message: format!("Configuration error in {}: {}", $file, $msg))
+        yoshi::yopost!(message: format!("Configuration error in {}: {}", $file, $msg).into())
     };
     ($file:expr, $msg:expr, $source:expr) => {
-        yoshi::yopost!(message: format!("Configuration error in {}: {} ({})", $file, $msg, $source))
+        yoshi::yopost!(message: format!("Configuration error in {}: {} ({})", $file, $msg, $source).into())
     };
 }
 
@@ -619,10 +619,10 @@ macro_rules! config_error {
 #[macro_export]
 macro_rules! validation_error {
     ($field:expr, $msg:expr) => {
-        yoshi::yopost!(message: format!("Validation error: {} {}", $field, $msg))
+        yoshi::yopost!(message: format!("Validation error: {} {}", $field, $msg).into())
     };
     ($field:expr, $msg:expr, expected: $exp:expr, actual: $act:expr) => {
-        yoshi::yopost!(message: format!("Validation error: {} {} (expected: {}, actual: {})", $field, $msg, $exp, $act))
+        yoshi::yopost!(message: format!("Validation error: {} {} (expected: {}, actual: {})", $field, $msg, $exp, $act).into())
     };
 }
 
@@ -630,10 +630,10 @@ macro_rules! validation_error {
 #[macro_export]
 macro_rules! business_error {
     ($rule:expr, $details:expr) => {
-        yoshi::yopost!(message: format!("Business rule violation: {} - {}", $rule, $details))
+        yoshi::yopost!(message: format!("Business rule violation: {} - {}", $rule, $details).into())
     };
     ($rule:expr, $details:expr, context: $ctx:expr) => {
-        yoshi::yopost!(message: format!("Business rule violation: {} - {} (context: {})", $rule, $details, $ctx))
+        yoshi::yopost!(message: format!("Business rule violation: {} - {} (context: {})", $rule, $details, $ctx).into())
     };
 }
 
@@ -641,10 +641,10 @@ macro_rules! business_error {
 #[macro_export]
 macro_rules! timeout_error {
     ($operation:expr, $duration_ms:expr) => {
-        yoshi::yopost!(message: format!("Operation '{}' timed out after {}ms", $operation, $duration_ms))
+        yoshi::yopost!(message: format!("Operation '{}' timed out after {}ms", $operation, $duration_ms).into())
     };
     ($operation:expr, $duration_ms:expr, expected: $max_ms:expr) => {
-        yoshi::yopost!(message: format!("Operation '{}' timed out after {}ms (expected max: {}ms)", $operation, $duration_ms, $max_ms))
+        yoshi::yopost!(message: format!("Operation '{}' timed out after {}ms (expected max: {}ms)", $operation, $duration_ms, $max_ms).into())
     };
 }
 
@@ -731,6 +731,55 @@ impl Default for CorrectionConfig {
     /// # Errors
     ///
     /// Returns an error if the operation fails due to invalid input or system constraints.
+    /// **default**
+    ///
+    /// This function provides default functionality within the Yoshi error handling framework.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the operation fails due to invalid input or system constraints.
+    /// **default**
+    ///
+    /// This function provides default functionality within the Yoshi error handling framework.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the operation fails due to invalid input or system constraints.
+    /// **default**
+    ///
+    /// This function provides default functionality within the Yoshi error handling framework.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the operation fails due to invalid input or system constraints.
+    /// **default**
+    ///
+    /// This function provides default functionality within the Yoshi error handling framework.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the operation fails due to invalid input or system constraints.
+    /// **default**
+    ///
+    /// This function provides default functionality within the Yoshi error handling framework.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the operation fails due to invalid input or system constraints.
+/// **default**
+///
+/// This function provides default functionality within the Yoshi error handling framework.
+///
+/// # Errors
+///
+/// Returns an error if the operation fails due to invalid input or system constraints.
+/// **default**
+///
+/// This function provides default functionality within the Yoshi error handling framework.
+///
+/// # Errors
+///
+/// Returns an error if the operation fails due to invalid input or system constraints.
     fn default() -> Self {
         Self {
             auto_fix_enabled: true,
@@ -780,6 +829,55 @@ impl AutoCorrector {
     /// # Errors
     ///
     /// Returns an error if the operation fails due to invalid input or system constraints.
+    /// **new**
+    ///
+    /// This function provides new functionality within the Yoshi error handling framework.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the operation fails due to invalid input or system constraints.
+    /// **new**
+    ///
+    /// This function provides new functionality within the Yoshi error handling framework.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the operation fails due to invalid input or system constraints.
+    /// **new**
+    ///
+    /// This function provides new functionality within the Yoshi error handling framework.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the operation fails due to invalid input or system constraints.
+    /// **new**
+    ///
+    /// This function provides new functionality within the Yoshi error handling framework.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the operation fails due to invalid input or system constraints.
+    /// **new**
+    ///
+    /// This function provides new functionality within the Yoshi error handling framework.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the operation fails due to invalid input or system constraints.
+/// **new**
+///
+/// This function provides new functionality within the Yoshi error handling framework.
+///
+/// # Errors
+///
+/// Returns an error if the operation fails due to invalid input or system constraints.
+/// **new**
+///
+/// This function provides new functionality within the Yoshi error handling framework.
+///
+/// # Errors
+///
+/// Returns an error if the operation fails due to invalid input or system constraints.
     pub fn new() -> Self {
         Self {
             patterns: std::collections::HashMap::new(),
@@ -1653,7 +1751,7 @@ pub mod examples {
                     let path_owned = path.to_string();
                     tokio::spawn(async move {
                         let _permit = semaphore.acquire().await.map_err(
-                            |e| yopost!(message: format!("Failed to acquire semaphore: {e}")),
+                            |e| yopost!(message: format!("Failed to acquire semaphore: {e}").into()),
                         )?;
                         process_single_file(&path_owned).await
                     })
@@ -1920,7 +2018,7 @@ pub mod best_practices {
     //! validation_error!("email", "Invalid format", expected: "user@domain.com", actual: input)
     //!
     //! // ❌ Avoid
-    //! yopost!(message: "Invalid email")
+    //! yopost!(message: "Invalid email".into())
     //! ```
     //!
     //! ## 2. Add Context at Every Level

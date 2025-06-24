@@ -11,22 +11,26 @@
 //! **Brief:** Real-world async error handling with comprehensive Yoshi integration.
 // ~=####====A===r===c===M===o===o===n====S===t===u===d===i===o===s====X|0|$>
 //! + Production-grade async operations with advanced error recovery patterns
-//! **AsyncHttpClient.timeout**
-//!
-//! Data structure representing AsyncHttpClient.timeout within the Yoshi ecosystem.
-//! This structure provides type-safe encapsulation and efficient memory layout.
-//!  - HTTP client operations with timeout and retry mechanisms
-//!  - Concurrent task management with error aggregation and recovery
-//!  - Stream processing with backpressure and error handling
-//!  - WebSocket connections with reconnection and state management
-//!  - File I/O operations with async error propagation and recovery
+/// **Production-grade async operations with advanced error recovery patterns:**
+/// **AsyncHttpClient.timeout**
+///
+/// Data structure representing AsyncHttpClient.timeout within the Yoshi ecosystem.
+/// This structure provides type-safe encapsulation and efficient memory layout.
+/// **AsyncHttpClient.timeout**
+///
+/// Data structure representing AsyncHttpClient.timeout within the Yoshi ecosystem.
+/// This structure provides type-safe encapsulation and efficient memory layout.
+///  - HTTP client operations with timeout and retry mechanisms
+///  - Concurrent task management with error aggregation and recovery
+///  - Stream processing with backpressure and error handling
+///  - WebSocket connections with reconnection and state management
+///  - File I/O operations with async error propagation and recovery
 // ~=####====A===r===c===M===o===o===n====S===t===u===d===i===o===s====X|0|$>
 // **GitHub:** [ArcMoon Studios](https://github.com/arcmoonstudios)
 // **Copyright:** (c) 2025 ArcMoon Studios
 // **License:** MIT OR Apache-2.0
 // **Contact:** LordXyn@proton.me
 // **Author:** Lord Xyn
-
 use yoshi::*;
 
 //--------------------------------------------------------------------------------------------------
@@ -40,13 +44,68 @@ use yoshi::*;
 ///
 /// Data structure representing TaskManager.tasks within the Yoshi ecosystem.
 /// This structure provides type-safe encapsulation and efficient memory layout.
+/// **TaskManager.tasks**
+///
+/// Data structure representing TaskManager.tasks within the Yoshi ecosystem.
+/// This structure provides type-safe encapsulation and efficient memory layout.
+/// **TaskManager.tasks**
+///
+/// Data structure representing TaskManager.tasks within the Yoshi ecosystem.
+/// This structure provides type-safe encapsulation and efficient memory layout.
+/// **TaskManager.tasks**
+///
+/// Data structure representing TaskManager.tasks within the Yoshi ecosystem.
+/// This structure provides type-safe encapsulation and efficient memory layout.
+/// **TaskManager.tasks**
+///
+/// Data structure representing TaskManager.tasks within the Yoshi ecosystem.
+/// This structure provides type-safe encapsulation and efficient memory layout.
+/// **TaskManager.tasks**
+///
+/// Data structure representing TaskManager.tasks within the Yoshi ecosystem.
+/// This structure provides type-safe encapsulation and efficient memory layout.
+/// **TaskManager.tasks**
+///
+/// Data structure representing TaskManager.tasks within the Yoshi ecosystem.
+/// This structure provides type-safe encapsulation and efficient memory layout.
+/// **TaskManager.tasks**
+///
+/// Data structure representing TaskManager.tasks within the Yoshi ecosystem.
+/// This structure provides type-safe encapsulation and efficient memory layout.
 /// timeouts, concurrent tasks, stream processing, WebSocket connections, and file operations.
 #[derive(YoshiError, Debug)]
-#[allow(dead_code)]
 pub enum AsyncError {
     /// HTTP request failed with detailed status information.
     ///
     /// Contains the target URL, HTTP status code, and failure reason for comprehensive debugging.
+/// **WebSocketManager.url**
+///
+/// Data structure representing WebSocketManager.url within the Yoshi ecosystem.
+/// This structure provides type-safe encapsulation and efficient memory layout.
+/// **WebSocketManager.url**
+///
+/// Data structure representing WebSocketManager.url within the Yoshi ecosystem.
+/// This structure provides type-safe encapsulation and efficient memory layout.
+    /// **WebSocketManager.url**
+    ///
+    /// Data structure representing WebSocketManager.url within the Yoshi ecosystem.
+    /// This structure provides type-safe encapsulation and efficient memory layout.
+    /// **WebSocketManager.url**
+    ///
+    /// Data structure representing WebSocketManager.url within the Yoshi ecosystem.
+    /// This structure provides type-safe encapsulation and efficient memory layout.
+    /// **WebSocketManager.url**
+    ///
+    /// Data structure representing WebSocketManager.url within the Yoshi ecosystem.
+    /// This structure provides type-safe encapsulation and efficient memory layout.
+    /// **WebSocketManager.url**
+    ///
+    /// Data structure representing WebSocketManager.url within the Yoshi ecosystem.
+    /// This structure provides type-safe encapsulation and efficient memory layout.
+    /// **WebSocketManager.url**
+    ///
+    /// Data structure representing WebSocketManager.url within the Yoshi ecosystem.
+    /// This structure provides type-safe encapsulation and efficient memory layout.
     /// **WebSocketManager.url**
     ///
     /// Data structure representing WebSocketManager.url within the Yoshi ecosystem.

@@ -288,6 +288,12 @@ struct CorrectorArgs {
     emergency_rollback: bool,
     /// List available backups
     list_backups: bool,
+    /// Restore from specific backup directory
+    restore_from_backup: Option<String>,
+    /// Clean up old backups (keep only N most recent)
+    cleanup_backups: Option<usize>,
+    /// Enable auto-recovery scanning for YoshiAF operations
+    enable_auto_recovery: bool,
     /// Target files to correct (defaults to current directory)
     target_files: Vec<PathBuf>,
     /// Show TUI interface
@@ -320,6 +326,9 @@ impl Default for CorrectorArgs {
             no_backup: false,
             emergency_rollback: false,
             list_backups: false,
+            restore_from_backup: None,
+            cleanup_backups: None,
+            enable_auto_recovery: false,
             target_files: vec![PathBuf::from(".")],
             show_tui: false,
             dry_run: false,
@@ -364,6 +373,7 @@ fn parse_args() -> CorrectorArgs {
             }
             "--emergency-rollback" => config.emergency_rollback = true,
             "--list-backups" => config.list_backups = true,
+            "--enable-auto-recovery" => config.enable_auto_recovery = true,
             "--tui" => config.show_tui = true,
             "--dry-run" => config.dry_run = true,
             "--force" => config.force = true,
@@ -415,6 +425,28 @@ fn parse_args() -> CorrectorArgs {
                     process::exit(1);
                 }
             }
+            _ if arg.starts_with("--restore-from=") => {
+                if let Some(backup_dir) = arg.strip_prefix("--restore-from=") {
+                    config.restore_from_backup = Some(backup_dir.to_string());
+                } else {
+                    tracing::error!("Invalid restore-from argument format: {arg}");
+                    process::exit(1);
+                }
+            }
+            _ if arg.starts_with("--cleanup-backups=") => {
+                if let Some(count_str) = arg.strip_prefix("--cleanup-backups=") {
+                    match count_str.parse::<usize>() {
+                        Ok(count) => config.cleanup_backups = Some(count),
+                        Err(_) => {
+                            tracing::error!("Invalid cleanup-backups count: {count_str}. Must be a positive number");
+                            process::exit(1);
+                        }
+                    }
+                } else {
+                    tracing::error!("Invalid cleanup-backups argument format: {arg}");
+                    process::exit(1);
+                }
+            }
             _ => {
                 tracing::error!("Unknown argument: {arg}");
                 print_help();
@@ -455,6 +487,9 @@ BACKUP OPTIONS:
     --no-backup             Skip backup creation (⚠️  DANGEROUS! Use with caution)
     --emergency-rollback    Emergency rollback to last backup
     --list-backups          List all available backups
+    --restore-from=<DIR>    Restore files from specific backup directory
+    --cleanup-backups=<N>   Clean up old backups (keep only N most recent)
+    --enable-auto-recovery  Enable automatic recovery scanning for YoshiAF operations
 
 VALIDATION OPTIONS:
     --validate              Enable validation after corrections (default: true)
@@ -488,6 +523,15 @@ EXAMPLES:
 
     # Emergency rollback to last backup
     yum --emergency-rollback
+
+    # Restore from specific backup directory
+    yum --restore-from=20250624_143000_clippy_pre_fix
+
+    # Clean up old backups (keep only 5 most recent)
+    yum --cleanup-backups=5
+
+    # Enable auto-recovery for YoshiAF operations
+    yum --run-yoshiautorust --enable-auto-recovery
 
     # Force corrections even if validation fails
     yum --apply-all --force
@@ -701,6 +745,14 @@ fn run_corrector(args: &CorrectorArgs) -> Hatch<()> {
         return list_available_backups();
     }
 
+    if let Some(ref backup_dir) = args.restore_from_backup {
+        return handle_restore_from_backup(backup_dir);
+    }
+
+    if let Some(keep_count) = args.cleanup_backups {
+        return handle_cleanup_backups(keep_count);
+    }
+
     // Handle documentation generation
     if args.generate_docs {
         return handle_documentation_generation(args);
@@ -880,7 +932,7 @@ fn list_available_backups() -> Hatch<()> {
 
     tracing::info!("📁 Listing available backups...");
 
-    let _backup_manager = MandatoryBackupManager::new().map_err(|e| {
+    let backup_manager = MandatoryBackupManager::new().map_err(|e| {
         Yoshi::new(YoshiKind::Internal {
             message: format!("Failed to initialize backup manager: {e}").into(),
             source: None,
@@ -888,12 +940,152 @@ fn list_available_backups() -> Hatch<()> {
         })
     })?;
 
-    // TODO: Implement actual backup listing
-    tracing::info!("📋 Available backups:");
-    tracing::info!("  • backup_20250622_150000_derive/");
-    tracing::info!("  • backup_20250622_145500_clippy/");
-    tracing::info!("  • backup_20250622_145000_all/");
-    tracing::info!("💡 Use --emergency-rollback to restore from most recent backup");
+    let backups = backup_manager.list_available_backups().map_err(|e| {
+        Yoshi::new(YoshiKind::Internal {
+            message: format!("Failed to list backups: {e}").into(),
+            source: None,
+            component: Some("backup_manager".into()),
+        })
+    })?;
+
+    if backups.is_empty() {
+        tracing::info!("📋 No backups found in backup directory");
+        tracing::info!(
+            "💡 Backups are created automatically when using YoshiAF with --backup-required"
+        );
+    } else {
+        tracing::info!("📋 Available backups ({} total):", backups.len());
+        for backup in &backups {
+            tracing::info!(
+                "  📁 {} ({} files, {})",
+                backup.directory_name,
+                backup.file_count,
+                backup.timestamp.format("%Y-%m-%d %H:%M:%S UTC")
+            );
+        }
+        tracing::info!("💡 Use --emergency-rollback to restore from most recent backup");
+        tracing::info!("💡 Use --restore-from=<DIR> to restore from specific backup");
+        tracing::info!("💡 Use --cleanup-backups=<N> to keep only N most recent backups");
+    }
+
+    Ok(())
+}
+
+/// **Handle restore from specific backup directory**
+#[cfg(feature = "std")]
+fn handle_restore_from_backup(backup_dir_name: &str) -> Hatch<()> {
+    use crate::auto_fix::MandatoryBackupManager;
+
+    tracing::info!("🔄 Restoring files from backup: {}", backup_dir_name);
+
+    let backup_manager = MandatoryBackupManager::new().map_err(|e| {
+        Yoshi::new(YoshiKind::Internal {
+            message: format!("Failed to initialize backup manager: {e}").into(),
+            source: None,
+            component: Some("backup_manager".into()),
+        })
+    })?;
+
+    // Find the backup directory
+    let backups = backup_manager.list_available_backups().map_err(|e| {
+        Yoshi::new(YoshiKind::Internal {
+            message: format!("Failed to list backups: {e}").into(),
+            source: None,
+            component: Some("backup_manager".into()),
+        })
+    })?;
+
+    let backup_info = backups
+        .iter()
+        .find(|b| b.directory_name == backup_dir_name)
+        .ok_or_else(|| {
+            Yoshi::new(YoshiKind::Internal {
+                message: format!("Backup directory '{}' not found", backup_dir_name).into(),
+                source: None,
+                component: Some("backup_manager".into()),
+            })
+        })?;
+
+    // Perform the restore
+    let restore_result = backup_manager
+        .restore_from_backup_directory(&backup_info.path)
+        .map_err(|e| {
+            Yoshi::new(YoshiKind::Internal {
+                message: format!("Failed to restore from backup: {e}").into(),
+                source: None,
+                component: Some("backup_manager".into()),
+            })
+        })?;
+
+    if restore_result.success {
+        tracing::info!(
+            "✅ Successfully restored {} files from backup",
+            restore_result.restored_files.len()
+        );
+        for file in &restore_result.restored_files {
+            tracing::info!("  📄 Restored: {}", file.display());
+        }
+    } else {
+        tracing::warn!("⚠️ Restore completed with warnings:");
+        for warning in &restore_result.warnings {
+            tracing::warn!("  ⚠️ {}", warning);
+        }
+    }
+
+    Ok(())
+}
+
+/// **Handle cleanup of old backups**
+#[cfg(feature = "std")]
+fn handle_cleanup_backups(keep_count: usize) -> Hatch<()> {
+    use crate::auto_fix::MandatoryBackupManager;
+
+    tracing::info!(
+        "🧹 Cleaning up old backups (keeping {} most recent)...",
+        keep_count
+    );
+
+    let backup_manager = MandatoryBackupManager::new().map_err(|e| {
+        Yoshi::new(YoshiKind::Internal {
+            message: format!("Failed to initialize backup manager: {e}").into(),
+            source: None,
+            component: Some("backup_manager".into()),
+        })
+    })?;
+
+    let cleanup_result = backup_manager
+        .cleanup_old_backups(keep_count)
+        .map_err(|e| {
+            Yoshi::new(YoshiKind::Internal {
+                message: format!("Failed to cleanup backups: {e}").into(),
+                source: None,
+                component: Some("backup_manager".into()),
+            })
+        })?;
+
+    if cleanup_result.success {
+        tracing::info!("✅ Cleanup completed successfully");
+        tracing::info!(
+            "  🗑️ Removed {} old backups",
+            cleanup_result.removed_backups.len()
+        );
+        tracing::info!(
+            "  📁 Kept {} recent backups",
+            cleanup_result.kept_backups.len()
+        );
+
+        if !cleanup_result.removed_backups.is_empty() {
+            tracing::info!("  Removed backups:");
+            for backup in &cleanup_result.removed_backups {
+                tracing::info!("    🗑️ {}", backup.directory_name);
+            }
+        }
+    } else {
+        tracing::warn!("⚠️ Cleanup completed with warnings:");
+        for warning in &cleanup_result.warnings {
+            tracing::warn!("  ⚠️ {}", warning);
+        }
+    }
 
     Ok(())
 }
@@ -1238,6 +1430,7 @@ fn parse_args_from_vec(args: &[String]) -> CorrectorArgs {
             }
             "--emergency-rollback" => config.emergency_rollback = true,
             "--list-backups" => config.list_backups = true,
+            "--enable-auto-recovery" => config.enable_auto_recovery = true,
             "--tui" => config.show_tui = true,
             "--dry-run" => config.dry_run = true,
             "--force" => config.force = true,
@@ -1277,6 +1470,28 @@ fn parse_args_from_vec(args: &[String]) -> CorrectorArgs {
                     }
                 } else {
                     tracing::error!("Invalid doc-detail argument format: {arg}");
+                    process::exit(1);
+                }
+            }
+            _ if arg.starts_with("--restore-from=") => {
+                if let Some(backup_dir) = arg.strip_prefix("--restore-from=") {
+                    config.restore_from_backup = Some(backup_dir.to_string());
+                } else {
+                    tracing::error!("Invalid restore-from argument format: {arg}");
+                    process::exit(1);
+                }
+            }
+            _ if arg.starts_with("--cleanup-backups=") => {
+                if let Some(count_str) = arg.strip_prefix("--cleanup-backups=") {
+                    match count_str.parse::<usize>() {
+                        Ok(count) => config.cleanup_backups = Some(count),
+                        Err(_) => {
+                            tracing::error!("Invalid cleanup-backups count: {count_str}. Must be a positive number");
+                            process::exit(1);
+                        }
+                    }
+                } else {
+                    tracing::error!("Invalid cleanup-backups argument format: {arg}");
                     process::exit(1);
                 }
             }

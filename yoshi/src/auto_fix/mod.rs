@@ -53,7 +53,11 @@ use crate::{Hatch, Yoshi, YoshiKind};
 
 // Import backup manager for safe file operations
 mod backup_manager;
-pub use backup_manager::MandatoryBackupManager;
+pub use backup_manager::{
+    AutoRecoveryResult, BackupDirectoryInfo, BackupError, BackupManifest, BackupOperation,
+    ChecksumValidator, CleanupOperation, DiagnosticLevel, DiagnosticMessage, FileDiagnostics,
+    MandatoryBackupManager, RestoreOperation,
+};
 
 // No-std compatibility types
 mod no_std_compat;

@@ -1,6 +1,8 @@
-# Comprehensive Rust Error Code Reference
+# flawless_References.md
 
-## Legend
+## Comprehensive Rust Error Code Reference
+
+### Legend
 
 **Error Code Categories:**
 

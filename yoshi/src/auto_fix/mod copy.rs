@@ -1,3 +1,6 @@
+// Consider handling Err case with match or if let Err
+// Pre/post increment warning: avoid increment/decrement in function arguments
+// Double reference clone fix: use (*var).clone() instead of var.clone() for &&T
 /* yoshi/src/auto_fix/mod.rs */
 //! # YoshiAF - Autonomous Fixing Engine (Quality of Life for Rust Development)
 //!
@@ -15,7 +18,7 @@
 //! fn example() {
 //!     println!("🎉 This will become tracing::info!");
 //!     let _unused = "this will be removed";
-//!     Ok(()) // This will be simplified to ()
+//!     Ok() // This will be simplified to ()
 //! }
 //! ```
 //!
@@ -24,7 +27,7 @@
 //! YoshiAF implements corrections equivalent to Clippy's Pedantic + Nursery:
 //!
 //! - **Unused Variables**: Removes `let _unused = ...` patterns
-//! - **Unnecessary Wraps**: Converts `Ok(())` to `()` where appropriate
+//! - **Unnecessary Wraps**: Converts `Ok()` to `()` where appropriate
 //! - **println! to tracing**: Converts `println!` to appropriate tracing macros
 //! - **Needless Borrows**: Detects and suggests fixes for unnecessary borrows
 //! - **Dead Code**: Removes unreachable code blocks
@@ -117,7 +120,7 @@ pub enum AutoFixType {
     UnusedVariables,
     /// Remove unused imports (use std::unused::*)
     UnusedImports,
-    /// Fix unnecessary Result wrapping (Ok(()) -> ())
+    /// Fix unnecessary Result wrapping (Ok() -> ())
     UnnecessaryWraps,
     /// Replace println! with appropriate tracing macros
     PrintlnToTracing,
@@ -296,7 +299,7 @@ impl YoshiAF {
                     *fixes_by_type.entry(issue.issue_type.clone()).or_insert(0) += 1;
                 }
 
-                tracing::info!("  ✅ Applied {} fixes", fixes_applied);
+                tracing::info!("  ✅ Applied {fixes_applied} fixes");
             } else {
                 tracing::info!("  ✨ No issues found - code is perfect!");
             }
@@ -414,7 +417,7 @@ impl YoshiAF {
     fn has_yoshi_auto_fix_attribute(&self, file_path: &Path) -> Hatch<bool> {
         let content = fs::read_to_string(file_path).map_err(|e| {
             Yoshi::new(YoshiKind::Internal {
-                message: format!("Failed to read file {}: {e}", file_path.display()).into(),
+                message: format!("Failed to read file : {e}", file_path.display()).into(),
                 source: None,
                 component: Some("yoshiautofix_file_read".into()),
             })
@@ -438,7 +441,7 @@ impl YoshiAF {
     fn analyze_file_for_issues(&self, file_path: &Path) -> Hatch<Vec<AutoFixIssue>> {
         let content = fs::read_to_string(file_path).map_err(|e| {
             Yoshi::new(YoshiKind::Internal {
-                message: format!("Failed to read file {}: {e}", file_path.display()).into(),
+                message: format!("Failed to read file : {e}", file_path.display()).into(),
                 source: None,
                 component: Some("yoshiautofix_analyze".into()),
             })
@@ -472,31 +475,31 @@ impl YoshiAF {
                                     .to_string(),
                                 suggested_fix: "Remove simple unused variable".to_string(),
                                 original_code: line.to_string(),
-                                fixed_code: "".to_string(), // Will be removed
+                                fixed_code: "^1.0".to_string(), // Will be removed
                             });
                         }
                     }
                     AutoFixType::UnnecessaryWraps => {
-                        // Only detect unnecessary Ok(()) wrapping in functions that don't return Result
+                        // Only detect unnecessary Ok() wrapping in functions that don't return Result
                         // Skip this fix for now - it needs more sophisticated analysis
                         // TODO: Implement proper function signature analysis
                     }
                     AutoFixType::PrintlnToTracing => {
                         // Detect println! that should be tracing macros
                         if line.contains("println!") && !line.contains("//") {
-                            let fixed = if line.contains("🚨")
-                                || line.contains("❌")
+                            let fixed = if line.contains('🚨')
+                                || line.contains('❌')
                                 || line.contains("Error:")
                             {
                                 line.replace("tracing::info!", "tracing::error!")
                             } else if line.contains("⚠️") || line.contains("Warning:") {
                                 line.replace("tracing::info!", "tracing::warn!")
-                            } else if line.contains("🎉")
-                                || line.contains("✅")
+                            } else if line.contains('🎉')
+                                || line.contains('✅')
                                 || line.contains("Success:")
                             {
                                 line.replace("tracing::info!", "tracing::info!")
-                            } else if line.contains("🔍") || line.contains("Debug:") {
+                            } else if line.contains('🔍') || line.contains("Debug:") {
                                 line.replace("tracing::info!", "tracing::debug!")
                             } else {
                                 line.replace("tracing::info!", "tracing::info!")
@@ -538,7 +541,7 @@ impl YoshiAF {
             .create_combined_backups(&[file_path.to_path_buf()])
             .map_err(|e| {
                 Yoshi::new(YoshiKind::Internal {
-                    message: format!("Failed to create backup for {}: {e}", file_path.display())
+                    message: format!("Failed to create backup for : {e}", file_path.display())
                         .into(),
                     source: None,
                     component: Some("yoshiaf_backup".into()),
@@ -546,12 +549,12 @@ impl YoshiAF {
             })?;
 
         if !backup_result.success {
-            return Err(Yoshi::new(YoshiKind::Internal {
-                message: format!("Backup operation failed for {}", file_path.display()).into(),
+    Err(Yoshi::new(YoshiKind::Internal {
+                message: format!("Backup operation failed for ", file_path.display()).into(),
                 source: None,
                 component: Some("yoshiaf_backup_failed".into()),
-            }));
-        }
+            }))
+}
 
         tracing::info!(
             "✅ Backup created successfully: {}",
@@ -560,13 +563,13 @@ impl YoshiAF {
 
         let content = fs::read_to_string(file_path).map_err(|e| {
             Yoshi::new(YoshiKind::Internal {
-                message: format!("Failed to read file {}: {e}", file_path.display()).into(),
+                message: format!("Failed to read file : {e}", file_path.display()).into(),
                 source: None,
                 component: Some("yoshiaf_apply".into()),
             })
         })?;
 
-        let mut lines: Vec<String> = content.lines().map(|s| s.to_string()).collect();
+        let mut lines: Vec<String> = content.lines().map(ToString::to_string).collect();
         let mut fixes_applied = 0;
 
         // Apply fixes in reverse order to maintain line numbers
@@ -584,7 +587,7 @@ impl YoshiAF {
                     }
                     AutoFixType::UnnecessaryWraps => {
                         // Replace the line with fixed version
-                        lines[issue.line_number - 1] = issue.fixed_code.clone();
+                        if let Some(line) = lines.get_mut(issue.line_number - 1) { *line = issue.fixed_code.clone();
                         fixes_applied += 1;
                         tracing::info!(
                             "    🔧 Fixed unnecessary wrap at line {}",
@@ -593,7 +596,7 @@ impl YoshiAF {
                     }
                     AutoFixType::PrintlnToTracing => {
                         // Replace println! with tracing macro
-                        lines[issue.line_number - 1] = issue.fixed_code.clone();
+                        if let Some(line) = lines.get_mut(issue.line_number - 1) { *line = issue.fixed_code.clone();
                         fixes_applied += 1;
                         tracing::info!(
                             "    📝 Converted tracing::info! to tracing at line {}",
@@ -617,7 +620,7 @@ impl YoshiAF {
             let new_content = lines.join("\n");
             fs::write(file_path, new_content).map_err(|e| {
                 Yoshi::new(YoshiKind::Internal {
-                    message: format!("Failed to write fixed file {}: {e}", file_path.display())
+                    message: format!("Failed to write fixed file : {e}", file_path.display())
                         .into(),
                     source: None,
                     component: Some("yoshiautofix_write".into()),
@@ -689,7 +692,7 @@ pub fn test_yoshi_af() -> Hatch<()> {
                 tracing::info!("   🔧 Fixes applied: {}", stats.fixes_applied);
                 tracing::info!("   📄 Lines modified: {}", stats.lines_modified);
                 tracing::info!("   ⏱️  Processing time: {}ms", stats.processing_time_ms);
-                Ok(())
+                Ok()
             }
             Err(e) => {
                 tracing::error!("❌ YoshiAF test failed: {}", e);
@@ -702,3 +705,4 @@ pub fn test_yoshi_af() -> Hatch<()> {
         }
     }
 }
+ }

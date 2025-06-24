@@ -16,6 +16,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
+use tokio;
 use tracing::{debug, error, info, warn};
 
 /// **CRITICAL SAFETY REQUIREMENT**: Mandatory backup manager that MUST be used
@@ -90,9 +91,9 @@ impl ChecksumValidator {
             .map_err(|e| BackupError::IoError(format!("Failed to read file metadata: {e}")))?;
 
         let size = metadata.len();
-        let modified = metadata.modified().map_err(|e| {
-            BackupError::IoError(format!("Failed to read modification time: {e}"))
-        })?;
+        let modified = metadata
+            .modified()
+            .map_err(|e| BackupError::IoError(format!("Failed to read modification time: {e}")))?;
 
         // Create a simple hash from size, content length, and timestamp
         let timestamp = modified
@@ -168,20 +169,47 @@ impl std::fmt::Display for BackupError {
 impl std::error::Error for BackupError {}
 
 impl MandatoryBackupManager {
+    /// **Find project root by looking for Cargo.toml**
+    ///
+    /// # Errors
+    ///
+    /// Returns `BackupError::FileNotFound` if no Cargo.toml is found in current or parent directories.
+    fn find_project_root() -> Result<PathBuf, BackupError> {
+        let mut current_dir = std::env::current_dir()
+            .map_err(|e| BackupError::IoError(format!("Failed to get current directory: {}", e)))?;
+
+        loop {
+            let cargo_toml = current_dir.join("Cargo.toml");
+            if cargo_toml.exists() {
+                return Ok(current_dir);
+            }
+
+            match current_dir.parent() {
+                Some(parent) => current_dir = parent.to_path_buf(),
+                None => {
+                    return Err(BackupError::FileNotFound(
+                        "Could not find project root (no Cargo.toml found)".to_string(),
+                    ))
+                }
+            }
+        }
+    }
+
     /// **STEP 1: Initialize backup manager with safety checks**
     ///
     /// # Errors
     ///
     /// Returns `BackupError::DirectoryCreationFailed` if the backup directory cannot be created.
     pub fn new() -> Result<Self, BackupError> {
-        let backup_root = PathBuf::from("backups");
+        // Find project root by looking for Cargo.toml
+        let backup_root = Self::find_project_root()?.join("yoBackups");
 
         // Ensure backup directory exists with proper permissions
         if !backup_root.exists() {
             fs::create_dir_all(&backup_root).map_err(|e| {
                 BackupError::DirectoryCreationFailed(format!("{}: {}", backup_root.display(), e))
             })?;
-            info!("🛡️ Created backup directory: {}", backup_root.display());
+            info!("🛡️ Created yoBackups directory: {}", backup_root.display());
         }
 
         Ok(Self {
@@ -451,6 +479,570 @@ impl MandatoryBackupManager {
         );
         Ok(())
     }
+
+    /// **List all available backups in the backup directory**
+    ///
+    /// # Errors
+    ///
+    /// Returns `BackupError::IoError` if the backup directory cannot be read.
+    pub fn list_available_backups(&self) -> Result<Vec<BackupDirectoryInfo>, BackupError> {
+        let mut backups = Vec::new();
+
+        if !self.backup_root.exists() {
+            return Ok(backups);
+        }
+
+        let entries = fs::read_dir(&self.backup_root).map_err(|e| {
+            BackupError::IoError(format!(
+                "Failed to read backup directory {}: {}",
+                self.backup_root.display(),
+                e
+            ))
+        })?;
+
+        for entry in entries {
+            let entry = entry.map_err(|e| {
+                BackupError::IoError(format!("Failed to read directory entry: {e}"))
+            })?;
+
+            let path = entry.path();
+            if path.is_dir() {
+                if let Some(dir_name) = path.file_name().and_then(|n| n.to_str()) {
+                    if let Some(backup_info) = Self::parse_backup_directory_name(dir_name, &path) {
+                        backups.push(backup_info);
+                    }
+                }
+            }
+        }
+
+        // Sort by timestamp (newest first)
+        backups.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
+        Ok(backups)
+    }
+
+    /// **Parse backup directory name to extract metadata**
+    fn parse_backup_directory_name(dir_name: &str, path: &Path) -> Option<BackupDirectoryInfo> {
+        // Expected format: YYYYMMDD_HHMMSS_TYPE_pre_fix
+        let parts: Vec<&str> = dir_name.split('_').collect();
+        if parts.len() >= 4 {
+            let date_part = parts[0];
+            let time_part = parts[1];
+            let fix_type = parts[2];
+
+            // Parse timestamp
+            let timestamp_str = format!("{date_part}_{time_part}");
+            if let Ok(timestamp) =
+                chrono::NaiveDateTime::parse_from_str(&timestamp_str, "%Y%m%d_%H%M%S")
+            {
+                let timestamp = DateTime::<Utc>::from_naive_utc_and_offset(timestamp, Utc);
+
+                // Count files in backup
+                let file_count = Self::count_files_in_directory(path).unwrap_or(0);
+
+                return Some(BackupDirectoryInfo {
+                    directory_name: dir_name.to_string(),
+                    path: path.to_path_buf(),
+                    timestamp,
+                    fix_type: fix_type.to_string(),
+                    file_count,
+                });
+            }
+        }
+        None
+    }
+
+    /// **Count files in a directory**
+    fn count_files_in_directory(dir_path: &Path) -> Result<usize, BackupError> {
+        let entries = fs::read_dir(dir_path).map_err(|e| {
+            BackupError::IoError(format!(
+                "Failed to read directory {}: {}",
+                dir_path.display(),
+                e
+            ))
+        })?;
+
+        let mut count = 0;
+        for entry in entries {
+            let entry = entry.map_err(|e| {
+                BackupError::IoError(format!("Failed to read directory entry: {e}"))
+            })?;
+            if entry.path().is_file() {
+                count += 1;
+            }
+        }
+        Ok(count)
+    }
+
+    /// **Restore files from a specific backup directory**
+    ///
+    /// # Errors
+    ///
+    /// Returns `BackupError` if the backup directory doesn't exist, files cannot be restored,
+    /// or integrity verification fails.
+    pub fn restore_from_backup_directory(
+        &self,
+        backup_dir: &Path,
+    ) -> Result<RestoreOperation, BackupError> {
+        if !backup_dir.exists() {
+            return Err(BackupError::FileNotFound(backup_dir.display().to_string()));
+        }
+
+        info!("🔄 Restoring files from backup: {}", backup_dir.display());
+
+        let mut restored_files = Vec::new();
+        let mut warnings = Vec::new();
+        let mut success = true;
+
+        // Read all files in the backup directory
+        let entries = fs::read_dir(backup_dir).map_err(|e| {
+            BackupError::IoError(format!(
+                "Failed to read backup directory {}: {}",
+                backup_dir.display(),
+                e
+            ))
+        })?;
+
+        for entry in entries {
+            let entry = entry.map_err(|e| {
+                BackupError::IoError(format!("Failed to read directory entry: {e}"))
+            })?;
+
+            let backup_file_path = entry.path();
+            if backup_file_path.is_file() {
+                match self.restore_file_from_backup(&backup_file_path) {
+                    Ok(restored_path) => {
+                        restored_files.push(restored_path);
+                        debug!("✅ Restored: {}", backup_file_path.display());
+                    }
+                    Err(e) => {
+                        error!("❌ Failed to restore {}: {}", backup_file_path.display(), e);
+                        warnings.push(format!(
+                            "Failed to restore {}: {}",
+                            backup_file_path.display(),
+                            e
+                        ));
+                        success = false;
+                    }
+                }
+            }
+        }
+
+        let operation = RestoreOperation {
+            backup_directory: backup_dir.to_path_buf(),
+            restored_files,
+            timestamp: Utc::now(),
+            success,
+            warnings,
+        };
+
+        if success {
+            info!(
+                "✅ Successfully restored {} files from backup",
+                operation.restored_files.len()
+            );
+        } else {
+            warn!("⚠️ Restore operation completed with warnings");
+        }
+
+        Ok(operation)
+    }
+
+    /// **Restore a single file from backup (auto-detect original location)**
+    fn restore_file_from_backup(&self, backup_file_path: &Path) -> Result<PathBuf, BackupError> {
+        // For now, assume the original file is in the current working directory
+        // In a more sophisticated implementation, this would use manifest files
+        let file_name = backup_file_path
+            .file_name()
+            .ok_or_else(|| BackupError::IoError("Invalid backup file name".to_string()))?;
+
+        let original_path = std::env::current_dir()
+            .map_err(|e| BackupError::IoError(format!("Failed to get current directory: {e}")))?
+            .join(file_name);
+
+        // Copy backup file to original location
+        fs::copy(backup_file_path, &original_path).map_err(|e| {
+            BackupError::IoError(format!(
+                "Failed to restore {} to {}: {}",
+                backup_file_path.display(),
+                original_path.display(),
+                e
+            ))
+        })?;
+
+        info!(
+            "🔄 Restored: {} → {}",
+            backup_file_path.display(),
+            original_path.display()
+        );
+        Ok(original_path)
+    }
+
+    /// **Get the most recent backup directory**
+    ///
+    /// # Errors
+    ///
+    /// Returns `BackupError::FileNotFound` if no backups are available.
+    pub fn get_most_recent_backup(&self) -> Result<BackupDirectoryInfo, BackupError> {
+        let backups = self.list_available_backups()?;
+        backups
+            .into_iter()
+            .next()
+            .ok_or_else(|| BackupError::FileNotFound("No backups available".to_string()))
+    }
+
+    /// **Clean up old backups (keep only the most recent N backups)**
+    ///
+    /// # Errors
+    ///
+    /// Returns `BackupError::IoError` if backup directories cannot be removed.
+    pub fn cleanup_old_backups(&self, keep_count: usize) -> Result<CleanupOperation, BackupError> {
+        let backups = self.list_available_backups()?;
+
+        if backups.len() <= keep_count {
+            return Ok(CleanupOperation {
+                removed_backups: Vec::new(),
+                kept_backups: backups,
+                success: true,
+                warnings: Vec::new(),
+            });
+        }
+
+        let (keep_backups, remove_backups) = backups.split_at(keep_count);
+        let mut removed_backups = Vec::new();
+        let mut warnings = Vec::new();
+        let mut success = true;
+
+        for backup in remove_backups {
+            match fs::remove_dir_all(&backup.path) {
+                Ok(()) => {
+                    removed_backups.push(backup.clone());
+                    info!("🗑️ Removed old backup: {}", backup.directory_name);
+                }
+                Err(e) => {
+                    error!(
+                        "❌ Failed to remove backup {}: {}",
+                        backup.directory_name, e
+                    );
+                    warnings.push(format!(
+                        "Failed to remove backup {}: {}",
+                        backup.directory_name, e
+                    ));
+                    success = false;
+                }
+            }
+        }
+
+        Ok(CleanupOperation {
+            removed_backups,
+            kept_backups: keep_backups.to_vec(),
+            success,
+            warnings,
+        })
+    }
+
+    /// **Async function to auto-detect errors/warnings before and after YoshiAF changes**
+    ///
+    /// This function scans a file for compilation errors and warnings before YoshiAF
+    /// makes changes, then rescans after changes to compare and auto-recover if regression is detected.
+    ///
+    /// # Errors
+    ///
+    /// Returns `BackupError` if file operations fail or auto-recovery is needed but fails.
+    pub async fn auto_recovery_scan(
+        &mut self,
+        file_path: &Path,
+    ) -> Result<AutoRecoveryResult, BackupError> {
+        info!(
+            "🔍 Starting auto-recovery scan for: {}",
+            file_path.display()
+        );
+
+        // Step 1: Scan file before changes
+        let pre_fix_diagnostics = Self::scan_file_diagnostics(file_path).await?;
+        info!(
+            "📊 Pre-fix diagnostics: {} errors, {} warnings",
+            pre_fix_diagnostics.error_count, pre_fix_diagnostics.warning_count
+        );
+
+        // Step 2: Create backup before any changes
+        let backup_manifest = self.create_individual_backup(
+            file_path,
+            &self.backup_root.join("auto_recovery"),
+            "auto_recovery",
+            true, // Assume compilation status is true for auto-recovery
+        )?;
+
+        // Step 3: Apply YoshiAF changes (this would be called by the YoshiAF system)
+        // For now, we'll simulate this step - in practice, YoshiAF would call this function
+        // before and after making changes
+
+        Ok(AutoRecoveryResult {
+            file_path: file_path.to_path_buf(),
+            pre_fix_diagnostics,
+            post_fix_diagnostics: None, // Will be filled by post_fix_scan
+            backup_manifest: Some(backup_manifest),
+            recovery_triggered: false,
+            recovery_successful: None,
+        })
+    }
+
+    /// **Complete the auto-recovery scan after YoshiAF changes**
+    ///
+    /// # Errors
+    ///
+    /// Returns `BackupError` if post-fix scanning fails or auto-recovery is needed but fails.
+    pub async fn complete_auto_recovery_scan(
+        &self,
+        mut result: AutoRecoveryResult,
+    ) -> Result<AutoRecoveryResult, BackupError> {
+        info!(
+            "🔍 Completing auto-recovery scan for: {}",
+            result.file_path.display()
+        );
+
+        // Step 4: Scan file after changes
+        let post_fix_diagnostics = Self::scan_file_diagnostics(&result.file_path).await?;
+        info!(
+            "📊 Post-fix diagnostics: {} errors, {} warnings",
+            post_fix_diagnostics.error_count, post_fix_diagnostics.warning_count
+        );
+
+        result.post_fix_diagnostics = Some(post_fix_diagnostics.clone());
+
+        // Step 5: Compare diagnostics and determine if recovery is needed
+        let needs_recovery =
+            Self::should_trigger_recovery(&result.pre_fix_diagnostics, &post_fix_diagnostics);
+
+        if needs_recovery {
+            warn!(
+                "🚨 File regression detected! Triggering auto-recovery for: {}",
+                result.file_path.display()
+            );
+            result.recovery_triggered = true;
+
+            // Step 6: Perform auto-recovery
+            if let Some(ref backup_manifest) = result.backup_manifest {
+                match self.restore_single_file(backup_manifest) {
+                    Ok(()) => {
+                        info!(
+                            "✅ Auto-recovery successful for: {}",
+                            result.file_path.display()
+                        );
+                        result.recovery_successful = Some(true);
+                    }
+                    Err(e) => {
+                        error!(
+                            "❌ Auto-recovery failed for {}: {}",
+                            result.file_path.display(),
+                            e
+                        );
+                        result.recovery_successful = Some(false);
+                        return Err(e);
+                    }
+                }
+            } else {
+                error!(
+                    "❌ No backup available for auto-recovery: {}",
+                    result.file_path.display()
+                );
+                result.recovery_successful = Some(false);
+                return Err(BackupError::FileNotFound(
+                    "No backup manifest available for recovery".to_string(),
+                ));
+            }
+        } else {
+            info!(
+                "✅ No regression detected for: {}",
+                result.file_path.display()
+            );
+        }
+
+        Ok(result)
+    }
+
+    /// **Scan file for compilation diagnostics**
+    async fn scan_file_diagnostics(file_path: &Path) -> Result<FileDiagnostics, BackupError> {
+        // Use cargo check to get diagnostics for the specific file
+        let output = tokio::process::Command::new("cargo")
+            .args(["check", "--message-format=json", "--quiet"])
+            .current_dir(file_path.parent().unwrap_or_else(|| Path::new(".")))
+            .output()
+            .await
+            .map_err(|e| BackupError::IoError(format!("Failed to run cargo check: {e}")))?;
+
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let mut error_count = 0;
+        let mut warning_count = 0;
+        let mut messages = Vec::new();
+
+        // Parse JSON output from cargo
+        for line in stdout.lines() {
+            if let Ok(json) = serde_json::from_str::<serde_json::Value>(line) {
+                if let Some(message) = json.get("message") {
+                    if let Some(level) = message.get("level").and_then(|l| l.as_str()) {
+                        let msg_text = message
+                            .get("message")
+                            .and_then(|m| m.as_str())
+                            .unwrap_or("Unknown message")
+                            .to_string();
+
+                        match level {
+                            "error" => {
+                                error_count += 1;
+                                messages.push(DiagnosticMessage {
+                                    level: DiagnosticLevel::Error,
+                                    message: msg_text,
+                                });
+                            }
+                            "warning" => {
+                                warning_count += 1;
+                                messages.push(DiagnosticMessage {
+                                    level: DiagnosticLevel::Warning,
+                                    message: msg_text,
+                                });
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(FileDiagnostics {
+            file_path: file_path.to_path_buf(),
+            error_count,
+            warning_count,
+            messages,
+            scan_timestamp: Utc::now(),
+        })
+    }
+
+    /// **Determine if auto-recovery should be triggered**
+    fn should_trigger_recovery(pre_fix: &FileDiagnostics, post_fix: &FileDiagnostics) -> bool {
+        // Trigger recovery if:
+        // 1. Error count increased
+        // 2. Warning count increased significantly (more than 50% increase)
+        // 3. New critical errors appeared
+
+        if post_fix.error_count > pre_fix.error_count {
+            return true;
+        }
+
+        if post_fix.warning_count > pre_fix.warning_count + (pre_fix.warning_count / 2) {
+            return true;
+        }
+
+        // Check for specific critical error patterns
+        for message in &post_fix.messages {
+            if message.level == DiagnosticLevel::Error {
+                let msg = &message.message;
+                if msg.contains("cannot find")
+                    || msg.contains("mismatched types")
+                    || msg.contains("borrow checker")
+                    || msg.contains("use of moved value")
+                {
+                    return true;
+                }
+            }
+        }
+
+        false
+    }
+}
+
+/// **Result of an auto-recovery scan operation**
+#[derive(Debug, Clone)]
+pub struct AutoRecoveryResult {
+    /// Path to the file that was scanned
+    pub file_path: PathBuf,
+    /// Diagnostics before YoshiAF changes
+    pub pre_fix_diagnostics: FileDiagnostics,
+    /// Diagnostics after YoshiAF changes (None if not yet scanned)
+    pub post_fix_diagnostics: Option<FileDiagnostics>,
+    /// Backup manifest created before changes
+    pub backup_manifest: Option<BackupManifest>,
+    /// Whether auto-recovery was triggered
+    pub recovery_triggered: bool,
+    /// Whether auto-recovery was successful (None if not attempted)
+    pub recovery_successful: Option<bool>,
+}
+
+/// **File diagnostics from compilation scan**
+#[derive(Debug, Clone)]
+pub struct FileDiagnostics {
+    /// Path to the scanned file
+    pub file_path: PathBuf,
+    /// Number of compilation errors
+    pub error_count: usize,
+    /// Number of compilation warnings
+    pub warning_count: usize,
+    /// Detailed diagnostic messages
+    pub messages: Vec<DiagnosticMessage>,
+    /// Timestamp when the scan was performed
+    pub scan_timestamp: DateTime<Utc>,
+}
+
+/// **Individual diagnostic message**
+#[derive(Debug, Clone)]
+pub struct DiagnosticMessage {
+    /// Severity level of the diagnostic
+    pub level: DiagnosticLevel,
+    /// The diagnostic message text
+    pub message: String,
+}
+
+/// **Diagnostic severity levels**
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum DiagnosticLevel {
+    /// Compilation error
+    Error,
+    /// Compilation warning
+    Warning,
+    /// Informational message
+    Info,
+}
+
+/// **Information about a backup directory**
+#[derive(Debug, Clone)]
+pub struct BackupDirectoryInfo {
+    /// Directory name
+    pub directory_name: String,
+    /// Full path to the backup directory
+    pub path: PathBuf,
+    /// Timestamp when the backup was created
+    pub timestamp: DateTime<Utc>,
+    /// Type of fix that was being applied
+    pub fix_type: String,
+    /// Number of files in the backup
+    pub file_count: usize,
+}
+
+/// **Result of a restore operation**
+#[derive(Debug, Clone)]
+pub struct RestoreOperation {
+    /// Backup directory that was restored from
+    pub backup_directory: PathBuf,
+    /// List of files that were successfully restored
+    pub restored_files: Vec<PathBuf>,
+    /// Timestamp of the restore operation
+    pub timestamp: DateTime<Utc>,
+    /// Whether the operation was successful
+    pub success: bool,
+    /// Any warnings or issues encountered
+    pub warnings: Vec<String>,
+}
+
+/// **Result of a cleanup operation**
+#[derive(Debug, Clone)]
+pub struct CleanupOperation {
+    /// Backups that were removed
+    pub removed_backups: Vec<BackupDirectoryInfo>,
+    /// Backups that were kept
+    pub kept_backups: Vec<BackupDirectoryInfo>,
+    /// Whether the operation was successful
+    pub success: bool,
+    /// Any warnings or issues encountered
+    pub warnings: Vec<String>,
 }
 
 impl Default for MandatoryBackupManager {

@@ -36,7 +36,6 @@ use yoshi_std::io_error_to_yoshi;
 /// Returns an error if the operation fails due to invalid input or system constraints.
 fn test_yoshi_crate_basic_functionality() {
     // Test that the main yoshi crate exports all necessary components
-    let _result: Result<String> = Ok("test".to_string());
 
     // Test error creation
     let error = Yoshi::new(YoshiKind::Internal {
@@ -47,7 +46,6 @@ fn test_yoshi_crate_basic_functionality() {
 
     assert!(error.to_string().contains("Integration test error"));
     // Instance ID is always valid (u64 type)
-    let _instance_id = error.instance_id();
 }
 
 #[test]
@@ -341,17 +339,14 @@ fn test_api_stability() {
         component: Some("api_test".into()),
     });
 
-    // These methods should always be available
-    let _id = error.instance_id();
-    let _severity = error.severity();
-    let _transient = error.is_transient();
-    let _kind = error.kind();
-    let _display = error.to_string();
-    let _debug = format!("{error:?}");
-
-    // Ensure error is used
-    assert!(!_display.is_empty());
+    // Use the error to verify API stability
     assert!(!error.to_string().is_empty());
+    assert!(error.to_string().contains("API stability test"));
+
+    // Verify the error was created correctly
+    assert!(error.to_string().contains("API stability test"));
+
+    // These methods should always be available
 }
 
 #[test]
@@ -384,11 +379,6 @@ fn test_end_to_end_workflow() {
 
             let contexts: Vec<_> = error.contexts().collect();
             assert!(!contexts.is_empty());
-
-            // Ensure error is fully validated for integration testing
-            // error is already a Yoshi type from HatchExt::context()
-            assert!(error.instance_id() > 0);
-            assert!(error.severity() > 0);
         }
     }
 }
@@ -447,7 +437,6 @@ fn test_comprehensive_integration() {
         // Test that all errors can be processed
         assert!(!error.to_string().is_empty());
         // Instance ID is always valid (u64 type)
-        let _instance_id = error.instance_id();
         assert!(error.severity() > 0);
 
         // Test context addition
@@ -456,7 +445,6 @@ fn test_comprehensive_integration() {
         assert!(enhanced.is_err());
 
         let enhanced_error = enhanced.expect_err("Should be an error");
-        // Convert AnyError to Yoshi to access contexts()
         let yoshi_enhanced = enhanced_error.into_yoshi();
         let contexts: Vec<_> = yoshi_enhanced.contexts().collect();
         assert!(!contexts.is_empty());

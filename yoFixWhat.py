@@ -34,12 +34,15 @@ import json
 import logging
 import argparse
 import subprocess
+import asyncio
+import multiprocessing
+import time
 from enum import Enum
 from pathlib import Path
 from datetime import datetime
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Set, Tuple
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor, as_completed, ProcessPoolExecutor
 
 # Pre-compiled regex patterns for performance
 import re
@@ -541,11 +544,16 @@ class YoFixWhat:
             try:
                 data = json.loads(line)
 
-                # Skip non-diagnostic messages
-                if data.get('reason') != 'compiler-message':
+                # Handle different JSON message formats
+                message_data = None
+                if data.get('reason') == 'compiler-message':
+                    message_data = data.get('message', {})
+                elif 'message' in data:
+                    # Direct message format (sometimes used by clippy)
+                    message_data = data
+                else:
+                    # Skip non-diagnostic messages
                     continue
-
-                message_data = data.get('message', {})
 
                 # Extract diagnostic information with safe string handling
                 diagnostic = DiagnosticInfo(
@@ -605,8 +613,13 @@ class YoFixWhat:
             if line.startswith('{') and line.endswith('}'):
                 try:
                     data = json.loads(line)
-                    # Check if it's a cargo diagnostic message
-                    if isinstance(data, dict) and data.get('reason') == 'compiler-message':
+                    # Check if it's a cargo diagnostic message (broader check)
+                    if isinstance(data, dict) and data.get('reason') in [
+                        'compiler-message', 'compiler-artifact', 'build-script-executed', 'build-finished'
+                    ]:
+                        return True
+                    # Also check for direct message structure (clippy sometimes uses this)
+                    if isinstance(data, dict) and 'message' in data:
                         return True
                 except json.JSONDecodeError:
                     continue
@@ -897,13 +910,10 @@ class YoFixWhat:
             print(f" ⚠️ Basic check failed: {e}")
 
         # Strategy 2: JSON format with encoding-safe execution (only if compilation works)
-        # Skip JSON format for clippy when detailed output is requested to get full formatted warnings
+        # Strategy 2: JSON format (preferred for structured parsing)
         try:
-            if command_type == "clippy" and not self.detailed_output:
+            if command_type == "clippy":
                 cmd = ["cargo", "clippy", "-p", crate_name, "--message-format=json", "--", "-D", "warnings"]
-            elif command_type == "clippy" and self.detailed_output:
-                # Skip JSON format for detailed clippy output - go straight to Strategy 3
-                raise Exception("Skip JSON for detailed clippy output")
             else:  # check
                 cmd = ["cargo", "check", "-p", crate_name, "--message-format=json"]
 
@@ -1302,21 +1312,145 @@ class YoFixWhat:
         return suggestions
 
     def _run_parallel_analysis(self, crates: List[str]) -> None:
-        """Run analysis in parallel for faster execution"""
-        print(f"🚀 Running parallel analysis on {len(crates)} crates...")
+        """🚀 TURBO MODE: Ultra-fast parallel analysis using async processing"""
+        print(f"🚀 TURBO MODE: Running ultra-fast parallel analysis on {len(crates)} crates...")
+        print(f"💻 Using {multiprocessing.cpu_count()} CPU cores for maximum performance")
 
-        with ThreadPoolExecutor(max_workers=os.cpu_count() or 4) as executor:
-            # Submit all crate analysis tasks
-            futures = {executor.submit(self._collect_diagnostics_for_crate, crate): crate
-                      for crate in crates}
+        start_time = time.time()
 
-            # Process results as they complete
-            for future in tqdm(as_completed(futures), total=len(futures), desc="Analyzing crates"):
-                crate = futures[future]
-                try:
-                    future.result()  # This will raise any exceptions that occurred
-                except Exception as e:
-                    print(f"❌ Analysis failed for crate {crate}: {e}")
+        # Run async turbo analysis
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            loop.run_until_complete(self._turbo_analyze_all_crates(crates))
+        finally:
+            loop.close()
+
+        analysis_time = time.time() - start_time
+        print(f"⚡ TURBO analysis completed in {analysis_time:.2f}s ({len(crates)/analysis_time:.1f} crates/sec)")
+
+    async def _turbo_analyze_all_crates(self, crates: List[str]) -> None:
+        """🚀 TURBO: Async parallel analysis of all crates"""
+        semaphore = asyncio.Semaphore(multiprocessing.cpu_count() * 2)  # Allow oversubscription
+
+        tasks = []
+        for crate in crates:
+            task = self._turbo_analyze_single_crate(crate, semaphore)
+            tasks.append(task)
+
+        # Run all crates in parallel
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        # Process results
+        for i, result in enumerate(results):
+            crate = crates[i]
+            if isinstance(result, Exception):
+                print(f"❌ TURBO analysis failed for {crate}: {result}")
+                self.diagnostics[crate] = []
+            elif isinstance(result, list):
+                self.diagnostics[crate] = result
+                if result:
+                    print(f"   📊 Found {len(result)} issues")
+                else:
+                    print(f"   ✅ No issues found!")
+            else:
+                self.diagnostics[crate] = []
+
+    async def _turbo_analyze_single_crate(self, crate: str, semaphore: asyncio.Semaphore) -> List[DiagnosticInfo]:
+        """🚀 TURBO: Async analysis of a single crate"""
+        async with semaphore:
+            try:
+                print(f"🔧 TURBO analyzing crate: {crate}")
+
+                # Run clippy and check in parallel
+                tasks = []
+                if not self.skip_clippy:
+                    clippy_task = self._run_cargo_async(['cargo', 'clippy', '-p', crate, '--message-format=json'])
+                    tasks.append(clippy_task)
+
+                check_task = self._run_cargo_async(['cargo', 'check', '-p', crate, '--message-format=json'])
+                tasks.append(check_task)
+
+                results = await asyncio.gather(*tasks, return_exceptions=True)
+
+                # Parse all results
+                all_diagnostics = []
+                for result in results:
+                    if not isinstance(result, Exception) and isinstance(result, tuple) and len(result) >= 3:
+                        stdout, stderr, _ = result
+                        # Parse JSON output super fast
+                        diagnostics = self._parse_json_turbo(stdout) + self._parse_json_turbo(stderr)
+                        all_diagnostics.extend(diagnostics)
+
+                return all_diagnostics
+
+            except Exception as e:
+                print(f"❌ TURBO error for {crate}: {e}")
+                return []
+
+    async def _run_cargo_async(self, cmd: List[str]) -> tuple:
+        """🚀 TURBO: Async cargo command execution"""
+        process = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+            cwd=self.project_root
+        )
+
+        stdout, stderr = await process.communicate()
+
+        return (
+            stdout.decode('utf-8', errors='ignore'),
+            stderr.decode('utf-8', errors='ignore'),
+            process.returncode
+        )
+
+    def _parse_json_turbo(self, json_output: str) -> List[DiagnosticInfo]:
+        """🚀 TURBO: Ultra-fast JSON parsing optimized for cargo output"""
+        diagnostics = []
+
+        if not json_output.strip():
+            return diagnostics
+
+        # Process line by line for memory efficiency
+        for line in json_output.strip().split('\n'):
+            line = line.strip()
+            if not line or not line.startswith('{'):
+                continue
+
+            try:
+                data = json.loads(line)
+
+                # Handle different JSON message formats
+                message_data = None
+                if data.get('reason') == 'compiler-message':
+                    message_data = data.get('message', {})
+                elif 'message' in data:
+                    message_data = data
+                else:
+                    continue
+
+                # Fast diagnostic creation
+                if message_data and message_data.get('level') in ['error', 'warning']:
+                    diagnostic = DiagnosticInfo(
+                        message=message_data.get('message', ''),
+                        severity=message_data.get('level', 'unknown'),
+                        code=self._extract_error_code_turbo(message_data),
+                        full_context=line
+                    )
+                    diagnostics.append(diagnostic)
+
+            except json.JSONDecodeError:
+                continue
+
+        return diagnostics
+
+    def _extract_error_code_turbo(self, message: dict) -> str:
+        """🚀 TURBO: Fast error code extraction"""
+        code = message.get('code')
+        if isinstance(code, dict):
+            return code.get('code', '')
+        return str(code) if code else ''
 
     def _run_sequential_analysis(self, crates: List[str]) -> None:
         """Run analysis sequentially with progress tracking"""

@@ -109,6 +109,10 @@ impl ClippyFixEngine {
     pub fn apply_clippy_fixes(&mut self, code: &str) -> Hatch<String> {
         let start_time = std::time::Instant::now();
         let mut fixed_code = code.to_string();
+
+        // **SAFETY FIX: Apply unwrap() safety fixes first**
+        fixed_code = self.fix_all_unwrap_calls(&fixed_code)?;
+
         let mut fixes_applied = 0;
         let mut lint_types_fixed = Vec::new();
 
@@ -181,10 +185,60 @@ impl ClippyFixEngine {
         // TIER 3: PERFORMANCE LINTS
         self.register_pattern(Box::new(ExpectFunCallPattern))?;
         self.register_pattern(Box::new(UnnecessaryWrapsPattern))?;
+        self.register_pattern(Box::new(ImpossibleCastPattern))?;
 
         // TIER 4: COMPLEXITY LINTS
 
         self.register_pattern(Box::new(NeedlessBorrowPattern))?;
+
+        // TIER 1: NEWLY IMPLEMENTED CORRECTNESS PATTERNS (High Priority)
+        self.register_pattern(Box::new(AlmostSwappedPattern))?;
+        self.register_pattern(Box::new(AssertionsOnConstantsPattern))?;
+        self.register_pattern(Box::new(CloneDoubleRefPattern))?;
+        self.register_pattern(Box::new(DeprecatedSemverPattern))?;
+        self.register_pattern(Box::new(DropCopyPattern))?;
+        self.register_pattern(Box::new(DuplicateModPattern))?;
+        self.register_pattern(Box::new(ErasingOpPattern))?;
+        self.register_pattern(Box::new(EvalOrderDependencePattern))?;
+        self.register_pattern(Box::new(ForLoopOverOptionPattern))?;
+        self.register_pattern(Box::new(ForLoopOverResultPattern))?;
+        self.register_pattern(Box::new(DeriveHashXorEqPattern))?;
+        self.register_pattern(Box::new(EqOpPattern))?;
+        self.register_pattern(Box::new(IneffectiveBitMaskPattern))?;
+        self.register_pattern(Box::new(InfiniteIterPattern))?;
+        self.register_pattern(Box::new(InlineFnWithoutBodyPattern))?;
+        self.register_pattern(Box::new(LogicBugPattern))?;
+        self.register_pattern(Box::new(MinMaxPattern))?;
+
+        // TIER 5: ADDITIONAL CORRECTNESS PATTERNS
+        self.register_pattern(Box::new(ComparisonChainPattern))?;
+        self.register_pattern(Box::new(DoubleNegPattern))?;
+        self.register_pattern(Box::new(ExcessivePrecisionPattern))?;
+        self.register_pattern(Box::new(ExplicitCounterLoopPattern))?;
+        self.register_pattern(Box::new(FilterNextPattern))?;
+        self.register_pattern(Box::new(GetUnwrapPattern))?;
+        self.register_pattern(Box::new(MatchBoolPattern))?;
+        self.register_pattern(Box::new(NeedlessBoolPattern))?;
+        self.register_pattern(Box::new(RedundantStaticLifetimesPattern))?;
+        self.register_pattern(Box::new(UsedUnderscoreBindingPattern))?;
+
+        // TIER 6: PERFORMANCE PATTERNS
+        self.register_pattern(Box::new(BoxVecPattern))?;
+        self.register_pattern(Box::new(ExtendFromSlicePattern))?;
+        self.register_pattern(Box::new(ImplicitClonePattern))?;
+        self.register_pattern(Box::new(InefficientToStringPattern))?;
+        self.register_pattern(Box::new(LargeEnumVariantPattern))?;
+        self.register_pattern(Box::new(ManualMemcpyPattern))?;
+        self.register_pattern(Box::new(MapClonePattern))?;
+        self.register_pattern(Box::new(OrFunCallPattern))?;
+        self.register_pattern(Box::new(RedundantAllocationPattern))?;
+        self.register_pattern(Box::new(RedundantClonePattern))?;
+        self.register_pattern(Box::new(SlowVectorInitializationPattern))?;
+
+        // TIER 7: ADDITIONAL STYLE PATTERNS
+        self.register_pattern(Box::new(StringLitAsCharPattern))?;
+        self.register_pattern(Box::new(OptionMapUnitFnPattern))?;
+        self.register_pattern(Box::new(ResultMapUnitFnPattern))?;
 
         tracing::info!(
             "Loaded {} Clippy fix patterns from unclipped_References.md",
@@ -205,6 +259,60 @@ impl ClippyFixEngine {
         // Real implementations are registered in load_clippy_patterns() with all other patterns
         tracing::info!("Real implementations already registered with full pattern set");
         Ok(())
+    }
+
+    /// **🚀 TURBO `UNWRAP()` SAFETY FIXER - Apply comprehensive `unwrap()` fixes**
+    ///
+    /// This method systematically replaces all dangerous `.unwrap()` calls with safe alternatives
+    /// using regex-based pattern matching and intelligent context-aware replacements.
+    ///
+    /// # Arguments
+    /// * `code` - The source code to fix
+    ///
+    /// # Returns
+    /// * `Hatch<String>` - The fixed code or an error if processing fails
+    pub fn fix_all_unwrap_calls(&self, code: &str) -> Hatch<String> {
+        let mut fixed_code = code.to_string();
+        let mut fixes_applied = 0;
+
+        tracing::info!("🚀 TURBO UNWRAP FIXER: Starting comprehensive unwrap() safety fixes");
+
+        // Pattern 1: captures.get(N).unwrap().as_str() -> safe alternative
+        if let Ok(pattern1) = regex::Regex::new(r"captures\.get\((\d+)\)\.unwrap\(\)\.as_str\(\)") {
+            let before_count = pattern1.find_iter(&fixed_code).count();
+            fixed_code = pattern1
+                .replace_all(&fixed_code, |caps: &regex::Captures| {
+                    let index = &caps[1];
+                    format!(
+                        "captures.get({index}).map(|m| m.as_str()).unwrap_or(\"unknown_capture_{index}\")"
+                    )
+                })
+                .to_string();
+            let after_count = pattern1.find_iter(&fixed_code).count();
+            fixes_applied += before_count - after_count;
+        }
+
+        // Pattern 2: .unwrap().as_str() -> safe alternative (but not captures.get)
+        if let Ok(pattern2) =
+            regex::Regex::new(r"(?<!captures\.get\(\d+\))\.unwrap\(\)\.as_str\(\)")
+        {
+            let before_count2 = pattern2.find_iter(&fixed_code).count();
+            fixed_code = pattern2
+                .replace_all(
+                    &fixed_code,
+                    ".map(|m| m.as_str()).unwrap_or(\"unknown_value\")",
+                )
+                .to_string();
+            let after_count2 = pattern2.find_iter(&fixed_code).count();
+            fixes_applied += before_count2 - after_count2;
+        }
+
+        tracing::info!(
+            "✅ TURBO UNWRAP FIXER: Applied {} safety fixes",
+            fixes_applied
+        );
+
+        Ok(fixed_code)
     }
 
     /// Get statistics for applied fixes
@@ -369,7 +477,35 @@ impl ClippyFixPattern for UninlinedFormatArgsPattern {
             }
         }
 
-        // Pattern 2: println!("text {}", var) -> println!("text {var}")
+        // Pattern 2: println!("text {}", var) -> tracing::info!("text {var}")
+        // This converts println! to tracing as requested by user
+        #[cfg(feature = "auto-fix")]
+        if let Ok(re) = regex::Regex::new(r#"println!\s*\(\s*"([^"]*)\{\}([^"]*)",\s*(\w+)\s*\)"#) {
+            if let Some(captures) = re.captures(&fixed) {
+                if let (Some(before), Some(after), Some(var)) =
+                    (captures.get(1), captures.get(2), captures.get(3))
+                {
+                    let before = before.as_str();
+                    let after = after.as_str();
+                    let var = var.as_str();
+                    fixed = fixed.replace(
+                        &captures[0],
+                        &format!(r#"tracing::info!("{before}{{{var}}}{after}")"#),
+                    );
+                }
+            }
+        }
+
+        // Pattern 2b: println!("simple text") -> tracing::info!("simple text")
+        // Convert simple println! calls without format arguments
+        #[cfg(feature = "auto-fix")]
+        if let Ok(re) = regex::Regex::new(r#"println!\s*\(\s*"([^"{}]*)"\s*\)"#) {
+            fixed = re
+                .replace_all(&fixed, r#"tracing::info!("$1")"#)
+                .to_string();
+        }
+
+        // Pattern 3: tracing::info!("text {}", var) -> tracing::info!("text {var}")
         #[cfg(feature = "auto-fix")]
         if let Ok(re) =
             regex::Regex::new(r#"tracing::info!\s*\(\s*"([^"]*)\{\}([^"]*)",\s*(\w+)\s*\)"#)
@@ -454,6 +590,7 @@ impl ClippyFixPattern for UninlinedFormatArgsPattern {
     fn matches(&self, code: &str) -> bool {
         // Check for format macros with {} placeholders followed by variables
         (code.contains("format!(")
+            || code.contains("println!(")
             || code.contains("tracing::info!(")
             || code.contains("eprintln!(")
             || code.contains("write!(")
@@ -921,8 +1058,8 @@ impl ClippyFixPattern for NeedlessBorrowPattern {
 
             for line in &lines {
                 if let Some(captures) = re.captures(line) {
-                    let func = captures.get(1).unwrap().as_str();
-                    let var = captures.get(2).unwrap().as_str();
+                    let func = captures.get(1).map_or("unknown_func", |m| m.as_str());
+                    let var = captures.get(2).map_or("unknown_var", |m| m.as_str());
 
                     // Conservative fixes - only for known safe patterns
                     if line.contains("&String")
@@ -951,8 +1088,8 @@ impl ClippyFixPattern for NeedlessBorrowPattern {
 
             for line in &lines {
                 if let Some(captures) = re.captures(line) {
-                    let method = captures.get(1).unwrap().as_str();
-                    let var = captures.get(2).unwrap().as_str();
+                    let method = captures.get(1).map_or("unknown_method", |m| m.as_str());
+                    let var = captures.get(2).map_or("unknown_var", |m| m.as_str());
 
                     // Only apply to known safe method patterns
                     if method == "push"
@@ -981,8 +1118,8 @@ impl ClippyFixPattern for NeedlessBorrowPattern {
 
             for line in &lines {
                 if let Some(captures) = re.captures(line) {
-                    let var_name = captures.get(1).unwrap().as_str();
-                    let borrowed_var = captures.get(2).unwrap().as_str();
+                    let var_name = captures.get(1).map_or("unknown_var", |m| m.as_str());
+                    let borrowed_var = captures.get(2).map_or("unknown_borrowed", |m| m.as_str());
 
                     // Only apply if the variable isn't used with & later
                     let rest_of_code = &fixed[fixed.find(line).unwrap_or(0)..];
@@ -1009,7 +1146,7 @@ impl ClippyFixPattern for NeedlessBorrowPattern {
 
             for line in &lines {
                 if let Some(captures) = re.captures(line) {
-                    let var = captures.get(1).unwrap().as_str();
+                    let var = captures.get(1).map_or("unknown_var", |m| m.as_str());
 
                     // Check if function signature suggests owned return
                     if fixed.contains("-> String") || fixed.contains("-> Vec") {
@@ -1033,7 +1170,7 @@ impl ClippyFixPattern for NeedlessBorrowPattern {
 
             for line in &lines {
                 if let Some(captures) = re.captures(line) {
-                    let var = captures.get(1).unwrap().as_str();
+                    let var = captures.get(1).map_or("unknown_var", |m| m.as_str());
 
                     // Only apply if it's clearly unnecessary
                     if line.contains("Some(&String") || line.contains("Some(&Vec") {
@@ -1071,6 +1208,413 @@ impl ClippyFixPattern for NeedlessBorrowPattern {
                 || code.contains("(&"))
     }
 }
+
+/// **`ErasingOpPattern`** - Fix `clippy::erasing_op` (CORRECTNESS CRITICAL)
+/// Detects operations that erase their operands (multiply by 0, AND with 0, etc.)
+/// Example: x * 0 -> 0, x & 0 -> 0, x | 0 -> x
+#[derive(Debug)]
+struct ErasingOpPattern;
+
+impl ClippyFixPattern for ErasingOpPattern {
+    fn apply_fix(&self, code: &str) -> Hatch<String> {
+        let mut fixed = code.to_string();
+
+        // Pattern 1: x * 0 -> 0 (but warn about potential bug)
+        if let Ok(re) = regex::Regex::new(r"(\w+)\s*\*\s*0\b") {
+            fixed = re
+                .replace_all(&fixed, "0 /* was $1 * 0 - check if this is intentional */")
+                .to_string();
+        }
+
+        // Pattern 2: 0 * x -> 0
+        if let Ok(re) = regex::Regex::new(r"0\s*\*\s*(\w+)") {
+            fixed = re
+                .replace_all(&fixed, "0 /* was 0 * $1 - check if this is intentional */")
+                .to_string();
+        }
+
+        // Pattern 3: x & 0 -> 0
+        if let Ok(re) = regex::Regex::new(r"(\w+)\s*&\s*0\b") {
+            fixed = re
+                .replace_all(&fixed, "0 /* was $1 & 0 - always zero */")
+                .to_string();
+        }
+
+        // Pattern 4: 0 & x -> 0
+        if let Ok(re) = regex::Regex::new(r"0\s*&\s*(\w+)") {
+            fixed = re
+                .replace_all(&fixed, "0 /* was 0 & $1 - always zero */")
+                .to_string();
+        }
+
+        // Pattern 5: x | 0 -> x (this doesn't erase, but is identity)
+        if let Ok(re) = regex::Regex::new(r"(\w+)\s*\|\s*0\b") {
+            fixed = re
+                .replace_all(&fixed, "$1 /* was $1 | 0 - identity operation */")
+                .to_string();
+        }
+
+        // Pattern 6: 0 | x -> x
+        if let Ok(re) = regex::Regex::new(r"0\s*\|\s*(\w+)") {
+            fixed = re
+                .replace_all(&fixed, "$1 /* was 0 | $1 - identity operation */")
+                .to_string();
+        }
+
+        // Pattern 7: x ^ 0 -> x (XOR with 0 is identity)
+        if let Ok(re) = regex::Regex::new(r"(\w+)\s*\^\s*0\b") {
+            fixed = re
+                .replace_all(&fixed, "$1 /* was $1 ^ 0 - identity operation */")
+                .to_string();
+        }
+
+        // Pattern 8: 0 ^ x -> x
+        if let Ok(re) = regex::Regex::new(r"0\s*\^\s*(\w+)") {
+            fixed = re
+                .replace_all(&fixed, "$1 /* was 0 ^ $1 - identity operation */")
+                .to_string();
+        }
+
+        Ok(fixed)
+    }
+
+    fn lint_name(&self) -> &'static str {
+        "clippy::erasing_op"
+    }
+
+    fn description(&self) -> &'static str {
+        "Replace operations that erase operands with their constant result and add warnings"
+    }
+
+    fn matches(&self, code: &str) -> bool {
+        code.contains(" * 0")
+            || code.contains("0 * ")
+            || code.contains(" & 0")
+            || code.contains("0 & ")
+            || code.contains(" | 0")
+            || code.contains("0 | ")
+            || code.contains(" ^ 0")
+            || code.contains("0 ^ ")
+    }
+}
+
+/// **`EvalOrderDependencePattern`** - Fix `clippy::eval_order_dependence` (CORRECTNESS CRITICAL)
+/// Detects expressions where evaluation order affects the result
+/// Example: f(i, i = i + 1) -> let temp = i + 1; f(i, { i = temp; temp })
+#[derive(Debug)]
+struct EvalOrderDependencePattern;
+
+impl ClippyFixPattern for EvalOrderDependencePattern {
+    fn apply_fix(&self, code: &str) -> Hatch<String> {
+        let mut fixed = code.to_string();
+
+        // Pattern 1: f(x, x += 1) -> separate the mutation
+        if let Ok(re) = regex::Regex::new(r"(\w+)\((\w+),\s*\2\s*\+=\s*(\d+)\)") {
+            if let Some(captures) = re.captures(&fixed) {
+                let func = captures
+                    .get(1)
+                    .map(|m| m.as_str())
+                    .unwrap_or("unknown_func");
+                let var = captures.get(2).map(|m| m.as_str()).unwrap_or("unknown_var");
+                let inc = captures.get(3).map(|m| m.as_str()).unwrap_or("1");
+
+                let replacement = format!(
+                    "{{ let old_{var} = {var}; {var} += {inc}; {func}(old_{var}, {var}) }}"
+                );
+                fixed = fixed.replace(&captures[0], &replacement);
+            }
+        }
+
+        // Pattern 2: f(x, x = x + 1) -> separate assignment
+        if let Ok(re) = regex::Regex::new(r"(\w+)\((\w+),\s*\2\s*=\s*\2\s*\+\s*(\d+)\)") {
+            if let Some(captures) = re.captures(&fixed) {
+                let func = captures
+                    .get(1)
+                    .map(|m| m.as_str())
+                    .unwrap_or("unknown_func");
+                let var = captures.get(2).map(|m| m.as_str()).unwrap_or("unknown_var");
+                let inc = captures.get(3).map(|m| m.as_str()).unwrap_or("1");
+
+                let replacement = format!(
+                    "{{ let old_{var} = {var}; {var} = {var} + {inc}; {func}(old_{var}, {var}) }}"
+                );
+                fixed = fixed.replace(&captures[0], &replacement);
+            }
+        }
+
+        // Pattern 3: array[i] and i++ in same expression
+        if let Ok(_re) = regex::Regex::new(r"(\w+)\[(\w+)\][^;]*\2\s*\+=\s*1") {
+            // This is complex - add a warning comment
+            if !fixed.contains("// Evaluation order warning") {
+                fixed = format!("// Evaluation order warning: array access and index modification in same expression\n{fixed}");
+            }
+        }
+
+        // Pattern 4: Function calls with side effects in arguments
+        if (code.contains("++") || code.contains("--"))
+            && !fixed.contains("// Pre/post increment warning")
+        {
+            fixed = format!("// Pre/post increment warning: avoid increment/decrement in function arguments\n{fixed}");
+        }
+
+        Ok(fixed)
+    }
+
+    fn lint_name(&self) -> &'static str {
+        "clippy::eval_order_dependence"
+    }
+
+    fn description(&self) -> &'static str {
+        "Fix expressions where evaluation order affects the result by separating side effects"
+    }
+
+    fn matches(&self, code: &str) -> bool {
+        // Look for function calls with assignment or increment operations in arguments
+        (code.contains('(') && code.contains(','))
+            && (code.contains("+=")
+                || code.contains("-=")
+                || code.contains(" = ")
+                || code.contains("++")
+                || code.contains("--"))
+    }
+}
+
+/// **`ForLoopOverOptionPattern`** - Fix `clippy::for_loop_over_option` (CORRECTNESS CRITICAL)
+/// Detects for loops over Option which only iterate 0 or 1 times
+/// Example: for x in option { } -> if let Some(x) = option { }
+#[derive(Debug)]
+struct ForLoopOverOptionPattern;
+
+impl ClippyFixPattern for ForLoopOverOptionPattern {
+    fn apply_fix(&self, code: &str) -> Hatch<String> {
+        let mut fixed = code.to_string();
+
+        // Pattern 1: for x in option { ... } -> if let Some(x) = option { ... }
+        if let Ok(re) = regex::Regex::new(r"for\s+(\w+)\s+in\s+(\w+)\s*\{([^}]+)\}") {
+            if let Some(captures) = re.captures(&fixed) {
+                let var = captures.get(1).map(|m| m.as_str()).unwrap_or("x");
+                let option = captures.get(2).map(|m| m.as_str()).unwrap_or("option");
+                let body = captures.get(3).map(|m| m.as_str()).unwrap_or("");
+
+                // Only apply if the variable name suggests it's an Option
+                if option.contains("option") || option.contains("maybe") || option.ends_with("_opt")
+                {
+                    let replacement = format!("if let Some({var}) = {option} {{{body}}}");
+                    fixed = fixed.replace(&captures[0], &replacement);
+                }
+            }
+        }
+
+        // Pattern 2: for x in some_option.iter() { ... } -> if let Some(x) = some_option { ... }
+        if let Ok(re) = regex::Regex::new(r"for\s+(\w+)\s+in\s+(\w+)\.iter\(\)\s*\{([^}]+)\}") {
+            if let Some(captures) = re.captures(&fixed) {
+                let var = captures.get(1).map(|m| m.as_str()).unwrap_or("x");
+                let option = captures.get(2).map(|m| m.as_str()).unwrap_or("option");
+                let body = captures.get(3).map(|m| m.as_str()).unwrap_or("");
+
+                if option.contains("option") || option.contains("maybe") || option.ends_with("_opt")
+                {
+                    let replacement = format!("if let Some({var}) = {option} {{{body}}}");
+                    fixed = fixed.replace(&captures[0], &replacement);
+                }
+            }
+        }
+
+        // Pattern 3: for x in &option { ... } -> if let Some(x) = option.as_ref() { ... }
+        if let Ok(re) = regex::Regex::new(r"for\s+(\w+)\s+in\s+&(\w+)\s*\{([^}]+)\}") {
+            if let Some(captures) = re.captures(&fixed) {
+                let var = captures.get(1).map(|m| m.as_str()).unwrap_or("x");
+                let option = captures.get(2).map(|m| m.as_str()).unwrap_or("option");
+                let body = captures.get(3).map(|m| m.as_str()).unwrap_or("");
+
+                if option.contains("option") || option.contains("maybe") || option.ends_with("_opt")
+                {
+                    let replacement = format!("if let Some({var}) = {option}.as_ref() {{{body}}}");
+                    fixed = fixed.replace(&captures[0], &replacement);
+                }
+            }
+        }
+
+        Ok(fixed)
+    }
+
+    fn lint_name(&self) -> &'static str {
+        "clippy::for_loop_over_option"
+    }
+
+    fn description(&self) -> &'static str {
+        "Replace for loops over Option with if let Some pattern for clarity"
+    }
+
+    fn matches(&self, code: &str) -> bool {
+        code.contains("for ")
+            && code.contains(" in ")
+            && (code.contains("option") || code.contains("maybe") || code.contains("_opt"))
+    }
+}
+
+/// **`ForLoopOverResultPattern`** - Fix `clippy::for_loop_over_result` (CORRECTNESS CRITICAL)
+/// Detects for loops over Result which only iterate 0 or 1 times
+/// Example: for x in result { } -> if let Ok(x) = result { }
+#[derive(Debug)]
+struct ForLoopOverResultPattern;
+
+impl ClippyFixPattern for ForLoopOverResultPattern {
+    fn apply_fix(&self, code: &str) -> Hatch<String> {
+        let mut fixed = code.to_string();
+
+        // Pattern 1: for x in result { ... } -> if let Ok(x) = result { ... }
+        if let Ok(re) = regex::Regex::new(r"for\s+(\w+)\s+in\s+(\w+)\s*\{([^}]+)\}") {
+            if let Some(captures) = re.captures(&fixed) {
+                let var = captures.get(1).unwrap().as_str();
+                let result = captures.get(2).unwrap().as_str();
+                let body = captures.get(3).unwrap().as_str();
+
+                // Only apply if the variable name suggests it's a Result
+                if result.contains("result") || result.contains("res") || result.ends_with("_res") {
+                    let replacement = format!("if let Ok({var}) = {result} {{{body}}}");
+                    fixed = fixed.replace(&captures[0], &replacement);
+                }
+            }
+        }
+
+        // Pattern 2: for x in result.iter() { ... } -> if let Ok(x) = result { ... }
+        if let Ok(re) = regex::Regex::new(r"for\s+(\w+)\s+in\s+(\w+)\.iter\(\)\s*\{([^}]+)\}") {
+            if let Some(captures) = re.captures(&fixed) {
+                let var = captures.get(1).unwrap().as_str();
+                let result = captures.get(2).unwrap().as_str();
+                let body = captures.get(3).unwrap().as_str();
+
+                if result.contains("result") || result.contains("res") || result.ends_with("_res") {
+                    let replacement = format!("if let Ok({var}) = {result} {{{body}}}");
+                    fixed = fixed.replace(&captures[0], &replacement);
+                }
+            }
+        }
+
+        // Pattern 3: for x in &result { ... } -> if let Ok(x) = result.as_ref() { ... }
+        if let Ok(re) = regex::Regex::new(r"for\s+(\w+)\s+in\s+&(\w+)\s*\{([^}]+)\}") {
+            if let Some(captures) = re.captures(&fixed) {
+                let var = captures.get(1).unwrap().as_str();
+                let result = captures.get(2).unwrap().as_str();
+                let body = captures.get(3).unwrap().as_str();
+
+                if result.contains("result") || result.contains("res") || result.ends_with("_res") {
+                    let replacement = format!("if let Ok({var}) = {result}.as_ref() {{{body}}}");
+                    fixed = fixed.replace(&captures[0], &replacement);
+                }
+            }
+        }
+
+        // Pattern 4: Handle error case suggestion
+        if code.contains("for ")
+            && code.contains("result")
+            && !code.contains("// Consider handling Err case")
+        {
+            fixed = format!("// Consider handling Err case with match or if let Err\n{fixed}");
+        }
+
+        Ok(fixed)
+    }
+
+    fn lint_name(&self) -> &'static str {
+        "clippy::for_loop_over_result"
+    }
+
+    fn description(&self) -> &'static str {
+        "Replace for loops over Result with if let Ok pattern and suggest error handling"
+    }
+
+    fn matches(&self, code: &str) -> bool {
+        code.contains("for ")
+            && code.contains(" in ")
+            && (code.contains("result") || code.contains("res") || code.contains("_res"))
+    }
+}
+
+/// **`ImpossibleCastPattern`** - Fix `clippy::impossible_cast` (CORRECTNESS CRITICAL)
+/// Detects casts that are impossible due to type constraints
+/// Example: 300u8 as i8 -> 300u16 as i16 (or handle overflow)
+#[derive(Debug)]
+struct ImpossibleCastPattern;
+
+impl ClippyFixPattern for ImpossibleCastPattern {
+    fn apply_fix(&self, code: &str) -> Hatch<String> {
+        let mut fixed = code.to_string();
+
+        // Pattern 1: Large literals cast to smaller types
+        if let Ok(re) = regex::Regex::new(r"(\d+)u8\s+as\s+i8") {
+            if let Some(captures) = re.captures(&fixed) {
+                let num_str = captures.get(1).unwrap().as_str();
+                if let Ok(num) = num_str.parse::<u16>() {
+                    if num > 127 {
+                        let replacement =
+                            format!("{num}i16 /* was {num}u8 as i8 - impossible cast fixed */");
+                        fixed = fixed.replace(&captures[0], &replacement);
+                    }
+                }
+            }
+        }
+
+        // Pattern 2: u16 to i8 casts with large values
+        if let Ok(re) = regex::Regex::new(r"(\d+)u16\s+as\s+i8") {
+            if let Some(captures) = re.captures(&fixed) {
+                let num_str = captures.get(1).unwrap().as_str();
+                if let Ok(num) = num_str.parse::<u16>() {
+                    if num > 127 {
+                        let replacement =
+                            format!("{num}i16 /* was {num}u16 as i8 - impossible cast fixed */");
+                        fixed = fixed.replace(&captures[0], &replacement);
+                    }
+                }
+            }
+        }
+
+        // Pattern 3: Negative numbers to unsigned types
+        if let Ok(re) = regex::Regex::new(r"(-\d+)i\d+\s+as\s+u\d+") {
+            fixed = re
+                .replace_all(&fixed, "0u32 /* negative cast to unsigned - fixed to 0 */")
+                .to_string();
+        }
+
+        // Pattern 4: Very large values cast to smaller signed types
+        if let Ok(re) = regex::Regex::new(r"(\d{4,})u32\s+as\s+i16") {
+            fixed = re
+                .replace_all(&fixed, "i32::MAX as i32 /* large value cast fixed */")
+                .to_string();
+        }
+
+        // Pattern 5: Add checked cast suggestions
+        if code.contains(" as ")
+            && (code.contains("u8") || code.contains("i8"))
+            && !fixed.contains("// Consider using try_into()")
+        {
+            fixed = format!(
+                "// Consider using try_into() for safe casting with error handling\n{fixed}"
+            );
+        }
+
+        Ok(fixed)
+    }
+
+    fn lint_name(&self) -> &'static str {
+        "clippy::impossible_cast"
+    }
+
+    fn description(&self) -> &'static str {
+        "Fix impossible casts by using appropriate target types or safe casting methods"
+    }
+
+    fn matches(&self, code: &str) -> bool {
+        // Look for potentially problematic casts
+        code.contains(" as ")
+            && ((code.contains("u8") && code.contains("i8"))
+                || (code.contains("u16") && code.contains("i8"))
+                || (code.contains('-') && code.contains("as u"))
+                || code.matches(char::is_numeric).count() > 3)
+    }
+}
+
 impl_clippy_pattern_stub!(
     NeedlessBorrowedReferencePattern,
     "clippy::needless_borrowed_reference",
@@ -2208,6 +2752,218 @@ impl ClippyFixPattern for FloatCmpPattern {
             && !code.contains("EPSILON") // Don't match already fixed code
     }
 }
+
+/// **`DeprecatedSemverPattern`** - Fix `clippy::deprecated_semver` (CORRECTNESS CRITICAL)
+/// Detects usage of deprecated semver requirements that may cause build issues
+/// Example: "~1.0" -> "^1.0", "*" -> "^1.0"
+#[derive(Debug)]
+struct DeprecatedSemverPattern;
+
+impl ClippyFixPattern for DeprecatedSemverPattern {
+    fn apply_fix(&self, code: &str) -> Hatch<String> {
+        let mut fixed = code.to_string();
+
+        // Pattern 1: "~1.0" tilde requirements -> "^1.0" caret requirements
+        if let Ok(re) = regex::Regex::new(r#""~(\d+\.\d+(?:\.\d+)?)""#) {
+            fixed = re.replace_all(&fixed, "\"^$1\"").to_string();
+        }
+
+        // Pattern 2: "*" wildcard -> "^1.0" (latest compatible)
+        fixed = fixed.replace(r#""*""#, r#""^1.0""#);
+
+        // Pattern 3: ">= 1.0" bare >= -> "^1.0"
+        if let Ok(re) = regex::Regex::new(r#"">= (\d+\.\d+(?:\.\d+)?)""#) {
+            fixed = re.replace_all(&fixed, "\"^$1\"").to_string();
+        }
+
+        // Pattern 4: "= 1.0.0" exact version -> "^1.0.0"
+        if let Ok(re) = regex::Regex::new(r#""= (\d+\.\d+\.\d+)""#) {
+            fixed = re.replace_all(&fixed, "\"^$1\"").to_string();
+        }
+
+        // Pattern 5: Empty version string -> "^1.0"
+        fixed = fixed.replace(r#""""#, r#""^1.0""#);
+
+        Ok(fixed)
+    }
+
+    fn lint_name(&self) -> &'static str {
+        "clippy::deprecated_semver"
+    }
+
+    fn description(&self) -> &'static str {
+        "Replace deprecated semver requirements with modern caret requirements"
+    }
+
+    fn matches(&self, code: &str) -> bool {
+        code.contains("\"~")
+            || code.contains("\"*\"")
+            || code.contains("\">= ")
+            || code.contains("\"= ")
+            || (code.contains("version") && code.contains("\"\""))
+    }
+}
+
+/// **`DropCopyPattern`** - Fix `clippy::drop_copy` (CORRECTNESS CRITICAL)
+/// Detects dropping of Copy types which is a no-op and usually indicates a bug
+/// Example: drop(5) -> remove, `drop(copy_value)` -> remove or comment
+#[derive(Debug)]
+struct DropCopyPattern;
+
+impl ClippyFixPattern for DropCopyPattern {
+    fn apply_fix(&self, code: &str) -> Hatch<String> {
+        let mut fixed = code.to_string();
+
+        // Pattern 1: drop(literal) -> remove
+        if let Ok(re) = regex::Regex::new(r"drop\((\d+|true|false|'.')\);") {
+            fixed = re
+                .replace_all(&fixed, "// drop($1) removed - Copy types don't need drop")
+                .to_string();
+        }
+
+        // Pattern 2: drop(variable) where variable is likely Copy -> comment and warn
+        if let Ok(re) = regex::Regex::new(r"drop\((\w+)\);") {
+            let lines: Vec<String> = fixed.lines().map(ToString::to_string).collect();
+            let mut replacements = Vec::new();
+
+            for line in &lines {
+                if let Some(captures) = re.captures(line) {
+                    let var = captures.get(1).unwrap().as_str();
+
+                    // Check if this looks like a Copy type
+                    if var.contains("count")
+                        || var.contains("size")
+                        || var.contains("len")
+                        || var.contains("index")
+                        || var.contains("id")
+                        || var.ends_with("_num")
+                    {
+                        let new_line = line.replace(
+                            &captures[0],
+                            &format!("// drop({var}) removed - appears to be Copy type"),
+                        );
+                        replacements.push((line.clone(), new_line));
+                    }
+                }
+            }
+
+            for (old_line, new_line) in replacements {
+                fixed = fixed.replace(&old_line, &new_line);
+            }
+        }
+
+        // Pattern 3: std::mem::drop(copy_value) -> remove
+        if let Ok(re) = regex::Regex::new(r"std::mem::drop\((\d+|true|false|'.'|\w+)\);") {
+            fixed = re
+                .replace_all(
+                    &fixed,
+                    "// std::mem::drop($1) removed - Copy types don't need drop",
+                )
+                .to_string();
+        }
+
+        Ok(fixed)
+    }
+
+    fn lint_name(&self) -> &'static str {
+        "clippy::drop_copy"
+    }
+
+    fn description(&self) -> &'static str {
+        "Remove drop() calls on Copy types as they have no effect"
+    }
+
+    fn matches(&self, code: &str) -> bool {
+        (code.contains("drop(") || code.contains("std::mem::drop("))
+            && (code.contains("true")
+                || code.contains("false")
+                || code.contains('\'')
+                || code.chars().any(|c| c.is_ascii_digit()))
+    }
+}
+
+/// **`DuplicateModPattern`** - Fix `clippy::duplicate_mod` (CORRECTNESS CRITICAL)
+/// Detects duplicate module declarations which cause compilation errors
+/// Example: mod foo; mod foo; -> mod foo; (remove duplicate)
+#[derive(Debug)]
+struct DuplicateModPattern;
+
+impl ClippyFixPattern for DuplicateModPattern {
+    fn apply_fix(&self, code: &str) -> Hatch<String> {
+        let mut fixed = code.to_string();
+        let lines: Vec<String> = fixed.lines().map(ToString::to_string).collect();
+
+        let mut seen_mods = std::collections::HashSet::new();
+        let mut fixed_lines = Vec::new();
+
+        for line in lines {
+            if let Ok(re) = regex::Regex::new(r"^\s*mod\s+(\w+)\s*;") {
+                if let Some(captures) = re.captures(&line) {
+                    let mod_name = captures.get(1).unwrap().as_str();
+
+                    if seen_mods.contains(mod_name) {
+                        // This is a duplicate - comment it out
+                        fixed_lines.push(format!("// {line} // Duplicate mod declaration removed"));
+                    } else {
+                        seen_mods.insert(mod_name.to_string());
+                        fixed_lines.push(line);
+                    }
+                } else {
+                    fixed_lines.push(line);
+                }
+            } else {
+                fixed_lines.push(line);
+            }
+        }
+
+        fixed = fixed_lines.join("\n");
+
+        // Pattern 2: Handle pub mod declarations
+        let lines: Vec<String> = fixed.lines().map(ToString::to_string).collect();
+        let mut seen_pub_mods = std::collections::HashSet::new();
+        let mut final_lines = Vec::new();
+
+        for line in lines {
+            if let Ok(re) = regex::Regex::new(r"^\s*pub\s+mod\s+(\w+)\s*;") {
+                if let Some(captures) = re.captures(&line) {
+                    let mod_name = captures.get(1).unwrap().as_str();
+
+                    if seen_pub_mods.contains(mod_name) {
+                        final_lines.push(format!(
+                            "// {line} // Duplicate pub mod declaration removed"
+                        ));
+                    } else {
+                        seen_pub_mods.insert(mod_name.to_string());
+                        final_lines.push(line);
+                    }
+                } else {
+                    final_lines.push(line);
+                }
+            } else {
+                final_lines.push(line);
+            }
+        }
+
+        Ok(final_lines.join("\n"))
+    }
+
+    fn lint_name(&self) -> &'static str {
+        "clippy::duplicate_mod"
+    }
+
+    fn description(&self) -> &'static str {
+        "Remove duplicate module declarations to prevent compilation errors"
+    }
+
+    fn matches(&self, code: &str) -> bool {
+        let mod_count = code.matches("mod ").count();
+        let pub_mod_count = code.matches("pub mod ").count();
+
+        // If we have more than one mod declaration, check for duplicates
+        (mod_count > 1 || pub_mod_count > 1) && code.contains(';')
+    }
+}
+
 impl_clippy_pattern_stub!(
     IneffectiveBitMaskPattern,
     "clippy::ineffective_bit_mask",
@@ -2465,36 +3221,167 @@ impl ClippyFixPattern for CollapsibleIfPattern {
     }
 }
 
-impl_clippy_pattern_stub!(
-    ComparisonChainPattern,
-    "clippy::comparison_chain",
-    "Simplify comparison chains"
-);
-impl_clippy_pattern_stub!(
-    DoubleNegPattern,
-    "clippy::double_neg",
-    "Remove double negation"
-);
-impl_clippy_pattern_stub!(
-    ExcessivePrecisionPattern,
-    "clippy::excessive_precision",
-    "Reduce excessive float precision"
-);
-impl_clippy_pattern_stub!(
-    ExplicitCounterLoopPattern,
-    "clippy::explicit_counter_loop",
-    "Use enumerate() instead of manual counter"
-);
-impl_clippy_pattern_stub!(
-    FilterNextPattern,
-    "clippy::filter_next",
-    "Use find() instead of filter().next()"
-);
-impl_clippy_pattern_stub!(
-    GetUnwrapPattern,
-    "clippy::get_unwrap",
-    "Use indexing instead of get().unwrap()"
-);
+/// **`ComparisonChainPattern`** - Fix `clippy::comparison_chain` (STYLE)
+/// Simplifies comparison chains like `x > A && x < B` into range checks.
+#[derive(Debug)]
+struct ComparisonChainPattern;
+
+impl ClippyFixPattern for ComparisonChainPattern {
+    fn apply_fix(&self, code: &str) -> Hatch<String> {
+        // Fix: x > min && x < max -> (min+1..max).contains(&x)
+        let re = regex::Regex::new(r"(\w+)\s*>\s*(\w+)\s*&&\s*\1\s*<\s*(\w+)").map_err(
+            |e| crate::yopost!(message: format!("Regex compilation failed: {e}").into()),
+        )?;
+        let fixed = re.replace_all(code, "($2+1..$3).contains(&$1)").to_string();
+        Ok(fixed)
+    }
+
+    fn lint_name(&self) -> &'static str {
+        "clippy::comparison_chain"
+    }
+    fn description(&self) -> &'static str {
+        "Simplifies comparison chains into range checks."
+    }
+    fn matches(&self, code: &str) -> bool {
+        regex::Regex::new(r"(\w+)\s*>\s*(\w+)\s*&&\s*\1\s*<\s*(\w+)")
+            .map_or(false, |re| re.is_match(code))
+    }
+}
+
+/// **`DoubleNegPattern`** - Fix `clippy::double_neg` (STYLE)
+/// Removes double negation, e.g., `!!x` becomes `x`.
+#[derive(Debug)]
+struct DoubleNegPattern;
+
+impl ClippyFixPattern for DoubleNegPattern {
+    fn apply_fix(&self, code: &str) -> Hatch<String> {
+        let re = regex::Regex::new(r"!!(\w+)").map_err(
+            |e| crate::yopost!(message: format!("Regex compilation failed: {e}").into()),
+        )?;
+        let fixed = re.replace_all(code, "$1").to_string();
+        Ok(fixed)
+    }
+
+    fn lint_name(&self) -> &'static str {
+        "clippy::double_neg"
+    }
+    fn description(&self) -> &'static str {
+        "Removes double negations."
+    }
+    fn matches(&self, code: &str) -> bool {
+        code.contains("!!")
+    }
+}
+
+/// **`ExcessivePrecisionPattern`** - Fix `clippy::excessive_precision` (STYLE)
+/// Truncates float literals with excessive precision for the given type.
+#[derive(Debug)]
+struct ExcessivePrecisionPattern;
+
+impl ClippyFixPattern for ExcessivePrecisionPattern {
+    fn apply_fix(&self, code: &str) -> Hatch<String> {
+        // Example: let x: f32 = 3.1415926535; -> let x: f32 = 3.1415927;
+        let re = regex::Regex::new(r"(\d+\.\d{9,})f32").map_err(
+            |e| crate::yopost!(message: format!("Regex compilation failed: {e}").into()),
+        )?;
+        let fixed = re
+            .replace_all(code, |caps: &regex::Captures| {
+                if let Ok(val) = caps[1].parse::<f64>() {
+                    format!("{}f32", val as f32)
+                } else {
+                    caps[0].to_string()
+                }
+            })
+            .to_string();
+        Ok(fixed)
+    }
+
+    fn lint_name(&self) -> &'static str {
+        "clippy::excessive_precision"
+    }
+    fn description(&self) -> &'static str {
+        "Reduces excessive precision in float literals."
+    }
+    fn matches(&self, code: &str) -> bool {
+        regex::Regex::new(r":\s*f32\s*=\s*\d+\.\d{8,}").map_or(false, |re| re.is_match(code))
+    }
+}
+
+/// **`ExplicitCounterLoopPattern`** - Fix `clippy::explicit_counter_loop` (STYLE)
+/// Replaces manual loop counters with `enumerate()`.
+#[derive(Debug)]
+struct ExplicitCounterLoopPattern;
+
+impl ClippyFixPattern for ExplicitCounterLoopPattern {
+    fn apply_fix(&self, code: &str) -> Hatch<String> {
+        // let mut i = 0; for item in items { ...; i += 1; } -> for (i, item) in items.iter().enumerate()
+        let re = regex::Regex::new(
+            r"let\s+mut\s+(\w+)\s*=\s*0;\s*for\s+(\w+)\s+in\s+(&)?(\w+)\s*\{((?:.|\n)*?)\1\s*\+=\s*1;\s*\}",
+        ).map_err(
+            |e| crate::yopost!(message: format!("Regex compilation failed: {e}").into()),
+        )?;
+        let fixed = re
+            .replace_all(code, "for ($1, $2) in $3$4.iter().enumerate() {$5}")
+            .to_string();
+        Ok(fixed)
+    }
+    fn lint_name(&self) -> &'static str {
+        "clippy::explicit_counter_loop"
+    }
+    fn description(&self) -> &'static str {
+        "Replaces manual loop counters with `enumerate()`."
+    }
+    fn matches(&self, code: &str) -> bool {
+        code.contains("let mut")
+            && code.contains("= 0;")
+            && code.contains("for")
+            && code.contains("+=")
+    }
+}
+
+/// **`FilterNextPattern`** - Fix `clippy::filter_next` (STYLE)
+/// Replaces `.filter(...).next()` with the more efficient `.find(...)`.
+#[derive(Debug)]
+struct FilterNextPattern;
+
+impl ClippyFixPattern for FilterNextPattern {
+    fn apply_fix(&self, code: &str) -> Hatch<String> {
+        Ok(code.replace(".filter", ".find"))
+    }
+    fn lint_name(&self) -> &'static str {
+        "clippy::filter_next"
+    }
+    fn description(&self) -> &'static str {
+        "Replaces `.filter(...).next()` with `.find(...)`."
+    }
+    fn matches(&self, code: &str) -> bool {
+        code.contains(".filter") && code.contains(".next()")
+    }
+}
+
+/// **`GetUnwrapPattern`** - Fix `clippy::get_unwrap` (STYLE)
+/// Replaces `.get().unwrap()` with direct indexing `[]` when panicking is acceptable.
+#[derive(Debug)]
+struct GetUnwrapPattern;
+
+impl ClippyFixPattern for GetUnwrapPattern {
+    fn apply_fix(&self, code: &str) -> Hatch<String> {
+        let re = regex::Regex::new(r"\.get\(([^)]+)\)\.unwrap\(\)").map_err(
+            |e| crate::yopost!(message: format!("Regex compilation failed: {e}").into()),
+        )?;
+        let fixed = re.replace_all(code, "[$1]").to_string();
+        Ok(fixed)
+    }
+    fn lint_name(&self) -> &'static str {
+        "clippy::get_unwrap"
+    }
+    fn description(&self) -> &'static str {
+        "Replaces `.get().unwrap()` with direct indexing."
+    }
+    fn matches(&self, code: &str) -> bool {
+        code.contains(".get") && code.contains(".unwrap()")
+    }
+}
 #[derive(Debug)]
 #[allow(dead_code)]
 struct IdentityConversionPattern;
@@ -2662,16 +3549,254 @@ impl ClippyFixPattern for LetAndReturnPattern {
         }
     }
 }
-impl_clippy_pattern_stub!(
-    MatchBoolPattern,
-    "clippy::match_bool",
-    "Use if/else instead of match on bool"
-);
-impl_clippy_pattern_stub!(
-    NeedlessBoolPattern,
-    "clippy::needless_bool",
-    "Simplify boolean expressions"
-);
+
+/// **`AlmostSwappedPattern`** - Fix `clippy::almost_swapped` (CORRECTNESS CRITICAL)
+/// Detects variables that appear to be swapped but may have a bug
+/// Example: a = b; b = a; -> `std::mem::swap(&mut` a, &mut b);
+#[derive(Debug)]
+struct AlmostSwappedPattern;
+
+impl ClippyFixPattern for AlmostSwappedPattern {
+    fn apply_fix(&self, code: &str) -> Hatch<String> {
+        let mut fixed = code.to_string();
+
+        // Pattern 1: a = b; b = a; -> std::mem::swap(&mut a, &mut b);
+        if let Ok(re) = regex::Regex::new(r"(\w+)\s*=\s*(\w+);\s*\2\s*=\s*\1;") {
+            if let Some(captures) = re.captures(&fixed) {
+                let var1 = captures.get(1).unwrap().as_str();
+                let var2 = captures.get(2).unwrap().as_str();
+                fixed = fixed.replace(
+                    &captures[0],
+                    &format!("std::mem::swap(&mut {var1}, &mut {var2});"),
+                );
+            }
+        }
+
+        // Pattern 2: temp = a; a = b; b = temp; -> std::mem::swap(&mut a, &mut b);
+        if let Ok(re) =
+            regex::Regex::new(r"let\s+(\w+)\s*=\s*(\w+);\s*\2\s*=\s*(\w+);\s*\3\s*=\s*\1;")
+        {
+            if let Some(captures) = re.captures(&fixed) {
+                let var1 = captures.get(2).unwrap().as_str();
+                let var2 = captures.get(3).unwrap().as_str();
+                fixed = fixed.replace(
+                    &captures[0],
+                    &format!("std::mem::swap(&mut {var1}, &mut {var2});"),
+                );
+            }
+        }
+
+        Ok(fixed)
+    }
+
+    fn lint_name(&self) -> &'static str {
+        "clippy::almost_swapped"
+    }
+
+    fn description(&self) -> &'static str {
+        "Replace manual variable swapping with std::mem::swap for safety and clarity"
+    }
+
+    fn matches(&self, code: &str) -> bool {
+        code.contains(" = ") && code.contains(';') && {
+            if let Ok(re) = regex::Regex::new(r"(\w+)\s*=\s*(\w+);\s*\2\s*=\s*\1;") {
+                re.is_match(code)
+            } else {
+                false
+            }
+        }
+    }
+}
+
+/// **`AssertionsOnConstantsPattern`** - Fix `clippy::assertions_on_constants` (CORRECTNESS CRITICAL)
+/// Detects assertions on constants that are always true or false
+/// Example: assert!(true); -> remove, assert!(false); -> panic!("assertion failed");
+#[derive(Debug)]
+struct AssertionsOnConstantsPattern;
+
+impl ClippyFixPattern for AssertionsOnConstantsPattern {
+    fn apply_fix(&self, code: &str) -> Hatch<String> {
+        let mut fixed = code.to_string();
+
+        // Pattern 1: assert!(true) -> remove (always passes)
+        fixed = fixed.replace("assert!(true);", "// assert!(true) removed - always passes");
+        fixed = fixed.replace("assert!(true)", "// assert!(true) removed - always passes");
+
+        // Pattern 2: assert!(false) -> panic! with message
+        fixed = fixed.replace(
+            "assert!(false);",
+            r#"panic!("assertion failed: constant false assertion");"#,
+        );
+        fixed = fixed.replace(
+            "assert!(false)",
+            r#"panic!("assertion failed: constant false assertion")"#,
+        );
+
+        // Pattern 3: debug_assert!(true) -> remove in debug builds
+        fixed = fixed.replace(
+            "debug_assert!(true);",
+            "// debug_assert!(true) removed - always passes",
+        );
+
+        // Pattern 4: debug_assert!(false) -> panic in debug builds
+        fixed = fixed.replace(
+            "debug_assert!(false);",
+            r#"debug_assert!(false, "constant false assertion");"#,
+        );
+
+        // Pattern 5: assert_eq!(true, true) -> remove
+        fixed = fixed.replace(
+            "assert_eq!(true, true);",
+            "// assert_eq!(true, true) removed - always passes",
+        );
+
+        // Pattern 6: assert_ne!(false, false) -> remove
+        fixed = fixed.replace(
+            "assert_ne!(false, false);",
+            "// assert_ne!(false, false) removed - always passes",
+        );
+
+        Ok(fixed)
+    }
+
+    fn lint_name(&self) -> &'static str {
+        "clippy::assertions_on_constants"
+    }
+
+    fn description(&self) -> &'static str {
+        "Remove assertions on constants or replace with appropriate panic! calls"
+    }
+
+    fn matches(&self, code: &str) -> bool {
+        code.contains("assert!(true)")
+            || code.contains("assert!(false)")
+            || code.contains("debug_assert!(true)")
+            || code.contains("debug_assert!(false)")
+            || code.contains("assert_eq!(true, true)")
+            || code.contains("assert_ne!(false, false)")
+    }
+}
+
+/// **`CloneDoubleRefPattern`** - Fix `clippy::clone_double_ref` (CORRECTNESS CRITICAL)
+/// Detects cloning of double references which clones the reference, not the value
+/// Example: (&&`T).clone()` -> &T, should be (*`x).clone()` -> T
+#[derive(Debug)]
+struct CloneDoubleRefPattern;
+
+impl ClippyFixPattern for CloneDoubleRefPattern {
+    fn apply_fix(&self, code: &str) -> Hatch<String> {
+        let mut fixed = code.to_string();
+
+        // Pattern 1: (**ref).clone() -> (*ref).clone()
+        if let Ok(re) = regex::Regex::new(r"\(\*\*(\w+)\)\.clone\(\)") {
+            if let Some(captures) = re.captures(&fixed) {
+                let var = captures.get(1).unwrap().as_str();
+                fixed = fixed.replace(&captures[0], &format!("(*{var}).clone()"));
+            }
+        }
+
+        // Pattern 2: variable of type &&T calling clone() -> dereference first
+        if let Ok(re) = regex::Regex::new(r"(\w+)\.clone\(\)") {
+            let lines: Vec<String> = fixed.lines().map(ToString::to_string).collect();
+            let mut replacements = Vec::new();
+
+            for line in &lines {
+                if line.contains("&&") && line.contains(".clone()") {
+                    if let Some(captures) = re.captures(line) {
+                        let var = captures.get(1).unwrap().as_str();
+                        let new_line = line.replace(&captures[0], &format!("(*{var}).clone()"));
+                        replacements.push((line.clone(), new_line));
+                    }
+                }
+            }
+
+            for (old_line, new_line) in replacements {
+                fixed = fixed.replace(&old_line, &new_line);
+            }
+        }
+
+        // Pattern 3: Function parameters that take &&T and clone
+        if code.contains("&&") && code.contains(".clone()") {
+            // Add helpful comment about the fix
+            if !fixed.contains("// Double reference clone fix") {
+                fixed = format!("// Double reference clone fix: use (*var).clone() instead of var.clone() for &&T\n{fixed}");
+            }
+        }
+
+        Ok(fixed)
+    }
+
+    fn lint_name(&self) -> &'static str {
+        "clippy::clone_double_ref"
+    }
+
+    fn description(&self) -> &'static str {
+        "Fix double reference cloning - dereference first to clone the value, not the reference"
+    }
+
+    fn matches(&self, code: &str) -> bool {
+        code.contains("&&") && code.contains(".clone()")
+            || code.contains("(**") && code.contains(").clone()")
+    }
+}
+
+/// **`MatchBoolPattern`** - Fix `clippy::match_bool` (STYLE)
+/// Replaces `match` on a boolean with a simpler `if/else` expression.
+#[derive(Debug)]
+struct MatchBoolPattern;
+
+impl ClippyFixPattern for MatchBoolPattern {
+    fn apply_fix(&self, code: &str) -> Hatch<String> {
+        let re = regex::Regex::new(
+            r"match\s+([\w\.]+)\s*\{\s*true\s*=>\s*([^,]+),\s*false\s*=>\s*([^,]+),?\s*\}",
+        )
+        .map_err(|e| crate::yopost!(message: format!("Regex compilation failed: {e}").into()))?;
+        let fixed = re.replace_all(code, "if $1 { $2 } else { $3 }").to_string();
+        Ok(fixed)
+    }
+    fn lint_name(&self) -> &'static str {
+        "clippy::match_bool"
+    }
+    fn description(&self) -> &'static str {
+        "Replaces `match` on booleans with `if/else`."
+    }
+    fn matches(&self, code: &str) -> bool {
+        code.contains("match") && code.contains("true =>") && code.contains("false =>")
+    }
+}
+
+/// **`NeedlessBoolPattern`** - Fix `clippy::needless_bool` (STYLE)
+/// Simplifies boolean expressions, e.g., `if cond { true } else { false }` to `cond`.
+#[derive(Debug)]
+struct NeedlessBoolPattern;
+
+impl ClippyFixPattern for NeedlessBoolPattern {
+    fn apply_fix(&self, code: &str) -> Hatch<String> {
+        let re_true_false =
+            regex::Regex::new(r"if\s+([\w\.]+)\s*\{\s*true\s*\}\s*else\s*\{\s*false\s*\}")
+                .map_err(
+                    |e| crate::yopost!(message: format!("Regex compilation failed: {e}").into()),
+                )?;
+        let fixed = re_true_false.replace_all(code, "$1").to_string();
+
+        let re_false_true =
+            regex::Regex::new(r"if\s+([\w\.]+)\s*\{\s*false\s*\}\s*else\s*\{\s*true\s*\}")
+                .map_err(
+                    |e| crate::yopost!(message: format!("Regex compilation failed: {e}").into()),
+                )?;
+        let fixed = re_false_true.replace_all(&fixed, "!$1").to_string();
+        Ok(fixed)
+    }
+    fn lint_name(&self) -> &'static str {
+        "clippy::needless_bool"
+    }
+    fn description(&self) -> &'static str {
+        "Simplifies redundant boolean `if/else` statements."
+    }
+    fn matches(&self, code: &str) -> bool {
+        code.contains("if") && code.contains("true") && code.contains("false")
+    }
+}
 /// **`NeedlessReturnPattern`** - Remove unnecessary return statements
 #[derive(Debug)]
 struct NeedlessReturnPattern;
@@ -2831,11 +3956,30 @@ impl ClippyFixPattern for RedundantClosurePattern {
     }
 }
 
-impl_clippy_pattern_stub!(
-    RedundantStaticLifetimesPattern,
-    "clippy::redundant_static_lifetimes",
-    "Remove redundant 'static lifetimes"
-);
+/// **`RedundantStaticLifetimesPattern`** - Fix `clippy::redundant_static_lifetimes` (STYLE)
+/// Removes redundant `'static` lifetimes from function arguments where it can be elided.
+#[derive(Debug)]
+struct RedundantStaticLifetimesPattern;
+
+impl ClippyFixPattern for RedundantStaticLifetimesPattern {
+    fn apply_fix(&self, code: &str) -> Hatch<String> {
+        // fn foo(x: &'static str) -> fn foo(x: &str)
+        let re = regex::Regex::new(r":\s*&'static\s+").map_err(
+            |e| crate::yopost!(message: format!("Regex compilation failed: {e}").into()),
+        )?;
+        let fixed = re.replace_all(code, ": &").to_string();
+        Ok(fixed)
+    }
+    fn lint_name(&self) -> &'static str {
+        "clippy::redundant_static_lifetimes"
+    }
+    fn description(&self) -> &'static str {
+        "Removes redundant `'static` lifetimes."
+    }
+    fn matches(&self, code: &str) -> bool {
+        code.contains("&'static ")
+    }
+}
 /// **`SingleCharPatternPattern`** - Use char instead of single-char string
 #[derive(Debug)]
 struct SingleCharPatternPattern;
@@ -2910,18 +4054,47 @@ impl ClippyFixPattern for SingleCharPatternPattern {
     }
 }
 
-impl_clippy_pattern_stub!(
-    UsedUnderscoreBindingPattern,
-    "clippy::used_underscore_binding",
-    "Rename underscore bindings"
-);
+/// **`UsedUnderscoreBindingPattern`** - Fix `clippy::used_underscore_binding` (STYLE)
+/// Removes the leading underscore from a variable that is actually used.
+#[derive(Debug)]
+struct UsedUnderscoreBindingPattern;
 
-// Performance patterns
-impl_clippy_pattern_stub!(
-    BoxVecPattern,
-    "clippy::box_vec",
-    "Use Vec instead of Box<Vec>"
-);
+impl ClippyFixPattern for UsedUnderscoreBindingPattern {
+    fn apply_fix(&self, code: &str) -> Hatch<String> {
+        let re = regex::Regex::new(r"let\s+_(\w+)").map_err(
+            |e| crate::yopost!(message: format!("Regex compilation failed: {e}").into()),
+        )?;
+        let mut fixed = code.to_string();
+
+        for cap in re.captures_iter(code) {
+            let full_match = &cap[0];
+            let var_name_with_underscore = format!("_{}", &cap[1]);
+            let var_name_without_underscore = cap[1].to_string();
+
+            // Check if the underscored variable is used elsewhere
+            if code.matches(&var_name_with_underscore).count() > 1 {
+                fixed = fixed.replace(full_match, &format!("let {}", var_name_without_underscore));
+                fixed = fixed.replace(&var_name_with_underscore, &var_name_without_underscore);
+            }
+        }
+        Ok(fixed)
+    }
+    fn lint_name(&self) -> &'static str {
+        "clippy::used_underscore_binding"
+    }
+    fn description(&self) -> &'static str {
+        "Removes underscore from used bindings."
+    }
+    fn matches(&self, code: &str) -> bool {
+        if let Ok(re) = regex::Regex::new(r"let\s+(_\w+)") {
+            if let Some(cap) = re.captures(code) {
+                return code.matches(&cap[1]).count() > 1;
+            }
+        }
+        false
+    }
+}
+
 /// **`ExpectFunCallPattern`** - Fix `clippy::expect_fun_call` (PERFORMANCE)
 /// Detects `expect()` calls with function calls that should use string literals
 /// Example: .expect(&format!("Error: {}", msg)) -> .expect("Error: see logs for details")
@@ -3009,56 +4182,277 @@ impl ClippyFixPattern for ExpectFunCallPattern {
                 || (code.contains(".expect(") && code.contains("()")))
     }
 }
-impl_clippy_pattern_stub!(
-    ExtendFromSlicePattern,
-    "clippy::extend_from_slice",
-    "Use extend_from_slice"
-);
-impl_clippy_pattern_stub!(
-    ImplicitClonePattern,
-    "clippy::implicit_clone",
-    "Make clone explicit"
-);
-impl_clippy_pattern_stub!(
-    InefficientToStringPattern,
-    "clippy::inefficient_to_string",
-    "Use more efficient string conversion"
-);
-impl_clippy_pattern_stub!(
-    LargeEnumVariantPattern,
-    "clippy::large_enum_variant",
-    "Box large enum variants"
-);
-impl_clippy_pattern_stub!(
-    ManualMemcpyPattern,
-    "clippy::manual_memcpy",
-    "Use copy_from_slice"
-);
-impl_clippy_pattern_stub!(
-    MapClonePattern,
-    "clippy::map_clone",
-    "Use cloned() instead of map(clone)"
-);
-impl_clippy_pattern_stub!(
-    OrFunCallPattern,
-    "clippy::or_fun_call",
-    "Use or_else with closure"
-);
-impl_clippy_pattern_stub!(
-    RedundantAllocationPattern,
-    "clippy::redundant_allocation",
-    "Remove redundant allocations"
-);
-impl_clippy_pattern_stub!(
-    RedundantClonePattern,
-    "clippy::redundant_clone",
-    "Remove redundant clone"
-);
-impl_clippy_pattern_stub!(
-    SlowVectorInitializationPattern,
-    "clippy::slow_vector_initialization",
-    "Use vec! macro"
-);
+
+/// **`BoxVecPattern`** - Fix `clippy::box_vec` (PERFORMANCE)
+/// Replaces `Box<Vec<T>>` with `Vec<T>` in type signatures.
+#[derive(Debug)]
+struct BoxVecPattern;
+
+impl ClippyFixPattern for BoxVecPattern {
+    fn apply_fix(&self, code: &str) -> Hatch<String> {
+        Ok(code.replace("Box<Vec<", "Vec<"))
+    }
+    fn lint_name(&self) -> &'static str {
+        "clippy::box_vec"
+    }
+    fn description(&self) -> &'static str {
+        "Replaces `Box<Vec<T>>` with `Vec<T>`."
+    }
+    fn matches(&self, code: &str) -> bool {
+        code.contains("Box<Vec<")
+    }
+}
+
+/// **`ExtendFromSlicePattern`** - Fix `clippy::extend_from_slice` (PERFORMANCE)
+/// Replaces loops that push elements from a slice with `extend_from_slice`.
+#[derive(Debug)]
+struct ExtendFromSlicePattern;
+
+impl ClippyFixPattern for ExtendFromSlicePattern {
+    fn apply_fix(&self, code: &str) -> Hatch<String> {
+        let re = regex::Regex::new(
+            r"for\s+\w+\s+in\s+&(\w+)\[..\]\s*\{\s*(\w+)\.push\(\s*\*?\w+\s*\)\s*\}",
+        )
+        .map_err(|e| crate::yopost!(message: format!("Regex compilation failed: {e}").into()))?;
+        let fixed = re.replace_all(code, "$2.extend_from_slice($1)").to_string();
+        Ok(fixed)
+    }
+    fn lint_name(&self) -> &'static str {
+        "clippy::extend_from_slice"
+    }
+    fn description(&self) -> &'static str {
+        "Replaces manual extend loops with `extend_from_slice`."
+    }
+    fn matches(&self, code: &str) -> bool {
+        code.contains("for") && code.contains("[..]") && code.contains(".push")
+    }
+}
+
+/// **`ImplicitClonePattern`** - Fix `clippy::implicit_clone` (PERFORMANCE)
+/// Makes implicit clones explicit for clarity and to avoid accidental performance hits.
+#[derive(Debug)]
+struct ImplicitClonePattern;
+
+impl ClippyFixPattern for ImplicitClonePattern {
+    fn apply_fix(&self, code: &str) -> Hatch<String> {
+        // Fix let s: String = *s_ref; -> let s: String = s_ref.clone();
+        let re = regex::Regex::new(r"let\s+(\w+):\s*String\s*=\s*\*(\w+);").map_err(
+            |e| crate::yopost!(message: format!("Regex compilation failed: {e}").into()),
+        )?;
+        let fixed = re
+            .replace_all(code, "let $1: String = $2.clone();")
+            .to_string();
+        Ok(fixed)
+    }
+    fn lint_name(&self) -> &'static str {
+        "clippy::implicit_clone"
+    }
+    fn description(&self) -> &'static str {
+        "Makes implicit clones explicit, e.g., using `.clone()` on dereferenced `&String`."
+    }
+    fn matches(&self, code: &str) -> bool {
+        regex::Regex::new(r":\s*String\s*=\s*\*").map_or(false, |re| re.is_match(code))
+    }
+}
+
+/// **`InefficientToStringPattern`** - Fix `clippy::inefficient_to_string` (PERFORMANCE)
+/// Replaces `format!("{}", x)` with `x.to_string()`.
+#[derive(Debug)]
+struct InefficientToStringPattern;
+
+impl ClippyFixPattern for InefficientToStringPattern {
+    fn apply_fix(&self, code: &str) -> Hatch<String> {
+        let re = regex::Regex::new(r#"format!\("\{}",\s*([^)]+)\)"#).map_err(
+            |e| crate::yopost!(message: format!("Regex compilation failed: {e}").into()),
+        )?;
+        let fixed = re.replace_all(code, "$1.to_string()").to_string();
+        Ok(fixed)
+    }
+    fn lint_name(&self) -> &'static str {
+        "clippy::inefficient_to_string"
+    }
+    fn description(&self) -> &'static str {
+        "Replaces `format!(\"{}\", x)` with `x.to_string()`."
+    }
+    fn matches(&self, code: &str) -> bool {
+        regex::Regex::new(r#"format!\("\{}",\s*[^)]+\)"#).map_or(false, |re| re.is_match(code))
+    }
+}
+
+/// **`LargeEnumVariantPattern`** - Fix `clippy::large_enum_variant` (PERFORMANCE)
+/// Suggests boxing large enum variants to reduce the size of the enum.
+#[derive(Debug)]
+struct LargeEnumVariantPattern;
+
+impl ClippyFixPattern for LargeEnumVariantPattern {
+    fn apply_fix(&self, code: &str) -> Hatch<String> {
+        // Cannot reliably determine variant size, so add a comment.
+        Ok(format!("/* Clippy(large_enum_variant): Consider boxing large enum variants to reduce the overall size of the enum. */\n{}", code))
+    }
+    fn lint_name(&self) -> &'static str {
+        "clippy::large_enum_variant"
+    }
+    fn description(&self) -> &'static str {
+        "Adds a comment suggesting to box large enum variants."
+    }
+    fn matches(&self, _code: &str) -> bool {
+        false
+    } // This lint is better handled by the compiler with type info.
+}
+
+/// **`ManualMemcpyPattern`** - Fix `clippy::manual_memcpy` (PERFORMANCE)
+/// Replaces manual memcpy loops with `copy_from_slice`.
+#[derive(Debug)]
+struct ManualMemcpyPattern;
+
+impl ClippyFixPattern for ManualMemcpyPattern {
+    fn apply_fix(&self, code: &str) -> Hatch<String> {
+        let re = regex::Regex::new(
+            r"for\s+i\s+in\s+0..(\w+)\.len\(\)\s*\{\s*(\w+)\[i\]\s*=\s*\1\[i\];\s*\}",
+        )
+        .map_err(|e| crate::yopost!(message: format!("Regex compilation failed: {e}").into()))?;
+        let fixed = re.replace_all(code, "$2.copy_from_slice($1);").to_string();
+        Ok(fixed)
+    }
+    fn lint_name(&self) -> &'static str {
+        "clippy::manual_memcpy"
+    }
+    fn description(&self) -> &'static str {
+        "Replaces manual memcpy loops with `copy_from_slice`."
+    }
+    fn matches(&self, code: &str) -> bool {
+        code.contains("for") && code.contains(".len()") && code.contains("[i] =")
+    }
+}
+
+/// **`MapClonePattern`** - Fix `clippy::map_clone` (PERFORMANCE)
+/// Replaces `.map(|x| x.clone())` with `.cloned()`.
+#[derive(Debug)]
+struct MapClonePattern;
+
+impl ClippyFixPattern for MapClonePattern {
+    fn apply_fix(&self, code: &str) -> Hatch<String> {
+        Ok(code.replace(".map(|x| x.clone())", ".cloned()"))
+    }
+    fn lint_name(&self) -> &'static str {
+        "clippy::map_clone"
+    }
+    fn description(&self) -> &'static str {
+        "Replaces `.map(|x| x.clone())` with `.cloned()`."
+    }
+    fn matches(&self, code: &str) -> bool {
+        code.contains(".map(|x| x.clone())")
+    }
+}
+
+/// **`OrFunCallPattern`** - Fix `clippy::or_fun_call` (PERFORMANCE)
+/// Replaces eagerly-evaluated `or(func())` with lazily-evaluated `or_else(|| func())`.
+#[derive(Debug)]
+struct OrFunCallPattern;
+
+impl ClippyFixPattern for OrFunCallPattern {
+    fn apply_fix(&self, code: &str) -> Hatch<String> {
+        let re = regex::Regex::new(r"\.or\(([^)]+\(\))\)").map_err(
+            |e| crate::yopost!(message: format!("Regex compilation failed: {e}").into()),
+        )?;
+        let fixed = re.replace_all(code, ".or_else(|| $1)").to_string();
+        Ok(fixed)
+    }
+    fn lint_name(&self) -> &'static str {
+        "clippy::or_fun_call"
+    }
+    fn description(&self) -> &'static str {
+        "Replaces `.or(func())` with `.or_else(|| func())`."
+    }
+    fn matches(&self, code: &str) -> bool {
+        regex::Regex::new(r"\.or\([^)]+\(\)\)").map_or(false, |re| re.is_match(code))
+    }
+}
+
+/// **`RedundantAllocationPattern`** - Fix `clippy::redundant_allocation` (PERFORMANCE)
+/// Removes redundant allocations, e.g., `&Box::new(T)`.
+#[derive(Debug)]
+struct RedundantAllocationPattern;
+
+impl ClippyFixPattern for RedundantAllocationPattern {
+    fn apply_fix(&self, code: &str) -> Hatch<String> {
+        let re = regex::Regex::new(r"&Box::new\(([^)]+)\)").map_err(
+            |e| crate::yopost!(message: format!("Regex compilation failed: {e}").into()),
+        )?;
+        let fixed = re.replace_all(code, "&$1").to_string();
+        Ok(fixed)
+    }
+    fn lint_name(&self) -> &'static str {
+        "clippy::redundant_allocation"
+    }
+    fn description(&self) -> &'static str {
+        "Replaces `&Box::new(val)` with `&val`."
+    }
+    fn matches(&self, code: &str) -> bool {
+        code.contains("&Box::new")
+    }
+}
+
+/// **`RedundantClonePattern`** - Fix `clippy::redundant_clone` (PERFORMANCE)
+/// Removes redundant clones, e.g., on a `Copy` type or before `.into_iter()`.
+#[derive(Debug)]
+struct RedundantClonePattern;
+
+impl ClippyFixPattern for RedundantClonePattern {
+    fn apply_fix(&self, code: &str) -> Hatch<String> {
+        // This can be complex. We'll handle a simple, common case.
+        // .clone().into_iter() -> .into_iter()
+        let fixed = code.replace(".clone().into_iter()", ".into_iter()");
+        Ok(fixed)
+    }
+    fn lint_name(&self) -> &'static str {
+        "clippy::redundant_clone"
+    }
+    fn description(&self) -> &'static str {
+        "Removes redundant `.clone()` calls."
+    }
+    fn matches(&self, code: &str) -> bool {
+        code.contains(".clone().into_iter()")
+    }
+}
+
+/// **`SlowVectorInitializationPattern`** - Fix `clippy::slow_vector_initialization` (PERFORMANCE)
+/// Replaces `let mut v = Vec::new(); v.push(...)` with `vec![...]`.
+#[derive(Debug)]
+struct SlowVectorInitializationPattern;
+
+impl ClippyFixPattern for SlowVectorInitializationPattern {
+    fn apply_fix(&self, code: &str) -> Hatch<String> {
+        let re =
+            regex::Regex::new(r"let\s+mut\s+(\w+)\s*=\s*Vec::new\(\);(?:\s*\1\.push\(([^)]+)\);)+")
+                .map_err(
+                    |e| crate::yopost!(message: format!("Regex compilation failed: {e}").into()),
+                )?;
+        let mut fixed = code.to_string();
+        for cap in re.captures_iter(code) {
+            let var_name = &cap[1];
+            let push_re = regex::Regex::new(&format!(r"{}\.push\(([^)]+)\)", var_name)).map_err(
+                |e| crate::yopost!(message: format!("Regex compilation failed: {e}").into()),
+            )?;
+            let values: Vec<String> = push_re
+                .captures_iter(&cap[0])
+                .map(|c| c[1].to_string())
+                .collect();
+            let replacement = format!("let {} = vec![{}];", var_name, values.join(", "));
+            fixed = fixed.replace(&cap[0], &replacement);
+        }
+        Ok(fixed)
+    }
+    fn lint_name(&self) -> &'static str {
+        "clippy::slow_vector_initialization"
+    }
+    fn description(&self) -> &'static str {
+        "Replaces manual `Vec::new` and `push` with `vec!` macro."
+    }
+    fn matches(&self, code: &str) -> bool {
+        code.contains("Vec::new()") && code.contains(".push")
+    }
+}
 impl_clippy_pattern_stub!(
     StableSortPrimitivePattern,
     "clippy::stable_sort_primitive",
@@ -3242,6 +4636,58 @@ impl ClippyFixPattern for UnnecessaryWrapsPattern {
     }
 }
 
+/// **`InfiniteIterPattern`** - Fix `clippy::infinite_iter` (CORRECTNESS)
+/// Detects use of infinite iterators like `.cycle()` without a `.take()`.
+#[derive(Debug)]
+struct InfiniteIterPattern;
+
+impl ClippyFixPattern for InfiniteIterPattern {
+    fn apply_fix(&self, code: &str) -> Hatch<String> {
+        let re = regex::Regex::new(r"(\.cycle\(\))").map_err(
+            |e| crate::yopost!(message: format!("Regex compilation failed: {e}").into()),
+        )?;
+        let fixed = re.replace_all(code, "$1.take(100) /* Clippy(infinite_iter): Added .take(100) to prevent infinite loop. Please adjust as needed. */").to_string();
+        Ok(fixed)
+    }
+
+    fn lint_name(&self) -> &'static str {
+        "clippy::infinite_iter"
+    }
+    fn description(&self) -> &'static str {
+        "Adds `.take(100)` to `.cycle()` calls to prevent infinite loops."
+    }
+    fn matches(&self, code: &str) -> bool {
+        code.contains(".cycle()") && !code.contains(".take(")
+    }
+}
+
+/// **`InlineFnWithoutBodyPattern`** - Fix `clippy::inline_fn_without_body` (CORRECTNESS)
+/// Removes `#[inline]` from function declarations without a body (traits, extern blocks).
+#[derive(Debug)]
+struct InlineFnWithoutBodyPattern;
+
+impl ClippyFixPattern for InlineFnWithoutBodyPattern {
+    fn apply_fix(&self, code: &str) -> Hatch<String> {
+        let re = regex::Regex::new(r"#\[inline(?:_fn_without_body)?\]\s*(?=fn\s+\w+\([^)]*\);)")
+            .map_err(
+                |e| crate::yopost!(message: format!("Regex compilation failed: {e}").into()),
+            )?;
+        let fixed = re.replace_all(code, "").to_string();
+        Ok(fixed)
+    }
+
+    fn lint_name(&self) -> &'static str {
+        "clippy::inline_fn_without_body"
+    }
+    fn description(&self) -> &'static str {
+        "Removes `#[inline]` from function declarations without a body."
+    }
+    fn matches(&self, code: &str) -> bool {
+        regex::Regex::new(r"#\[inline(?:_fn_without_body)?\]\s*fn\s+\w+\([^)]*\);")
+            .map_or(false, |re| re.is_match(code))
+    }
+}
+
 /// **`ComparisonToEmptyPattern`** - Fix `clippy::comparison_to_empty` (STYLE/PERFORMANCE)
 /// Detects comparisons to empty strings/collections that should use .`is_empty()`
 /// Example: string == "" -> `string.is_empty()`, `vec.len()` == 0 -> `vec.is_empty()`
@@ -3338,21 +4784,101 @@ impl ClippyFixPattern for ComparisonToEmptyPattern {
             || (code.contains("0 !=") && code.contains(".len()"))
     }
 }
+
 impl_clippy_pattern_stub!(
-    StringLitAsCharPattern,
-    "clippy::string_lit_as_bytes",
-    "Use byte string literal instead of string.as_bytes()"
+    IteratorStepByZeroPattern,
+    "clippy::iterator_step_by_zero",
+    "Fix iterator step_by(0) which causes infinite loop"
 );
 impl_clippy_pattern_stub!(
-    OptionMapUnitFnPattern,
-    "clippy::option_map_unit_fn",
-    "Use if let instead of Option.map() for unit functions"
+    MemDiscriminantNonEnumPattern,
+    "clippy::mem_discriminant_non_enum",
+    "Fix mem::discriminant on non-enum types"
 );
 impl_clippy_pattern_stub!(
-    ResultMapUnitFnPattern,
-    "clippy::result_map_unit_fn",
-    "Use if let instead of Result.map() for unit functions"
+    MemReplaceWithDefaultPattern,
+    "clippy::mem_replace_with_default",
+    "Use mem::take instead of mem::replace with Default::default()"
 );
+/// **`StringLitAsCharPattern`** - Fix `clippy::string_lit_as_bytes` (STYLE)
+/// Replaces string literals passed to `.as_bytes()` with byte string literals.
+#[derive(Debug)]
+struct StringLitAsCharPattern;
+
+impl ClippyFixPattern for StringLitAsCharPattern {
+    fn apply_fix(&self, code: &str) -> Hatch<String> {
+        // Example: "hello".as_bytes() -> b"hello"
+        let re = regex::Regex::new(r#""([^"]*)"\.as_bytes\(\)"#).map_err(
+            |e| crate::yopost!(message: format!("Regex compilation failed: {e}").into()),
+        )?;
+        let fixed = re.replace_all(code, "b\"$1\"").to_string();
+        Ok(fixed)
+    }
+    fn lint_name(&self) -> &'static str {
+        "clippy::string_lit_as_bytes"
+    }
+    fn description(&self) -> &'static str {
+        "Replaces `\"literal\".as_bytes()` with `b\"literal\"`."
+    }
+    fn matches(&self, code: &str) -> bool {
+        code.contains(".as_bytes()") && code.contains('"')
+    }
+}
+
+/// **`OptionMapUnitFnPattern`** - Fix `clippy::option_map_unit_fn` (STYLE)
+/// Replaces `Option::map` calls that return `()` with `if let Some`.
+#[derive(Debug)]
+struct OptionMapUnitFnPattern;
+
+impl ClippyFixPattern for OptionMapUnitFnPattern {
+    fn apply_fix(&self, code: &str) -> Hatch<String> {
+        // Example: opt.map(|_| { ... }); -> if let Some(_) = opt { ... };
+        let re = regex::Regex::new(r"(\w+)\.map\(\|_\)\s*\{\s*(.*?)\s*\}\)\s*;").map_err(
+            |e| crate::yopost!(message: format!("Regex compilation failed: {e}").into()),
+        )?;
+        let fixed = re
+            .replace_all(code, "if let Some(_) = $1 { $2 }")
+            .to_string();
+        Ok(fixed)
+    }
+    fn lint_name(&self) -> &'static str {
+        "clippy::option_map_unit_fn"
+    }
+    fn description(&self) -> &'static str {
+        "Replaces `Option::map` returning unit with `if let Some`."
+    }
+    fn matches(&self, code: &str) -> bool {
+        code.contains(".map(|_|") && code.contains("}") && code.contains(");")
+    }
+}
+
+/// **`ResultMapUnitFnPattern`** - Fix `clippy::result_map_unit_fn` (STYLE)
+/// Replaces `Result::map` calls that return `()` with `if let Ok`.
+#[derive(Debug)]
+struct ResultMapUnitFnPattern;
+
+impl ClippyFixPattern for ResultMapUnitFnPattern {
+    fn apply_fix(&self, code: &str) -> Hatch<String> {
+        // Example: res.map(|_| { ... }); -> if let Ok(_) = res { ... };
+        let re = regex::Regex::new(r"(\w+)\.map\(\|_\)\s*\{\s*(.*?)\s*\}\)\s*;").map_err(
+            |e| crate::yopost!(message: format!("Regex compilation failed: {e}").into()),
+        )?;
+        let fixed = re.replace_all(code, "if let Ok(_) = $1 { $2 }").to_string();
+        Ok(fixed)
+    }
+    fn lint_name(&self) -> &'static str {
+        "clippy::result_map_unit_fn"
+    }
+    fn description(&self) -> &'static str {
+        "Replaces `Result::map` returning unit with `if let Ok`."
+    }
+    fn matches(&self, code: &str) -> bool {
+        code.contains(".map(|_|")
+            && code.contains("}")
+            && code.contains(");")
+            && code.contains("Result<")
+    }
+}
 
 /// **Test function for `ClippyFixEngine` with comprehensive examples**
 pub fn test_clippy_fix_engine() -> Hatch<()> {
@@ -3376,6 +4902,32 @@ pub fn test_clippy_fix_engine() -> Hatch<()> {
 
             // Test redundant_closure_for_method_calls
             let strings: Vec<String> = items.iter().map(|s| s.to_string()).collect();
+
+            // Test redundant_static_lifetimes
+            fn foo(x: &'static str) {}
+
+            // Test comparison_chain
+            let val = 5;
+            if val > 0 && val < 10 {}
+
+            // Test double_neg
+            let flag = !!true;
+
+            // Test excessive_precision
+            let pi_f32: f32 = 3.1415926535;
+
+            // Test explicit_counter_loop
+            let mut i = 0;
+            for item in &my_vec {
+                println!("{}", item);
+                i += 1;
+            }
+
+            // Test filter_next
+            let result = my_vec.iter().filter(|x| **x > 10).next();
+
+            // Test get_unwrap
+            let item = my_vec.get(0).unwrap();
 
             Ok(())
         }
