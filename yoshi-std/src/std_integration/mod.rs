@@ -580,7 +580,7 @@ impl std::ops::Deref for StdYoshi {
 }
 
 impl std::ops::DerefMut for StdYoshi {
-/// **deref_mut**
+/// **`deref_mut`**
 ///
 /// This function provides deref mut functionality within the Yoshi error handling framework.
 ///
@@ -785,14 +785,14 @@ impl From<std::env::VarError> for StdYoshi {
 /// yoshi error ecosystem with rich context and metadata.
 pub trait IoErrorExt {
     /// Convert an I/O error to a Yoshi error with context
-/// **to_yoshi**
+/// **`to_yoshi`**
 ///
 /// This function provides to yoshi functionality within the Yoshi error handling framework.
 ///
 /// # Errors
 ///
 /// Returns an error if the operation fails due to invalid input or system constraints.
-/// Processes to_yoshi with provided parameters.
+/// Processes `to_yoshi` with provided parameters.
 ///
 /// # Arguments
 ///
@@ -800,7 +800,7 @@ pub trait IoErrorExt {
 /// # Returns
 ///
 /// Processed output value
-/// Processes to_yoshi with provided parameters.
+/// Processes `to_yoshi` with provided parameters.
 ///
 /// # Arguments
 ///
@@ -811,14 +811,14 @@ pub trait IoErrorExt {
     fn to_yoshi(self) -> Yoshi;
 
     /// Convert an I/O error to a boxed Yoshi error
-/// **to_yoshi_boxed**
+/// **`to_yoshi_boxed`**
 ///
 /// This function provides to yoshi boxed functionality within the Yoshi error handling framework.
 ///
 /// # Errors
 ///
 /// Returns an error if the operation fails due to invalid input or system constraints.
-/// Processes to_yoshi_boxed with provided parameters.
+/// Processes `to_yoshi_boxed` with provided parameters.
 ///
 /// # Arguments
 ///
@@ -826,7 +826,7 @@ pub trait IoErrorExt {
 /// # Returns
 ///
 /// Processed output value
-/// Processes to_yoshi_boxed with provided parameters.
+/// Processes `to_yoshi_boxed` with provided parameters.
 ///
 /// # Arguments
 ///

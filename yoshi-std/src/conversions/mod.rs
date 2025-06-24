@@ -447,7 +447,7 @@ pub trait BulkYoshiConvert<T> {
     /// # Returns
     ///
     /// Operation result with error handling
-    /// Performs bulk_convert operation with error handling.
+    /// Performs `bulk_convert` operation with error handling.
     ///
     /// # Arguments
     ///
@@ -456,7 +456,7 @@ pub trait BulkYoshiConvert<T> {
     /// # Returns
     ///
     /// Operation result with error handling
-    /// Performs bulk_convert operation with error handling.
+    /// Performs `bulk_convert` operation with error handling.
     ///
     /// # Arguments
     ///
@@ -472,21 +472,21 @@ pub trait BulkYoshiConvert<T> {
     /// # Errors
     ///
     /// Returns an error if any individual conversion fails during the bulk operation.
-    /// **bulk_convert_vec**
+    /// **`bulk_convert_vec`**
     ///
     /// This function provides bulk convert vec functionality within the Yoshi error handling framework.
     ///
     /// # Errors
     ///
     /// Returns an error if the operation fails due to invalid input or system constraints.
-    /// **bulk_convert_vec**
+    /// **`bulk_convert_vec`**
     ///
     /// This function provides bulk convert vec functionality within the Yoshi error handling framework.
     ///
     /// # Errors
     ///
     /// Returns an error if the operation fails due to invalid input or system constraints.
-    /// Performs bulk_convert_vec operation with error handling.
+    /// Performs `bulk_convert_vec` operation with error handling.
     ///
     /// # Arguments
     ///
@@ -494,7 +494,7 @@ pub trait BulkYoshiConvert<T> {
     /// # Returns
     ///
     /// Operation result with error handling
-    /// Performs bulk_convert_vec operation with error handling.
+    /// Performs `bulk_convert_vec` operation with error handling.
     ///
     /// # Arguments
     ///
@@ -502,7 +502,7 @@ pub trait BulkYoshiConvert<T> {
     /// # Returns
     ///
     /// Operation result with error handling
-    /// Performs bulk_convert_vec operation with error handling.
+    /// Performs `bulk_convert_vec` operation with error handling.
     ///
     /// # Arguments
     ///
@@ -510,7 +510,7 @@ pub trait BulkYoshiConvert<T> {
     /// # Returns
     ///
     /// Operation result with error handling
-    /// Performs bulk_convert_vec operation with error handling.
+    /// Performs `bulk_convert_vec` operation with error handling.
     ///
     /// # Arguments
     ///
@@ -768,7 +768,7 @@ pub trait ResultExt<T> {
     /// # Errors
     ///
     /// Returns the original error converted to `AnyError` if the input Result was an Err.
-    /// **into_any_error_result**
+    /// **`into_any_error_result`**
     ///
     /// This function provides into any error result functionality within the Yoshi error handling
     /// framework.
@@ -776,7 +776,7 @@ pub trait ResultExt<T> {
     /// # Errors
     ///
     /// Returns an error if the operation fails due to invalid input or system constraints.
-    /// **into_any_error_result**
+    /// **`into_any_error_result`**
     ///
     /// This function provides into any error result functionality within the Yoshi error handling
     /// framework.
@@ -784,7 +784,7 @@ pub trait ResultExt<T> {
     /// # Errors
     ///
     /// Returns an error if the operation fails due to invalid input or system constraints.
-    /// Performs into_any_error_result operation with error handling.
+    /// Performs `into_any_error_result` operation with error handling.
     ///
     /// # Arguments
     ///
@@ -792,7 +792,7 @@ pub trait ResultExt<T> {
     /// # Returns
     ///
     /// Operation result with error handling
-    /// Performs into_any_error_result operation with error handling.
+    /// Performs `into_any_error_result` operation with error handling.
     ///
     /// # Arguments
     ///
@@ -800,7 +800,7 @@ pub trait ResultExt<T> {
     /// # Returns
     ///
     /// Operation result with error handling
-    /// Performs into_any_error_result operation with error handling.
+    /// Performs `into_any_error_result` operation with error handling.
     ///
     /// # Arguments
     ///
@@ -808,7 +808,7 @@ pub trait ResultExt<T> {
     /// # Returns
     ///
     /// Operation result with error handling
-    /// Performs into_any_error_result operation with error handling.
+    /// Performs `into_any_error_result` operation with error handling.
     ///
     /// # Arguments
     ///
@@ -823,7 +823,7 @@ pub trait ResultExt<T> {
     /// # Errors
     ///
     /// Returns the original error converted to `Yoshi` if the input Result was an Err.
-    /// **into_yoshi_result**
+    /// **`into_yoshi_result`**
     ///
     /// This function provides into yoshi result functionality within the Yoshi error handling
     /// framework.
@@ -831,7 +831,7 @@ pub trait ResultExt<T> {
     /// # Errors
     ///
     /// Returns an error if the operation fails due to invalid input or system constraints.
-    /// **into_yoshi_result**
+    /// **`into_yoshi_result`**
     ///
     /// This function provides into yoshi result functionality within the Yoshi error handling
     /// framework.
@@ -839,7 +839,7 @@ pub trait ResultExt<T> {
     /// # Errors
     ///
     /// Returns an error if the operation fails due to invalid input or system constraints.
-    /// Performs into_yoshi_result operation with error handling.
+    /// Performs `into_yoshi_result` operation with error handling.
     ///
     /// # Arguments
     ///
@@ -847,7 +847,7 @@ pub trait ResultExt<T> {
     /// # Returns
     ///
     /// Operation result with error handling
-    /// Performs into_yoshi_result operation with error handling.
+    /// Performs `into_yoshi_result` operation with error handling.
     ///
     /// # Arguments
     ///
@@ -855,7 +855,7 @@ pub trait ResultExt<T> {
     /// # Returns
     ///
     /// Operation result with error handling
-    /// Performs into_yoshi_result operation with error handling.
+    /// Performs `into_yoshi_result` operation with error handling.
     ///
     /// # Arguments
     ///
@@ -863,7 +863,7 @@ pub trait ResultExt<T> {
     /// # Returns
     ///
     /// Operation result with error handling
-    /// Performs into_yoshi_result operation with error handling.
+    /// Performs `into_yoshi_result` operation with error handling.
     ///
     /// # Arguments
     ///
@@ -1001,14 +1001,14 @@ pub trait Hatchling<T> {
     ///
     /// # Errors
     /// Returns an error if the file path cannot be processed or if the underlying operation fails
-    /// **with_file_nest**
+    /// **`with_file_nest`**
     ///
     /// This function provides with file nest functionality within the Yoshi error handling framework.
     ///
     /// # Errors
     ///
     /// Returns an error if the operation fails due to invalid input or system constraints.
-    /// Processes with_file_nest with provided parameters.
+    /// Processes `with_file_nest` with provided parameters.
     ///
     /// # Arguments
     ///
@@ -1017,7 +1017,7 @@ pub trait Hatchling<T> {
     /// # Returns
     ///
     /// Processed output value
-    /// Processes with_file_nest with provided parameters.
+    /// Processes `with_file_nest` with provided parameters.
     ///
     /// # Arguments
     ///
@@ -1040,7 +1040,7 @@ pub trait Hatchling<T> {
     ///
     /// # Errors
     /// Returns an error if the operation context cannot be processed or if the underlying operation fails
-    /// **with_operation_nest**
+    /// **`with_operation_nest`**
     ///
     /// This function provides with operation nest functionality within the Yoshi error handling
     /// framework.
@@ -1048,7 +1048,7 @@ pub trait Hatchling<T> {
     /// # Errors
     ///
     /// Returns an error if the operation fails due to invalid input or system constraints.
-    /// Processes with_operation_nest with provided parameters.
+    /// Processes `with_operation_nest` with provided parameters.
     ///
     /// # Arguments
     ///
@@ -1057,7 +1057,7 @@ pub trait Hatchling<T> {
     /// # Returns
     ///
     /// Processed output value
-    /// Processes with_operation_nest with provided parameters.
+    /// Processes `with_operation_nest` with provided parameters.
     ///
     /// # Arguments
     ///
@@ -1081,7 +1081,7 @@ pub trait Hatchling<T> {
     ///
     /// # Errors
     /// Returns an error if the performance context cannot be processed or if the underlying operation fails
-    /// **with_performance_nest**
+    /// **`with_performance_nest`**
     ///
     /// This function provides with performance nest functionality within the Yoshi error handling
     /// framework.
@@ -1089,7 +1089,7 @@ pub trait Hatchling<T> {
     /// # Errors
     ///
     /// Returns an error if the operation fails due to invalid input or system constraints.
-    /// Processes with_performance_nest with provided parameters.
+    /// Processes `with_performance_nest` with provided parameters.
     ///
     /// # Arguments
     ///
@@ -1098,7 +1098,7 @@ pub trait Hatchling<T> {
     /// # Returns
     ///
     /// Processed output value
-    /// Processes with_performance_nest with provided parameters.
+    /// Processes `with_performance_nest` with provided parameters.
     ///
     /// # Arguments
     ///
@@ -1123,7 +1123,7 @@ pub trait Hatchling<T> {
     ///
     /// # Errors
     /// Returns an error if the correction context cannot be processed or if the underlying operation fails
-    /// **with_correction_nest**
+    /// **`with_correction_nest`**
     ///
     /// This function provides with correction nest functionality within the Yoshi error handling
     /// framework.
@@ -1131,7 +1131,7 @@ pub trait Hatchling<T> {
     /// # Errors
     ///
     /// Returns an error if the operation fails due to invalid input or system constraints.
-    /// Processes with_correction_nest with provided parameters.
+    /// Processes `with_correction_nest` with provided parameters.
     ///
     /// # Arguments
     ///
@@ -1141,7 +1141,7 @@ pub trait Hatchling<T> {
     /// # Returns
     ///
     /// Processed output value
-    /// Processes with_correction_nest with provided parameters.
+    /// Processes `with_correction_nest` with provided parameters.
     ///
     /// # Arguments
     ///
@@ -1166,7 +1166,7 @@ pub trait Hatchling<T> {
     ///
     /// # Errors
     /// Returns an error if the analysis context cannot be processed or if the underlying operation fails
-    /// **with_analysis_nest**
+    /// **`with_analysis_nest`**
     ///
     /// This function provides with analysis nest functionality within the Yoshi error handling
     /// framework.
@@ -1174,7 +1174,7 @@ pub trait Hatchling<T> {
     /// # Errors
     ///
     /// Returns an error if the operation fails due to invalid input or system constraints.
-    /// Processes with_analysis_nest with provided parameters.
+    /// Processes `with_analysis_nest` with provided parameters.
     ///
     /// # Arguments
     ///
@@ -1184,7 +1184,7 @@ pub trait Hatchling<T> {
     /// # Returns
     ///
     /// Processed output value
-    /// Processes with_analysis_nest with provided parameters.
+    /// Processes `with_analysis_nest` with provided parameters.
     ///
     /// # Arguments
     ///
@@ -1209,7 +1209,7 @@ pub trait Hatchling<T> {
     ///
     /// # Errors
     /// Returns an error if the resource context cannot be processed or if the underlying operation fails
-    /// **with_resource_nest**
+    /// **`with_resource_nest`**
     ///
     /// This function provides with resource nest functionality within the Yoshi error handling
     /// framework.
@@ -1217,7 +1217,7 @@ pub trait Hatchling<T> {
     /// # Errors
     ///
     /// Returns an error if the operation fails due to invalid input or system constraints.
-    /// Processes with_resource_nest with provided parameters.
+    /// Processes `with_resource_nest` with provided parameters.
     ///
     /// # Arguments
     ///
@@ -1227,7 +1227,7 @@ pub trait Hatchling<T> {
     /// # Returns
     ///
     /// Processed output value
-    /// Processes with_resource_nest with provided parameters.
+    /// Processes `with_resource_nest` with provided parameters.
     ///
     /// # Arguments
     ///
@@ -1448,14 +1448,14 @@ pub trait LayWithContext<T, E> {
     ///
     /// # Errors
     /// Returns an error if the context cannot be processed or if the underlying operation fails
-    /// **lay_with_context**
+    /// **`lay_with_context`**
     ///
     /// This function provides lay with context functionality within the Yoshi error handling framework.
     ///
     /// # Errors
     ///
     /// Returns an error if the operation fails due to invalid input or system constraints.
-    /// Processes lay_with_context with provided parameters.
+    /// Processes `lay_with_context` with provided parameters.
     ///
     /// # Arguments
     ///
@@ -1465,7 +1465,7 @@ pub trait LayWithContext<T, E> {
     /// # Returns
     ///
     /// Processed output value
-    /// Processes lay_with_context with provided parameters.
+    /// Processes `lay_with_context` with provided parameters.
     ///
     /// # Arguments
     ///

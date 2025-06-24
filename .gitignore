@@ -409,6 +409,10 @@ yoFixME.txt
 yoFixed/
 *.fixed
 
+# YoshiAF backup directories
+backups/
+**/backups/
+
 # Temporary analysis files
 FlowMaps/
 tools/temp/

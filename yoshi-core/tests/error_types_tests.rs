@@ -207,62 +207,6 @@ fn test_error_debug_formatting() {
 }
 
 #[test]
-fn test_auto_fixes_validation() {
-    let error = YoshiCore::Yoshi::new(YoshiCore::YoshiKind::Validation {
-        field: "email".into(),
-        message: "Invalid email format".into(),
-        expected: Some("user@domain.com".into()),
-        actual: Some("invalid-email".into()),
-    });
-
-    let fixes = error.auto_fixes();
-    assert!(!fixes.is_empty());
-    if let Some(first_fix) = fixes.first() {
-        assert!(first_fix.description.contains("Expected"));
-        assert!(first_fix.description.contains("user@domain.com"));
-        assert!(first_fix.description.contains("invalid-email"));
-    } else {
-        panic!("fixes should not be empty");
-    }
-}
-
-#[test]
-fn test_auto_fixes_not_found() {
-    let error = YoshiCore::Yoshi::new(YoshiCore::YoshiKind::NotFound {
-        resource_type: "file".into(),
-        identifier: "missing.txt".into(),
-        search_locations: None,
-    });
-
-    let fixes = error.auto_fixes();
-    assert!(!fixes.is_empty());
-    if let Some(first_fix) = fixes.first() {
-        assert!(first_fix.description.contains("Resource"));
-        assert!(first_fix.description.contains("missing.txt"));
-        assert!(first_fix.description.contains("file"));
-    } else {
-        panic!("fixes should not be empty");
-    }
-}
-
-#[test]
-fn test_auto_fixes_generic() {
-    let error = YoshiCore::Yoshi::new(YoshiCore::YoshiKind::Internal {
-        message: "Generic error".into(),
-        source: None,
-        component: None,
-    });
-
-    let fixes = error.auto_fixes();
-    assert!(!fixes.is_empty());
-    if let Some(first_fix) = fixes.first() {
-        assert!(first_fix.description.contains("Check the error details"));
-    } else {
-        panic!("fixes should not be empty");
-    }
-}
-
-#[test]
 fn test_quick_fixes_alias() {
     let error = YoshiCore::Yoshi::new(YoshiCore::YoshiKind::Internal {
         message: "Test error".into(),

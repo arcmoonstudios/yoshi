@@ -131,8 +131,8 @@ where
             }))),
             component: Some("async_retry".into()),
         })
-        .with_metadata("max_retries", &max_retries.to_string())
-        .with_metadata("initial_delay_ms", &initial_delay.as_millis().to_string())
+        .with_metadata("max_retries", max_retries.to_string())
+        .with_metadata("initial_delay_ms", initial_delay.as_millis().to_string())
         .lay(format!(
             "Async retry operation failed for '{operation_name}'"
         )))
@@ -151,7 +151,7 @@ where
 /// and converting them to Yoshi errors with proper context.
 #[cfg(feature = "tokio")]
 pub mod stream {
-    use super::*;
+    use super::{Yoshi, YoshiKind};
 
     /// Convert stream errors to Yoshi errors with stream context
     ///
@@ -185,7 +185,7 @@ pub mod stream {
 /// proper error handling and Yoshi integration.
 #[cfg(feature = "tokio")]
 pub mod task {
-    use super::*;
+    use super::{Hatch, Yoshi};
     use tokio::task::JoinHandle;
 
     /// Spawn an async task with Yoshi error handling

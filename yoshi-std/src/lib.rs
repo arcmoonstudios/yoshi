@@ -262,7 +262,7 @@ pub use yoshi_derive::*;
 //============================================================================
 
 #[cfg(test)]
-/// **modular_structure_tests**
+/// **`modular_structure_tests`**
 ///
 /// Module providing modular structure tests functionality for the Yoshi error handling framework.
 /// This module encapsulates related types and operations for optimal organization.
@@ -290,7 +290,7 @@ mod modular_structure_tests {
         let _test = "yoshi-std works";
     }
 
-    /// Test that the YoshiStd API provides complete access
+    /// Test that the `YoshiStd` API provides complete access
     #[test]
     fn test_yoshi_std_api_completeness() {
         // Test that YoshiStd API provides access to all major types

@@ -1809,12 +1809,12 @@ pub fn yoshi_error(args: TokenStream, input: TokenStream) -> TokenStream {
 /// **Pure Marker Yoshi Attribute** - Does absolutely nothing except exist
 ///
 /// This is a true no-op attribute that serves ONLY as a marker for the
-/// YoshiAF auto-fix system. For `auto-fix` attributes, it never processes,
+/// `YoshiAF` auto-fix system. For `auto-fix` attributes, it never processes,
 /// never parses, never transforms - just passes through input unchanged.
 ///
 /// # Supported Attributes
-/// - `#[yoshi(auto-fix)]` - Pure marker for YoshiAF (no processing)
-/// - `#![yoshi(auto-fix)]` - Pure marker for YoshiAF (no processing)
+/// - `#[yoshi(auto-fix)]` - Pure marker for `YoshiAF` (no processing)
+/// - `#![yoshi(auto-fix)]` - Pure marker for `YoshiAF` (no processing)
 /// - `#[yoshi(signpost = "message")]` - Adds signpost messages for error handling
 /// - `#[yoshi(source)]` - Marks fields as error sources
 /// - `#[yoshi(display = "format")]` - Custom display formatting
@@ -8784,7 +8784,7 @@ fn generate_comprehensive_error_boilerplate(input_str: String) -> TokenStream {
 
 /// **Helper Functions for Sophisticated Boilerplate Generation**
 /// These functions reference the existing sophisticated algorithms in yoshi-derive
-
+///
 /// Extract parameter value from input string
 fn extract_parameter(input: &str, param_name: &str) -> Option<String> {
     let pattern = format!("{param_name}:");
@@ -8793,9 +8793,9 @@ fn extract_parameter(input: &str, param_name: &str) -> Option<String> {
         let remaining = &input[start..].trim_start();
 
         // Handle quoted strings
-        if remaining.starts_with('"') {
-            if let Some(end) = remaining[1..].find('"') {
-                return Some(remaining[1..end + 1].to_string());
+        if let Some(stripped) = remaining.strip_prefix('"') {
+            if let Some(end) = stripped.find('"') {
+                return Some(stripped[..end].to_string());
             }
         }
 
@@ -8808,7 +8808,7 @@ fn extract_parameter(input: &str, param_name: &str) -> Option<String> {
 }
 
 /// **Helper Functions that Reference Existing Sophisticated Algorithms**
-
+///
 /// Create a mock variant for context-based signpost generation
 fn create_mock_variant_for_context(context: &str) -> YoshiVariantOpts {
     use darling::ast::{Fields, Style};
