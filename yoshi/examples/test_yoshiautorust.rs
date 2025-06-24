@@ -1,6 +1,6 @@
-//! **YoshiAutoRust Test Example**
+//! **`YoshiAutoRust` Test Example**
 //!
-//! This example demonstrates the YoshiAF autonomous fixing system.
+//! This example demonstrates the `YoshiAF` autonomous fixing system.
 
 use yoshi::{auto_fix::test_yoshi_af, Hatch};
 

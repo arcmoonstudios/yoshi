@@ -25,7 +25,7 @@ use yoshi::*;
 //--------------------------------------------------------------------------------------------------
 
 #[test]
-/// **test_error_creation_determinism**
+/// **`test_error_creation_determinism`**
 ///
 /// This function provides test error creation determinism functionality within the Yoshi error
 /// handling framework.
@@ -60,7 +60,7 @@ fn test_error_creation_determinism() {
 }
 
 #[test]
-/// **test_error_display_consistency**
+/// **`test_error_display_consistency`**
 ///
 /// This function provides test error display consistency functionality within the Yoshi error
 /// handling framework.
@@ -107,7 +107,7 @@ fn test_error_display_consistency() {
 }
 
 #[test]
-/// **test_error_severity_bounds**
+/// **`test_error_severity_bounds`**
 ///
 /// This function provides test error severity bounds functionality within the Yoshi error handling
 /// framework.
@@ -147,7 +147,7 @@ fn test_error_severity_bounds() {
 //--------------------------------------------------------------------------------------------------
 
 #[test]
-/// **test_error_immutability_invariant**
+/// **`test_error_immutability_invariant`**
 ///
 /// This function provides test error immutability invariant functionality within the Yoshi error
 /// handling framework.
@@ -184,7 +184,7 @@ fn test_error_immutability_invariant() {
 }
 
 #[test]
-/// **test_error_clone_invariant**
+/// **`test_error_clone_invariant`**
 ///
 /// This function provides test error clone invariant functionality within the Yoshi error handling
 /// framework.
@@ -220,7 +220,7 @@ fn test_error_clone_invariant() {
 //--------------------------------------------------------------------------------------------------
 
 #[test]
-/// **test_result_type_state_transitions**
+/// **`test_result_type_state_transitions`**
 ///
 /// This function provides test result type state transitions functionality within the Yoshi error
 /// handling framework.
@@ -251,7 +251,7 @@ fn test_result_type_state_transitions() {
 }
 
 #[test]
-/// **test_context_addition_properties**
+/// **`test_context_addition_properties`**
 ///
 /// This function provides test context addition properties functionality within the Yoshi error
 /// handling framework.
@@ -291,7 +291,7 @@ fn test_context_addition_properties() {
 //--------------------------------------------------------------------------------------------------
 
 #[test]
-/// **test_error_size_regression**
+/// **`test_error_size_regression`**
 ///
 /// This function provides test error size regression functionality within the Yoshi error handling
 /// framework.
@@ -314,7 +314,7 @@ fn test_error_size_regression() {
 }
 
 #[test]
-/// **test_performance_regression**
+/// **`test_performance_regression`**
 ///
 /// This function provides test performance regression functionality within the Yoshi error handling
 /// framework.
@@ -347,7 +347,7 @@ fn test_performance_regression() {
 //--------------------------------------------------------------------------------------------------
 
 #[test]
-/// **test_error_composition_properties**
+/// **`test_error_composition_properties`**
 ///
 /// This function provides test error composition properties functionality within the Yoshi error
 /// handling framework.
@@ -384,7 +384,7 @@ fn test_error_composition_properties() {
 }
 
 #[test]
-/// **test_comprehensive_property_validation**
+/// **`test_comprehensive_property_validation`**
 ///
 /// This function provides test comprehensive property validation functionality within the Yoshi
 /// error handling framework.

@@ -1084,7 +1084,7 @@ pub mod patterns {
             std::thread::sleep(std::time::Duration::from_millis(50)); // Connection overhead
 
             // Simulate connection pool behavior
-            /// Static variable: CONNECTION_COUNT.
+            /// Static variable: `CONNECTION_COUNT`.
             static CONNECTION_COUNT: std::sync::atomic::AtomicU32 =
                 std::sync::atomic::AtomicU32::new(0);
             let current_connections =
@@ -1125,7 +1125,7 @@ pub mod patterns {
             unreachable!("Loop should always return")
         }
 
-        /// **execute_query_internal**
+        /// **`execute_query_internal`**
         ///
         /// This function provides execute query internal functionality within the Yoshi error handling
         /// framework.
@@ -1294,22 +1294,22 @@ pub mod utils {
 
     /// Create a circuit breaker for external service calls
     pub struct CircuitBreaker {
-        /// **CircuitBreaker.failure_count**
+        /// **`CircuitBreaker.failure_count`**
         ///
         /// Data structure representing CircuitBreaker.failure count within the Yoshi ecosystem.
         /// This structure provides type-safe encapsulation and efficient memory layout.
         failure_count: std::sync::atomic::AtomicU32,
-        /// **CircuitBreaker.last_failure**
+        /// **`CircuitBreaker.last_failure`**
         ///
         /// Data structure representing CircuitBreaker.last failure within the Yoshi ecosystem.
         /// This structure provides type-safe encapsulation and efficient memory layout.
         last_failure: Arc<Mutex<Option<Instant>>>,
-        /// **CircuitBreaker.failure_threshold**
+        /// **`CircuitBreaker.failure_threshold`**
         ///
         /// Data structure representing CircuitBreaker.failure threshold within the Yoshi ecosystem.
         /// This structure provides type-safe encapsulation and efficient memory layout.
         failure_threshold: u32,
-        /// **CircuitBreaker.recovery_timeout_ms**
+        /// **`CircuitBreaker.recovery_timeout_ms`**
         ///
         /// Data structure representing CircuitBreaker.recovery timeout ms within the Yoshi ecosystem.
         /// This structure provides type-safe encapsulation and efficient memory layout.
@@ -1354,7 +1354,7 @@ pub mod utils {
             }
         }
 
-        /// **is_circuit_open**
+        /// **`is_circuit_open`**
         ///
         /// This function provides circuit open functionality within the Yoshi error handling framework.
         ///
@@ -1378,7 +1378,7 @@ pub mod utils {
             }
         }
 
-        /// **record_failure**
+        /// **`record_failure`**
         ///
         /// This function provides record failure functionality within the Yoshi error handling framework.
         ///
@@ -1392,7 +1392,7 @@ pub mod utils {
             *last_failure = Some(Instant::now());
         }
 
-        /// **reset_failures**
+        /// **`reset_failures`**
         ///
         /// This function provides reset failures functionality within the Yoshi error handling framework.
         ///
@@ -1448,7 +1448,7 @@ pub mod examples {
             Ok(user_id)
         }
 
-        /// **validate_email**
+        /// **`validate_email`**
         ///
         /// This function provides email functionality within the Yoshi error handling framework.
         ///
@@ -1467,7 +1467,7 @@ pub mod examples {
             Ok(())
         }
 
-        /// **validate_password**
+        /// **`validate_password`**
         ///
         /// This function provides password functionality within the Yoshi error handling framework.
         ///
@@ -1486,7 +1486,7 @@ pub mod examples {
             Ok(())
         }
 
-        /// **validate_name**
+        /// **`validate_name`**
         ///
         /// This function provides name functionality within the Yoshi error handling framework.
         ///
@@ -1500,7 +1500,7 @@ pub mod examples {
             Ok(())
         }
 
-        /// **user_exists**
+        /// **`user_exists`**
         ///
         /// This function provides user exists functionality within the Yoshi error handling framework.
         ///
@@ -1540,7 +1540,7 @@ pub mod examples {
             Ok(exists)
         }
 
-        /// **create_user_transaction**
+        /// **`create_user_transaction`**
         ///
         /// This function provides user transaction functionality within the Yoshi error handling framework.
         ///
@@ -1591,7 +1591,7 @@ pub mod examples {
             Ok(UserId(user_id))
         }
 
-        /// **send_welcome_email**
+        /// **`send_welcome_email`**
         ///
         /// This function provides send welcome email functionality within the Yoshi error handling
         /// framework.
@@ -1681,7 +1681,7 @@ pub mod examples {
             Ok(report)
         }
 
-        /// **process_single_file**
+        /// **`process_single_file`**
         ///
         /// This function provides process single file functionality within the Yoshi error handling
         /// framework.
@@ -1708,7 +1708,7 @@ pub mod examples {
             Ok(())
         }
 
-        /// **process_content**
+        /// **`process_content`**
         ///
         /// This function provides process content functionality within the Yoshi error handling framework.
         ///
@@ -1860,7 +1860,7 @@ pub mod quick_start {
         Ok(())
     }
 
-    /// **load_application_config**
+    /// **`load_application_config`**
     ///
     /// This function provides load application config functionality within the Yoshi error handling
     /// framework.
@@ -1884,7 +1884,7 @@ pub mod quick_start {
         })
     }
 
-    /// **start_web_server**
+    /// **`start_web_server`**
     ///
     /// This function provides start web server functionality within the Yoshi error handling framework.
     ///

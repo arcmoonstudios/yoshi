@@ -1,4 +1,4 @@
-//! **Comprehensive tests for ClippyFixEngine**
+//! **Comprehensive tests for `ClippyFixEngine`**
 //!
 //! Tests the integration of official Clippy documentation with our
 //! yoshi-derive capabilities for automated code fixing.
@@ -16,8 +16,7 @@ async fn test_clippy_fix_engine_comprehensive() {
     let result = test_clippy_fix_engine();
     assert!(
         result.is_ok(),
-        "ClippyFixEngine test should pass: {:?}",
-        result
+        "ClippyFixEngine test should pass: {result:?}"
     );
 }
 
@@ -35,8 +34,7 @@ async fn test_uninlined_format_args_fix() {
     // Should convert to inline format
     assert!(
         fixed_code.contains("{name}"),
-        "Should inline the format argument: {}",
-        fixed_code
+        "Should inline the format argument: {fixed_code}"
     );
 }
 
@@ -46,7 +44,7 @@ async fn test_assigning_clones_fix() {
     let mut engine = ClippyFixEngine::new().expect("Failed to create ClippyFixEngine");
 
     // Test the specific pattern from yoFixME.txt
-    let test_code = r#"target = source.clone();"#;
+    let test_code = r"target = source.clone();";
     let fixed_code = engine
         .apply_clippy_fixes(test_code)
         .expect("Failed to apply fixes");
@@ -54,8 +52,7 @@ async fn test_assigning_clones_fix() {
     // Should convert to clone_from
     assert!(
         fixed_code.contains("clone_from"),
-        "Should use clone_from instead of clone: {}",
-        fixed_code
+        "Should use clone_from instead of clone: {fixed_code}"
     );
 }
 
@@ -65,7 +62,7 @@ async fn test_redundant_closure_fix() {
     let mut engine = ClippyFixEngine::new().expect("Failed to create ClippyFixEngine");
 
     // Test the specific pattern from yoFixME.txt
-    let test_code = r#".map(|s| s.to_string())"#;
+    let test_code = r".map(|s| s.to_string())";
     let fixed_code = engine
         .apply_clippy_fixes(test_code)
         .expect("Failed to apply fixes");
@@ -73,8 +70,7 @@ async fn test_redundant_closure_fix() {
     // Should convert to method reference
     assert!(
         fixed_code.contains("ToString::to_string"),
-        "Should use method reference: {}",
-        fixed_code
+        "Should use method reference: {fixed_code}"
     );
 }
 
@@ -84,7 +80,7 @@ async fn test_indexing_slicing_safety() {
     let mut engine = ClippyFixEngine::new().expect("Failed to create ClippyFixEngine");
 
     // Test the safety-critical pattern from yoFixME.txt
-    let test_code = r#"lines[issue.line_number - 1] = value;"#;
+    let test_code = r"lines[issue.line_number - 1] = value;";
     let fixed_code = engine
         .apply_clippy_fixes(test_code)
         .expect("Failed to apply fixes");
@@ -92,8 +88,7 @@ async fn test_indexing_slicing_safety() {
     // Should use safe indexing
     assert!(
         fixed_code.contains("get_mut") || fixed_code.contains("if let"),
-        "Should use safe indexing: {}",
-        fixed_code
+        "Should use safe indexing: {fixed_code}"
     );
 }
 
@@ -122,8 +117,7 @@ async fn test_multiple_patterns_integration() {
         fixed_code.contains("{value}")
             || fixed_code.contains("clone_from")
             || fixed_code.contains("ToString::to_string"),
-        "Should apply at least one fix: {}",
-        fixed_code
+        "Should apply at least one fix: {fixed_code}"
     );
 }
 
@@ -139,8 +133,7 @@ async fn test_new_safety_patterns() {
         .expect("Failed to apply bool fixes");
     assert!(
         bool_fixed.contains("if flag {") || !bool_fixed.contains("== true"),
-        "Should fix bool comparison: {}",
-        bool_fixed
+        "Should fix bool comparison: {bool_fixed}"
     );
 
     // Test len_zero pattern
@@ -150,19 +143,17 @@ async fn test_new_safety_patterns() {
         .expect("Failed to apply len fixes");
     assert!(
         len_fixed.contains("is_empty()") || !len_fixed.contains("len() == 0"),
-        "Should fix len zero: {}",
-        len_fixed
+        "Should fix len zero: {len_fixed}"
     );
 
     // Test clone_on_copy pattern
-    let clone_test = r#"let index: usize = 42; let copied = index.clone();"#;
+    let clone_test = r"let index: usize = 42; let copied = index.clone();";
     let clone_fixed = engine
         .apply_clippy_fixes(clone_test)
         .expect("Failed to apply clone fixes");
     assert!(
         clone_fixed.contains("let copied = index;") || !clone_fixed.contains("index.clone()"),
-        "Should fix clone on copy: {}",
-        clone_fixed
+        "Should fix clone on copy: {clone_fixed}"
     );
 
     // Test float_cmp pattern
@@ -172,8 +163,7 @@ async fn test_new_safety_patterns() {
         .expect("Failed to apply float fixes");
     assert!(
         float_fixed.contains("EPSILON") || !float_fixed.contains("a == b"),
-        "Should fix float comparison: {}",
-        float_fixed
+        "Should fix float comparison: {float_fixed}"
     );
 }
 

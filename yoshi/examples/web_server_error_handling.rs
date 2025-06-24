@@ -497,7 +497,7 @@ impl WebServer {
         }
     }
 
-/// **process_authenticated_request**
+/// **`process_authenticated_request`**
 ///
 /// This function provides process authenticated request functionality within the Yoshi error
 /// handling framework.
@@ -520,7 +520,7 @@ impl WebServer {
         }
     }
 
-/// **process_public_request**
+/// **`process_public_request`**
 ///
 /// This function provides process public request functionality within the Yoshi error handling
 /// framework.
@@ -542,7 +542,7 @@ impl WebServer {
         }
     }
 
-/// **get_users**
+/// **`get_users`**
 ///
 /// This function provides users functionality within the Yoshi error handling framework.
 ///
@@ -561,7 +561,7 @@ impl WebServer {
         })
     }
 
-/// **get_user_data**
+/// **`get_user_data`**
 ///
 /// This function provides user data functionality within the Yoshi error handling framework.
 ///
@@ -587,7 +587,7 @@ impl WebServer {
         })
     }
 
-/// **handle_login**
+/// **`handle_login`**
 ///
 /// This function provides handle login functionality within the Yoshi error handling framework.
 ///

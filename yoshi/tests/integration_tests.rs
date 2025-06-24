@@ -26,7 +26,7 @@ use yoshi_std::io_error_to_yoshi;
 //--------------------------------------------------------------------------------------------------
 
 #[test]
-/// **test_yoshi_crate_basic_functionality**
+/// **`test_yoshi_crate_basic_functionality`**
 ///
 /// This function provides test yoshi crate basic functionality functionality within the Yoshi error
 /// handling framework.
@@ -51,7 +51,7 @@ fn test_yoshi_crate_basic_functionality() {
 }
 
 #[test]
-/// **test_comprehensive_error_handling**
+/// **`test_comprehensive_error_handling`**
 ///
 /// This function provides test comprehensive error handling functionality within the Yoshi error
 /// handling framework.
@@ -95,7 +95,7 @@ fn test_comprehensive_error_handling() {
 }
 
 #[test]
-/// **test_io_error_integration**
+/// **`test_io_error_integration`**
 ///
 /// This function provides test io error integration functionality within the Yoshi error handling
 /// framework.
@@ -119,7 +119,7 @@ fn test_io_error_integration() {
 }
 
 #[test]
-/// **test_type_alias_ergonomics**
+/// **`test_type_alias_ergonomics`**
 ///
 /// This function provides test type alias ergonomics functionality within the Yoshi error handling
 /// framework.
@@ -128,7 +128,7 @@ fn test_io_error_integration() {
 ///
 /// Returns an error if the operation fails due to invalid input or system constraints.
 fn test_type_alias_ergonomics() {
-/// **returns_success**
+/// **`returns_success`**
 ///
 /// This function provides returns success functionality within the Yoshi error handling framework.
 ///
@@ -139,7 +139,7 @@ fn test_type_alias_ergonomics() {
         "integration_success".to_string()
     }
 
-/// **returns_error**
+/// **`returns_error`**
 ///
 /// This function provides returns error functionality within the Yoshi error handling framework.
 ///
@@ -163,7 +163,7 @@ fn test_type_alias_ergonomics() {
 //--------------------------------------------------------------------------------------------------
 
 #[test]
-/// **test_error_boundary_validation**
+/// **`test_error_boundary_validation`**
 ///
 /// This function provides test error boundary validation functionality within the Yoshi error
 /// handling framework.
@@ -173,7 +173,7 @@ fn test_type_alias_ergonomics() {
 /// Returns an error if the operation fails due to invalid input or system constraints.
 fn test_error_boundary_validation() {
     // Test error propagation through multiple layers
-/// **level_3**
+/// **`level_3`**
 ///
 /// This function provides level 3 functionality within the Yoshi error handling framework.
 ///
@@ -191,7 +191,7 @@ fn test_error_boundary_validation() {
         )
     }
 
-/// **level_2**
+/// **`level_2`**
 ///
 /// This function provides level 2 functionality within the Yoshi error handling framework.
 ///
@@ -202,7 +202,7 @@ fn test_error_boundary_validation() {
         HatchExt::context(level_3(), "Level 2: Business logic")
     }
 
-/// **level_1**
+/// **`level_1`**
 ///
 /// This function provides level 1 functionality within the Yoshi error handling framework.
 ///
@@ -223,7 +223,7 @@ fn test_error_boundary_validation() {
 }
 
 #[test]
-/// **test_graceful_degradation**
+/// **`test_graceful_degradation`**
 ///
 /// This function provides test graceful degradation functionality within the Yoshi error handling
 /// framework.
@@ -270,7 +270,7 @@ fn test_graceful_degradation() {
 //--------------------------------------------------------------------------------------------------
 
 #[test]
-/// **test_error_creation_performance**
+/// **`test_error_creation_performance`**
 ///
 /// This function provides test error creation performance functionality within the Yoshi error
 /// handling framework.
@@ -299,7 +299,7 @@ fn test_error_creation_performance() {
 }
 
 #[test]
-/// **test_memory_efficiency**
+/// **`test_memory_efficiency`**
 ///
 /// This function provides test memory efficiency functionality within the Yoshi error handling
 /// framework.
@@ -325,7 +325,7 @@ fn test_memory_efficiency() {
 //--------------------------------------------------------------------------------------------------
 
 #[test]
-/// **test_api_stability**
+/// **`test_api_stability`**
 ///
 /// This function provides test api stability functionality within the Yoshi error handling
 /// framework.
@@ -351,7 +351,7 @@ fn test_api_stability() {
 }
 
 #[test]
-/// **test_end_to_end_workflow**
+/// **`test_end_to_end_workflow`**
 ///
 /// This function provides test end to end workflow functionality within the Yoshi error handling
 /// framework.
@@ -384,7 +384,7 @@ fn test_end_to_end_workflow() {
     }
 }
 
-/// **simulate_complex_operation**
+/// **`simulate_complex_operation`**
 ///
 /// This function provides simulate complex operation functionality within the Yoshi error handling
 /// framework.
@@ -406,7 +406,7 @@ fn simulate_complex_operation() -> Result<String> {
 //--------------------------------------------------------------------------------------------------
 
 #[test]
-/// **test_comprehensive_integration**
+/// **`test_comprehensive_integration`**
 ///
 /// This function provides test comprehensive integration functionality within the Yoshi error
 /// handling framework.

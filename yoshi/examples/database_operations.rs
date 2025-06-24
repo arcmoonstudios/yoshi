@@ -364,7 +364,7 @@ impl DatabasePool {
         Ok(connection_id)
     }
 
-/// **create_connection**
+/// **`create_connection`**
 ///
 /// This function provides connection functionality within the Yoshi error handling framework.
 ///
@@ -392,7 +392,7 @@ impl DatabasePool {
         Ok(connection)
     }
 
-/// **validate_connection**
+/// **`validate_connection`**
 ///
 /// This function provides connection functionality within the Yoshi error handling framework.
 ///
@@ -602,7 +602,7 @@ impl QueryBuilder {
         Ok(())
     }
 
-/// **build_select**
+/// **`build_select`**
 ///
 /// This function provides build select functionality within the Yoshi error handling framework.
 ///
@@ -625,7 +625,7 @@ impl QueryBuilder {
         Ok(query)
     }
 
-/// **build_insert**
+/// **`build_insert`**
 ///
 /// This function provides build insert functionality within the Yoshi error handling framework.
 ///
@@ -653,7 +653,7 @@ impl QueryBuilder {
         ))
     }
 
-/// **build_update**
+/// **`build_update`**
 ///
 /// This function provides build update functionality within the Yoshi error handling framework.
 ///
@@ -685,7 +685,7 @@ impl QueryBuilder {
         Ok(query)
     }
 
-/// **build_delete**
+/// **`build_delete`**
 ///
 /// This function provides build delete functionality within the Yoshi error handling framework.
 ///

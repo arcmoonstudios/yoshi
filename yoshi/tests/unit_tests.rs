@@ -25,7 +25,7 @@ use yoshi::*;
 //--------------------------------------------------------------------------------------------------
 
 #[test]
-/// **test_yoshi_error_creation**
+/// **`test_yoshi_error_creation`**
 ///
 /// This function provides test yoshi error creation functionality within the Yoshi error handling
 /// framework.
@@ -48,7 +48,7 @@ fn test_yoshi_error_creation() {
 }
 
 #[test]
-/// **test_yoshi_kind_variants**
+/// **`test_yoshi_kind_variants`**
 ///
 /// This function provides test yoshi kind variants functionality within the Yoshi error handling
 /// framework.
@@ -71,7 +71,7 @@ fn test_yoshi_kind_variants() {
 }
 
 #[test]
-/// **test_result_type_alias**
+/// **`test_result_type_alias`**
 ///
 /// This function provides test result type alias functionality within the Yoshi error handling
 /// framework.
@@ -80,7 +80,7 @@ fn test_yoshi_kind_variants() {
 ///
 /// Returns an error if the operation fails due to invalid input or system constraints.
 fn test_result_type_alias() {
-/// **success_function**
+/// **`success_function`**
 ///
 /// This function provides success function functionality within the Yoshi error handling framework.
 ///
@@ -91,7 +91,7 @@ fn test_result_type_alias() {
         42
     }
 
-/// **error_function**
+/// **`error_function`**
 ///
 /// This function provides error function functionality within the Yoshi error handling framework.
 ///
@@ -115,7 +115,7 @@ fn test_result_type_alias() {
 //--------------------------------------------------------------------------------------------------
 
 #[test]
-/// **test_error_instance_uniqueness**
+/// **`test_error_instance_uniqueness`**
 ///
 /// This function provides test error instance uniqueness functionality within the Yoshi error
 /// handling framework.
@@ -146,7 +146,7 @@ fn test_error_instance_uniqueness() {
 }
 
 #[test]
-/// **test_error_severity_consistency**
+/// **`test_error_severity_consistency`**
 ///
 /// This function provides test error severity consistency functionality within the Yoshi error
 /// handling framework.
@@ -167,7 +167,7 @@ fn test_error_severity_consistency() {
 }
 
 #[test]
-/// **test_error_transient_property**
+/// **`test_error_transient_property`**
 ///
 /// This function provides test error transient property functionality within the Yoshi error
 /// handling framework.
@@ -191,7 +191,7 @@ fn test_error_transient_property() {
 //--------------------------------------------------------------------------------------------------
 
 #[test]
-/// **test_empty_message_handling**
+/// **`test_empty_message_handling`**
 ///
 /// This function provides test empty message handling functionality within the Yoshi error handling
 /// framework.
@@ -212,7 +212,7 @@ fn test_empty_message_handling() {
 }
 
 #[test]
-/// **test_none_component_handling**
+/// **`test_none_component_handling`**
 ///
 /// This function provides test none component handling functionality within the Yoshi error
 /// handling framework.
@@ -234,7 +234,7 @@ fn test_none_component_handling() {
 }
 
 #[test]
-/// **test_long_message_handling**
+/// **`test_long_message_handling`**
 ///
 /// This function provides test long message handling functionality within the Yoshi error handling
 /// framework.
@@ -257,7 +257,7 @@ fn test_long_message_handling() {
 }
 
 #[test]
-/// **test_special_characters_in_message**
+/// **`test_special_characters_in_message`**
 ///
 /// This function provides test special characters in message functionality within the Yoshi error
 /// handling framework.
@@ -283,7 +283,7 @@ fn test_special_characters_in_message() {
 //--------------------------------------------------------------------------------------------------
 
 #[test]
-/// **test_error_immutability**
+/// **`test_error_immutability`**
 ///
 /// This function provides test error immutability functionality within the Yoshi error handling
 /// framework.
@@ -314,7 +314,7 @@ fn test_error_immutability() {
 }
 
 #[test]
-/// **test_error_cloning**
+/// **`test_error_cloning`**
 ///
 /// This function provides test error cloning functionality within the Yoshi error handling
 /// framework.
@@ -343,7 +343,7 @@ fn test_error_cloning() {
 //--------------------------------------------------------------------------------------------------
 
 #[test]
-/// **test_error_memory_safety**
+/// **`test_error_memory_safety`**
 ///
 /// This function provides test error memory safety functionality within the Yoshi error handling
 /// framework.
@@ -373,7 +373,7 @@ fn test_error_memory_safety() {
 }
 
 #[test]
-/// **test_concurrent_error_creation**
+/// **`test_concurrent_error_creation`**
 ///
 /// This function provides test concurrent error creation functionality within the Yoshi error
 /// handling framework.
@@ -418,7 +418,7 @@ fn test_concurrent_error_creation() {
 //--------------------------------------------------------------------------------------------------
 
 #[test]
-/// **test_comprehensive_unit_validation**
+/// **`test_comprehensive_unit_validation`**
 ///
 /// This function provides test comprehensive unit validation functionality within the Yoshi error
 /// handling framework.

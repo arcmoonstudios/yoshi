@@ -116,7 +116,7 @@ pub fn demonstrate_basic_autocorrection() -> Hatch<String> {
     tracing::info!("=== Basic Autocorrection Demonstration ===");
 
     // Pattern: File operation without retry
-    /// **risky_file_operation**
+    /// **`risky_file_operation`**
     ///
     /// This function provides risky file operation functionality within the Yoshi error handling
     /// framework.
@@ -139,7 +139,7 @@ pub fn demonstrate_basic_autocorrection() -> Hatch<String> {
     }
 
     // Pattern: Network call without timeout handling
-    /// **risky_network_call**
+    /// **`risky_network_call`**
     ///
     /// This function provides risky network call functionality within the Yoshi error handling
     /// framework.
@@ -165,7 +165,7 @@ pub fn demonstrate_basic_autocorrection() -> Hatch<String> {
     }
 
     // Pattern: Resource usage without monitoring
-    /// **risky_resource_usage**
+    /// **`risky_resource_usage`**
     ///
     /// This function provides risky resource usage functionality within the Yoshi error handling
     /// framework.
@@ -242,7 +242,7 @@ pub fn demonstrate_advanced_autocorrection() -> Hatch<AutocorrectionReport> {
 
     // Complex patterns for future yoshi_af! analysis
     // Pattern: Distributed transaction without compensation
-    /// **distributed_transaction**
+    /// **`distributed_transaction`**
     ///
     /// This function provides distributed transaction functionality within the Yoshi error handling
     /// framework.
@@ -265,7 +265,7 @@ pub fn demonstrate_advanced_autocorrection() -> Hatch<AutocorrectionReport> {
     }
 
     // Pattern: Concurrent operations without proper synchronization
-    /// **concurrent_operations**
+    /// **`concurrent_operations`**
     ///
     /// This function provides concurrent operations functionality within the Yoshi error handling
     /// framework.
@@ -287,7 +287,7 @@ pub fn demonstrate_advanced_autocorrection() -> Hatch<AutocorrectionReport> {
     }
 
     // Pattern: Resource cleanup without RAII
-    /// **resource_management**
+    /// **`resource_management`**
     ///
     /// This function provides resource management functionality within the Yoshi error handling
     /// framework.
@@ -381,7 +381,7 @@ pub fn demonstrate_realworld_autocorrection() -> Hatch<()> {
     tracing::info!("\n=== Real-World Autocorrection Demonstration ===");
 
     // Real-world patterns for future yoshi_af! analysis
-    /// **database_operations**
+    /// **`database_operations`**
     ///
     /// This function provides database operations functionality within the Yoshi error handling
     /// framework.
@@ -408,7 +408,7 @@ pub fn demonstrate_realworld_autocorrection() -> Hatch<()> {
         Ok(results)
     }
 
-    /// **web_service_handler**
+    /// **`web_service_handler`**
     ///
     /// This function provides web service handler functionality within the Yoshi error handling
     /// framework.

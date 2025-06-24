@@ -8,16 +8,16 @@ fn main() -> Hatch<()> {
     
     // Test message-based error creation
     let err = yopost!(message: "Something went wrong");
-    println!("Message error: {}", err);
+    println!("Message error: {err}");
     
     // Test formatted message
     let err = yopost!(message: "Failed to load {}", "config.toml");
-    println!("Formatted error: {}", err);
+    println!("Formatted error: {err}");
     
     // Test error wrapping
     let io_err = std::io::Error::new(std::io::ErrorKind::NotFound, "file not found");
     let err = yopost!(error: io_err);
-    println!("Wrapped error: {}", err);
+    println!("Wrapped error: {err}");
     
     println!("✅ All yopost! macro tests passed!");
     Ok(())
