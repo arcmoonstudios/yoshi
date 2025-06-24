@@ -26,6 +26,14 @@ use yoshi_std::io_error_to_yoshi;
 //--------------------------------------------------------------------------------------------------
 
 #[test]
+/// **test_yoshi_crate_basic_functionality**
+///
+/// This function provides test yoshi crate basic functionality functionality within the Yoshi error
+/// handling framework.
+///
+/// # Errors
+///
+/// Returns an error if the operation fails due to invalid input or system constraints.
 fn test_yoshi_crate_basic_functionality() {
     // Test that the main yoshi crate exports all necessary components
     let _result: Result<String> = Ok("test".to_string());
@@ -43,6 +51,14 @@ fn test_yoshi_crate_basic_functionality() {
 }
 
 #[test]
+/// **test_comprehensive_error_handling**
+///
+/// This function provides test comprehensive error handling functionality within the Yoshi error
+/// handling framework.
+///
+/// # Errors
+///
+/// Returns an error if the operation fails due to invalid input or system constraints.
 fn test_comprehensive_error_handling() {
     // Test the full error handling pipeline
     // Use AnyError for compatibility with anyhow-style error handling
@@ -79,6 +95,14 @@ fn test_comprehensive_error_handling() {
 }
 
 #[test]
+/// **test_io_error_integration**
+///
+/// This function provides test io error integration functionality within the Yoshi error handling
+/// framework.
+///
+/// # Errors
+///
+/// Returns an error if the operation fails due to invalid input or system constraints.
 fn test_io_error_integration() {
     use std::io::{self, ErrorKind};
 
@@ -95,11 +119,33 @@ fn test_io_error_integration() {
 }
 
 #[test]
+/// **test_type_alias_ergonomics**
+///
+/// This function provides test type alias ergonomics functionality within the Yoshi error handling
+/// framework.
+///
+/// # Errors
+///
+/// Returns an error if the operation fails due to invalid input or system constraints.
 fn test_type_alias_ergonomics() {
+/// **returns_success**
+///
+/// This function provides returns success functionality within the Yoshi error handling framework.
+///
+/// # Errors
+///
+/// Returns an error if the operation fails due to invalid input or system constraints.
     fn returns_success() -> String {
         "integration_success".to_string()
     }
 
+/// **returns_error**
+///
+/// This function provides returns error functionality within the Yoshi error handling framework.
+///
+/// # Errors
+///
+/// Returns an error if the operation fails due to invalid input or system constraints.
     fn returns_error() -> Result<i32> {
         Err(AnyError::from(Yoshi::new(YoshiKind::Internal {
             message: "Integration test error".into(),
@@ -117,8 +163,23 @@ fn test_type_alias_ergonomics() {
 //--------------------------------------------------------------------------------------------------
 
 #[test]
+/// **test_error_boundary_validation**
+///
+/// This function provides test error boundary validation functionality within the Yoshi error
+/// handling framework.
+///
+/// # Errors
+///
+/// Returns an error if the operation fails due to invalid input or system constraints.
 fn test_error_boundary_validation() {
     // Test error propagation through multiple layers
+/// **level_3**
+///
+/// This function provides level 3 functionality within the Yoshi error handling framework.
+///
+/// # Errors
+///
+/// Returns an error if the operation fails due to invalid input or system constraints.
     fn level_3() -> std::result::Result<String, AnyError> {
         HatchExt::context(
             Err(AnyError::from(Yoshi::new(YoshiKind::Internal {
@@ -130,10 +191,24 @@ fn test_error_boundary_validation() {
         )
     }
 
+/// **level_2**
+///
+/// This function provides level 2 functionality within the Yoshi error handling framework.
+///
+/// # Errors
+///
+/// Returns an error if the operation fails due to invalid input or system constraints.
     fn level_2() -> std::result::Result<String, AnyError> {
         HatchExt::context(level_3(), "Level 2: Business logic")
     }
 
+/// **level_1**
+///
+/// This function provides level 1 functionality within the Yoshi error handling framework.
+///
+/// # Errors
+///
+/// Returns an error if the operation fails due to invalid input or system constraints.
     fn level_1() -> std::result::Result<String, AnyError> {
         HatchExt::context(level_2(), "Level 1: API layer")
     }
@@ -148,6 +223,14 @@ fn test_error_boundary_validation() {
 }
 
 #[test]
+/// **test_graceful_degradation**
+///
+/// This function provides test graceful degradation functionality within the Yoshi error handling
+/// framework.
+///
+/// # Errors
+///
+/// Returns an error if the operation fails due to invalid input or system constraints.
 fn test_graceful_degradation() {
     // Test that errors don't cause panics
     let operations = [
@@ -187,6 +270,14 @@ fn test_graceful_degradation() {
 //--------------------------------------------------------------------------------------------------
 
 #[test]
+/// **test_error_creation_performance**
+///
+/// This function provides test error creation performance functionality within the Yoshi error
+/// handling framework.
+///
+/// # Errors
+///
+/// Returns an error if the operation fails due to invalid input or system constraints.
 fn test_error_creation_performance() {
     use std::time::Instant;
 
@@ -208,6 +299,14 @@ fn test_error_creation_performance() {
 }
 
 #[test]
+/// **test_memory_efficiency**
+///
+/// This function provides test memory efficiency functionality within the Yoshi error handling
+/// framework.
+///
+/// # Errors
+///
+/// Returns an error if the operation fails due to invalid input or system constraints.
 fn test_memory_efficiency() {
     use std::mem;
 
@@ -226,6 +325,14 @@ fn test_memory_efficiency() {
 //--------------------------------------------------------------------------------------------------
 
 #[test]
+/// **test_api_stability**
+///
+/// This function provides test api stability functionality within the Yoshi error handling
+/// framework.
+///
+/// # Errors
+///
+/// Returns an error if the operation fails due to invalid input or system constraints.
 fn test_api_stability() {
     // Test that core API remains stable
     let error = Yoshi::new(YoshiKind::Internal {
@@ -244,6 +351,14 @@ fn test_api_stability() {
 }
 
 #[test]
+/// **test_end_to_end_workflow**
+///
+/// This function provides test end to end workflow functionality within the Yoshi error handling
+/// framework.
+///
+/// # Errors
+///
+/// Returns an error if the operation fails due to invalid input or system constraints.
 fn test_end_to_end_workflow() {
     // Simulate a complete error handling workflow
     let result = HatchExt::context(
@@ -269,6 +384,14 @@ fn test_end_to_end_workflow() {
     }
 }
 
+/// **simulate_complex_operation**
+///
+/// This function provides simulate complex operation functionality within the Yoshi error handling
+/// framework.
+///
+/// # Errors
+///
+/// Returns an error if the operation fails due to invalid input or system constraints.
 fn simulate_complex_operation() -> Result<String> {
     // Simulate a complex operation that might fail
     Err(AnyError::from(Yoshi::new(YoshiKind::Internal {
@@ -283,6 +406,14 @@ fn simulate_complex_operation() -> Result<String> {
 //--------------------------------------------------------------------------------------------------
 
 #[test]
+/// **test_comprehensive_integration**
+///
+/// This function provides test comprehensive integration functionality within the Yoshi error
+/// handling framework.
+///
+/// # Errors
+///
+/// Returns an error if the operation fails due to invalid input or system constraints.
 fn test_comprehensive_integration() {
     // Test all major components working together
     let errors = vec![

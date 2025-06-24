@@ -4,9 +4,9 @@ One of Yoshi's most powerful features is the ability to attach rich contextual i
 
 ## Adding Metadata to Errors
 
-### Using the `yoshi!` Macro
+### Using the `yopost!` Macro
 
-The most common way to add metadata is using the `yoshi!` macro with structured error kinds:
+The most common way to add metadata is using the `yopost!` macro with structured error kinds:
 
 ```rust
 use yoshi::*;
@@ -14,7 +14,7 @@ use yoshi::*;
 fn validate_user(user_id: u64, role: &str) -> Hatch<()> {
     // Add metadata using structured YoshiKind
     if role == "guest" {
-        return Err(yoshi!(kind: YoshiKind::Validation {
+        return Err(yopost!(kind: YoshiKind::Validation {
             field: "role".into(),
             message: "Insufficient permissions".into(),
             expected: Some("admin".into()),
@@ -38,9 +38,9 @@ use yoshi::*;
 fn fetch_data(url: &str) -> Hatch<Data> {
     let response = make_request(url).map_err(|e| {
         // Create base error and add metadata
-        yoshi!(kind: YoshiKind::Network {
+        yopost!(kind: YoshiKind::Network {
             message: "Failed to fetch data".into(),
-            source: Some(Box::new(yoshi!(error: e))),
+            source: Some(Box::new(yopost!(error: e))),
             error_code: None,
         })
         .with_metadata("url", url)
@@ -75,9 +75,9 @@ fn process_batch(items: &[Item]) -> Hatch<BatchResult> {
     }
 
     if !failures.is_empty() {
-        let mut error = yoshi!(kind: YoshiKind::Multiple {
+        let mut error = yopost!(kind: YoshiKind::Multiple {
             errors: error_details.into_iter().map(|msg| {
-                yoshi!(message: msg)
+                yopost!(message: msg)
             }).collect(),
             primary_index: Some(0),
         })
@@ -226,7 +226,7 @@ fn complete_example() -> Hatch<String> {
 
 fn risky_operation(user_id: u64) -> Hatch<String> {
     // Simulate a validation error with rich context
-    Err(yoshi!(kind: YoshiKind::Validation {
+    Err(yopost!(kind: YoshiKind::Validation {
         field: "user_permissions".into(),
         message: "User lacks required permissions".into(),
         expected: Some("admin".into()),

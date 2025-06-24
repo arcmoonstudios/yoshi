@@ -35,7 +35,7 @@ cargo bench -p yoshi-benches
 
 ## Detailed Results
 
-### Error Creation (yoshi! macro)
+### Error Creation (yopost! macro)
 
 ```md
 yoshi_message   time:   [~400 ns] - Simple message-based errors
@@ -92,7 +92,7 @@ use yoshi::*;
 // For hot paths, use simple message-based errors
 fn hot_path_validation() -> Hatch<()> {
     if invalid_condition() {
-        return Err(yoshi!(message: "Validation failed"));
+        return Err(yopost!(message: "Validation failed"));
     }
     Ok(())
 }
@@ -100,9 +100,9 @@ fn hot_path_validation() -> Hatch<()> {
 // For complex scenarios, use structured errors
 fn complex_operation() -> Hatch<Data> {
     database_query()
-        .map_err(|e| yoshi!(kind: YoshiKind::Network {
+        .map_err(|e| yopost!(kind: YoshiKind::Network {
             message: "Database connection failed".into(),
-            source: Some(Box::new(yoshi!(error: e))),
+            source: Some(Box::new(yopost!(error: e))),
             error_code: Some(503),
         })
         .with_metadata("retry_count", "3")
@@ -168,7 +168,7 @@ fn process_batch_efficiently(items: &[Item]) -> Hatch<Vec<ProcessedItem>> {
     }
 
     if !errors.is_empty() {
-        return Err(yoshi!(kind: YoshiKind::Multiple {
+        return Err(yopost!(kind: YoshiKind::Multiple {
             errors: errors.into_iter().map(|(_, e)| e).collect(),
             primary_index: Some(0),
         })
@@ -191,7 +191,7 @@ use yoshi::*;
 fn benchmark_error_creation(c: &mut Criterion) {
     c.bench_function("yoshi_error_creation", |b| {
         b.iter(|| {
-            black_box(yoshi!(message: "Test error"))
+            black_box(yopost!(message: "Test error"))
         })
     });
 }

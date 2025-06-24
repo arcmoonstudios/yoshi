@@ -217,13 +217,13 @@ fn test_auto_fixes_validation() {
 
     let fixes = error.auto_fixes();
     assert!(!fixes.is_empty());
-    assert!(fixes.first().unwrap().description.contains("Expected"));
-    assert!(fixes
-        .first()
-        .unwrap()
-        .description
-        .contains("user@domain.com"));
-    assert!(fixes.first().unwrap().description.contains("invalid-email"));
+    if let Some(first_fix) = fixes.first() {
+        assert!(first_fix.description.contains("Expected"));
+        assert!(first_fix.description.contains("user@domain.com"));
+        assert!(first_fix.description.contains("invalid-email"));
+    } else {
+        panic!("fixes should not be empty");
+    }
 }
 
 #[test]
@@ -236,9 +236,13 @@ fn test_auto_fixes_not_found() {
 
     let fixes = error.auto_fixes();
     assert!(!fixes.is_empty());
-    assert!(fixes.first().unwrap().description.contains("Resource"));
-    assert!(fixes.first().unwrap().description.contains("missing.txt"));
-    assert!(fixes.first().unwrap().description.contains("file"));
+    if let Some(first_fix) = fixes.first() {
+        assert!(first_fix.description.contains("Resource"));
+        assert!(first_fix.description.contains("missing.txt"));
+        assert!(first_fix.description.contains("file"));
+    } else {
+        panic!("fixes should not be empty");
+    }
 }
 
 #[test]
@@ -251,11 +255,11 @@ fn test_auto_fixes_generic() {
 
     let fixes = error.auto_fixes();
     assert!(!fixes.is_empty());
-    assert!(fixes
-        .first()
-        .unwrap()
-        .description
-        .contains("Check the error details"));
+    if let Some(first_fix) = fixes.first() {
+        assert!(first_fix.description.contains("Check the error details"));
+    } else {
+        panic!("fixes should not be empty");
+    }
 }
 
 #[test]

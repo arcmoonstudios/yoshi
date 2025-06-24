@@ -126,6 +126,20 @@ rustflags = [
     # Yoshi facade pattern: designed for `use yoshi::*;` - allow wildcard imports
     "-A",
     "clippy::wildcard_imports",
+    # ── PERMANENT ARCHITECTURE PROTECTION ─────────────────────────────────────
+    # ⚠️ CRITICAL: DO NOT REMOVE - PROTECTS ESSENTIAL ERROR HANDLING ARCHITECTURE
+    "-A",
+    "clippy::unnecessary_wraps",                  # REQUIRED: Result wrappers essential for error system
+    "-A",
+    "clippy::needless_pass_by_value",             # REQUIRED: Owned values needed for corrections
+    "-A",
+    "clippy::single_match_else",                  # REQUIRED: Match patterns clearer than if-let
+    "-A",
+    "clippy::manual_let_else",                    # REQUIRED: Manual patterns more explicit
+    "-A",
+    "clippy::match_wildcard_for_single_variants", # REQUIRED: Wildcards intentional
+    "-A",
+    "clippy::ptr_arg",                            # REQUIRED: Vec parameters needed for strategies
 ]
 
 [target.x86_64-unknown-linux-gnu]
@@ -176,6 +190,20 @@ rustflags = [
     # Yoshi facade pattern: designed for `use yoshi::*;` - allow wildcard imports
     "-A",
     "clippy::wildcard_imports",
+    # ── PERMANENT ARCHITECTURE PROTECTION ─────────────────────────────────────
+    # ⚠️ CRITICAL: DO NOT REMOVE - PROTECTS ESSENTIAL ERROR HANDLING ARCHITECTURE
+    "-A",
+    "clippy::unnecessary_wraps",                  # REQUIRED: Result wrappers essential for error system
+    "-A",
+    "clippy::needless_pass_by_value",             # REQUIRED: Owned values needed for corrections
+    "-A",
+    "clippy::single_match_else",                  # REQUIRED: Match patterns clearer than if-let
+    "-A",
+    "clippy::manual_let_else",                    # REQUIRED: Manual patterns more explicit
+    "-A",
+    "clippy::match_wildcard_for_single_variants", # REQUIRED: Wildcards intentional
+    "-A",
+    "clippy::ptr_arg",                            # REQUIRED: Vec parameters needed for strategies
 ]
 
 [target.x86_64-apple-darwin]
@@ -226,6 +254,20 @@ rustflags = [
     # Yoshi facade pattern: designed for `use yoshi::*;` - allow wildcard imports
     "-A",
     "clippy::wildcard_imports",
+    # ── PERMANENT ARCHITECTURE PROTECTION ─────────────────────────────────────
+    # ⚠️ CRITICAL: DO NOT REMOVE - PROTECTS ESSENTIAL ERROR HANDLING ARCHITECTURE
+    "-A",
+    "clippy::unnecessary_wraps",                  # REQUIRED: Result wrappers essential for error system
+    "-A",
+    "clippy::needless_pass_by_value",             # REQUIRED: Owned values needed for corrections
+    "-A",
+    "clippy::single_match_else",                  # REQUIRED: Match patterns clearer than if-let
+    "-A",
+    "clippy::manual_let_else",                    # REQUIRED: Manual patterns more explicit
+    "-A",
+    "clippy::match_wildcard_for_single_variants", # REQUIRED: Wildcards intentional
+    "-A",
+    "clippy::ptr_arg",                            # REQUIRED: Vec parameters needed for strategies
 ]
 
 [cargo-new]

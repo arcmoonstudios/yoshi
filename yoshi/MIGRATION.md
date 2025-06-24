@@ -132,7 +132,7 @@ fn advanced_processing(data: &[u8]) -> Hatch<ProcessedData> {
 
     // Advanced error creation
     if data.is_empty() {
-        return Err(yoshi!(
+        return Err(yopost!(
             message: "Empty data provided",
             with_signpost = "Provide non-empty data for processing",
             with_metadata = ("operation", "data_validation")

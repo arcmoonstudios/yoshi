@@ -3,6 +3,7 @@
 #![warn(missing_docs)]
 #![deny(clippy::unwrap_used)]
 #![deny(clippy::expect_used)]
+#![allow(clippy::assertions_on_constants)]
 //! **Brief:** Elite auto-correction capability testing for `yoshi_af`! macro with comprehensive validation.
 // ~=####====A===r===c===M===o===o===n====S===t===u===d===i===o===s====X|0|$>
 //! + Auto-correction engine validation with pattern detection algorithms

@@ -450,7 +450,7 @@ fn test_memory_efficiency() {
 
     // Basic size checks
     let small_size = mem::size_of::<SizeTestError>();
-    println!("SizeTestError size: {small_size} bytes");
+    tracing::info!("SizeTestError size: {small_size} bytes");
 
     // Should be reasonably sized (allowing for additional macro-generated fields)
     assert!(small_size <= 128);

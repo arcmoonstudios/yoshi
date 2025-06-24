@@ -118,7 +118,7 @@ Error handling shouldn't be limited by your environment. Whether you're writing 
 
 Since this is the minimal core, some conveniences are in other crates:
 
-- **Macros** (`yoshi!`, `bail!`, etc.) → `yoshi` or `yoshi-std`
+- **Macros** (`yopost!`, `bail!`, etc.) → `yoshi` or `yoshi-std`
 - **Derive support** → `yoshi-derive`
 - **Auto-correction** → `yoshi-deluxe`
 - **Rich formatting** → `yoshi-std`

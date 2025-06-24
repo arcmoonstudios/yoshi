@@ -6,9 +6,20 @@ rust-version = "1.87.0"
 authors = ["Lord Xyn <LordXyn@proton.me>"]
 repository = "https://github.com/arcmoonstudios/yoshi"
 license = "MIT OR Apache-2.0"
-description = "Entry for the Yoshi error framework."
-keywords = ["error", "error-handling", "result", "yoshi", "std-only"]
-categories = ["development-tools", "rust-patterns", "api-bindings"]
+description = "🤖 The Ultimate Yoshi Framework - Error handling, autonomous code fixing, and comprehensive Rust development tools"
+keywords = [
+    "error",
+    "error-handling",
+    "auto-fix",
+    "clippy",
+    "yoshi",
+    "autonomous",
+]
+categories = [
+    "development-tools",
+    "rust-patterns",
+    "development-tools::cargo-plugins",
+]
 
 [dependencies]
 cargo_metadata = { version = "0.18.1", optional = true }
@@ -21,9 +32,11 @@ env_logger = "0.11.5"
 futures = { version = "0.3.31", optional = true }
 indicatif = { version = "0.17.8", optional = true }
 tracing = { version = "0.1.41", optional = true }
+tracing-subscriber = { version = "0.3", optional = true, features = ["fmt"] }
 miette = { version = "7.6.0", optional = true }
 once_cell = { version = "1.21.3", optional = true }
 owo-colors = { version = "4.2.0", optional = true }
+prettyplease = { version = "0.2.25", optional = true }
 quote = { version = "1.0.40", optional = true }
 ratatui = { version = "0.29.0", optional = true }
 regex = { version = "1.11.1", optional = true }
@@ -35,6 +48,7 @@ syn = { version = "2.0.103", optional = true, features = [
     "visit",
     "visit-mut",
 ] }
+tempfile = { version = "3.20.0", optional = true }
 tokio = { version = "1.45.1", optional = true, features = ["full"] }
 uuid = { version = "1.17.0", optional = true, features = ["v4", "serde"] }
 walkdir = { version = "2.5.0", optional = true }
@@ -51,6 +65,7 @@ yoshi-std = { path = "../yoshi-std" }
 [features]
 default = ["full"]
 async = ["dep:tokio", "dep:futures", "rust-1-87"]
+yoshi-af = [] # YoshiAF auto-fix attribute support
 cargo-integration = [
     "dep:cargo_metadata",
     "dep:syn",
@@ -88,6 +103,17 @@ full = [
     "rust-1-87",
     "convenience",
     "cargo-integration",
+    "auto-fix",
+]
+auto-fix = [
+    "dep:walkdir",
+    "dep:regex",
+    "dep:prettyplease",
+    "dep:tempfile",
+    "std",
+    "tracing",
+    "derive",
+    "cargo-integration",
 ]
 performance-monitoring = ["rust-1-87"]
 pipe = ["rust-1-87"]
@@ -96,7 +122,7 @@ rust-1-87 = ["dep:once_cell", "simd-optimized", "precise-capturing"]
 serde = ["dep:serde", "dep:serde_json", "yoshi-std/serde"]
 simd-optimized = ["yoshi-std/simd-optimized"]
 std = ["dep:yoshi-core", "yoshi-std/std"]
-tracing = ["dep:tracing", "yoshi-std/tracing"]
+tracing = ["dep:tracing", "dep:tracing-subscriber", "yoshi-std/tracing"]
 tui = ["dep:ratatui", "dep:crossterm", "dep:owo-colors", "cargo-integration"]
 
 [package.metadata.docs.rs]
@@ -107,6 +133,6 @@ rustdoc-args = ["--cfg", "docsrs"]
 targets = ["x86_64-unknown-linux-gnu"]
 
 [[bin]]
-name = "yum"
+name = "yoshi"
 path = "src/main.rs"
-required-features = ["tracing"]
+required-features = ["tracing", "std"]

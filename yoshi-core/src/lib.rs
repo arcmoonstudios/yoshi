@@ -127,6 +127,12 @@
 // **Contact:** LordXyn@proton.me
 // **Author:** Lord Xyn
 
+//============================================================================
+// SECTION 1: CORE FOUNDATION & IMPORTS
+//============================================================================
+
+// # Yoshi Core - The `no_std` Error Handling Foundation
+
 // No-std compatible imports only
 extern crate alloc;
 
@@ -274,6 +280,10 @@ use serde_helpers::{
     deserialize_arc_str_map, deserialize_arc_str_vec, serialize_arc_str, serialize_arc_str_desc,
     serialize_arc_str_fix, serialize_arc_str_map, serialize_arc_str_vec,
 };
+
+//============================================================================
+// SECTION 2: PERFORMANCE & OPTIMIZATION SYSTEMS
+//============================================================================
 
 //============================================================================
 // PERFORMANCE-CRITICAL STRING OPTIMIZATION SYSTEM
@@ -487,10 +497,6 @@ pub fn reset_error_instance_counter() {
     ERROR_INSTANCE_COUNTER.store(1, Ordering::Relaxed);
 }
 
-//============================================================================
-// NO_STD COMPATIBILITY LAYER
-//============================================================================
-
 /// Enhanced `SystemTime` for `no_std` environments with monotonic counter.
 ///
 /// In `no_std` environments where `std::time::SystemTime` is not available,
@@ -601,7 +607,7 @@ impl SystemTime {
 /// use yoshi_core::ThreadId;
 ///
 /// let thread_id = ThreadId::current();
-/// println!("Current thread: {}", thread_id);
+/// tracing::info!("Current thread: {}", thread_id);
 /// # }
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -853,10 +859,6 @@ impl<T> OnceLock<T> {
     }
 }
 
-//============================================================================
-// CORE ERROR ANALYTICS TYPES (NO-STD COMPATIBLE)
-//============================================================================
-
 /// **Strategy Hash Type**
 ///
 /// 64-bit hash for lock-free strategy identification and lookup.
@@ -979,10 +981,6 @@ pub fn increment_error_counter() {
 pub fn get_error_count() -> usize {
     CORE_ERROR_COUNTER.load(Ordering::Relaxed)
 }
-
-//============================================================================
-// LOCK-FREE HASH-BASED OPERATIONS
-//============================================================================
 
 /// **Fast Hash Function for Lock-Free Operations**
 ///
@@ -1198,6 +1196,10 @@ pub mod YoshiCore {
     #[cfg(feature = "serde")]
     pub use serde::{Deserialize, Deserializer, Serialize, Serializer};
 }
+
+//============================================================================
+// SECTION 3: ERROR CLASSIFICATION & TYPES
+//============================================================================
 
 //============================================================================
 // STRUCTURED ERROR CLASSIFICATION SYSTEM
@@ -2494,7 +2496,7 @@ impl NoStdIo {
     ///
     /// // Verify the conversion worked correctly
     /// match no_std_error {
-    ///     NoStdIo::NotFound => println!("Correctly converted to NotFound"),
+    ///     NoStdIo::NotFound => tracing::info!("Correctly converted to NotFound"),
     ///     _ => panic!("Unexpected conversion result"),
     /// }
     /// # }
@@ -2527,12 +2529,8 @@ impl Display for NoStdIo {
 impl Error for NoStdIo {}
 
 //============================================================================
-// TRUE DYNAMIC ADAPTABILITY - BIDIRECTIONAL HATCH <-> RESULT CONVERSION
+// SECTION 4: CONTEXT & DIAGNOSTIC SYSTEMS
 //============================================================================
-
-// Note: Due to orphan rules, we use trait methods instead of From implementations
-
-// Duplicate HatchExt trait removed - using the original one below with dynamic adaptability extensions
 
 //============================================================================
 // CONTEXT AND LOCATION SYSTEM
@@ -2561,7 +2559,7 @@ impl Error for NoStdIo {}
 ///
 /// // Automatic location capture via macro
 /// let current_loc = yoshi_location!();
-/// println!("Error at: {}", current_loc);
+/// tracing::info!("Error at: {}", current_loc);
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -2677,7 +2675,7 @@ impl Display for YoshiLocation {
 ///
 /// let loc = yoshi_location!();
 /// // The file, line, and column correspond to where yoshi_location!() was called
-/// println!("Error occurred at: {}", loc);
+/// tracing::info!("Error occurred at: {}", loc);
 /// assert!(loc.line > 0);
 /// assert!(loc.column > 0);
 /// ```
@@ -3371,10 +3369,10 @@ impl Clone for Nest {
 /// use yoshi_core::{YoshiBacktrace, yoshi_location};
 ///
 /// let bt = YoshiBacktrace::new_captured();
-/// println!("Backtrace depth: {}", bt.call_depth());
+/// tracing::info!("Backtrace depth: {}", bt.call_depth());
 ///
 /// if let Some(top) = bt.top_location() {
-///     println!("Error location: {}", top);
+///     tracing::info!("Error location: {}", top);
 /// }
 /// # }
 /// ```
@@ -3530,6 +3528,10 @@ pub enum BacktraceStatus {
 }
 
 //============================================================================
+// SECTION 5: MAIN API & CONVERSIONS
+//============================================================================
+
+//============================================================================
 // CORE YOSHI ERROR STRUCTURE
 //============================================================================
 
@@ -3567,7 +3569,7 @@ pub enum BacktraceStatus {
 ///     component: Some("user_service".into()),
 /// });
 ///
-/// println!("Error {}: {}", err.instance_id(), err);
+/// tracing::info!("Error {}: {}", err.instance_id(), err);
 /// ```
 ///
 /// ## Rich Context and Metadata
@@ -3831,7 +3833,7 @@ impl Yoshi {
     /// });
     ///
     /// assert_ne!(err1.instance_id(), err2.instance_id());
-    /// println!("Error IDs: {} and {}", err1.instance_id(), err2.instance_id());
+    /// tracing::info!("Error IDs: {} and {}", err1.instance_id(), err2.instance_id());
     /// ```
     #[inline]
     #[must_use]
@@ -3861,9 +3863,9 @@ impl Yoshi {
     ///
     /// match err.kind() {
     ///     YoshiKind::NotFound { identifier, .. } => {
-    ///         println!("User not found: {}", identifier);
+    ///         tracing::info!("User not found: {}", identifier);
     ///     }
-    ///     _ => println!("Other error type"),
+    ///     _ => tracing::info!("Other error type"),
     /// }
     /// ```
     #[inline]
@@ -3971,7 +3973,7 @@ impl Yoshi {
     /// .nest("During user authentication");
     ///
     /// // Nest chain shows error propagation
-    /// println!("Error: {}", err);
+    /// tracing::error!("Error: {}", err);
     /// ```
     #[track_caller]
     #[inline]
@@ -5108,8 +5110,8 @@ pub type YoshiResult<T> = core::result::Result<T, Yoshi>;
 /// }
 ///
 /// match load_config() {
-///     Ok(config) => println!("Config: {}", config),
-///     Err(error) => println!("Error: {}", error),
+///     Ok(config) => tracing::info!("Config: {}", config),
+///     Err(error) => tracing::error!("Error: {}", error),
 /// }
 /// ```
 pub type Hatch<T> = Result<T, Yoshi>;
@@ -5530,7 +5532,7 @@ impl<T> HatchExt<T> for Hatch<T> {
     }
 }
 
-/// **Implementation for Result<T> (Result<T, AnyError>)**
+/// **Implementation for Result<T> (Result<T, `AnyError`>)**
 impl<T> HatchExt<T> for Result<T> {
     fn to_result(self) -> Result<T> {
         self
@@ -5815,10 +5817,6 @@ impl From<tokio::sync::AcquireError> for Yoshi {
     }
 }
 
-//============================================================================
-// SECTION: MISSING TYPES FOR AUTOFIX FUNCTIONALITY
-//============================================================================
-
 /// Safety classification for auto-fixes
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -6048,7 +6046,7 @@ pub struct ContextualAutofix {
 // Duplicate ErrorRecoveryStrategy removed - using the one defined earlier
 
 //============================================================================
-// ANYERROR - UNIVERSAL ERROR TYPE FOR TRUE DYNAMIC ADAPTABILITY
+// SECTION 6:  ANYERROR - UNIVERSAL ERROR TYPE FOR TRUE DYNAMIC ADAPTABILITY
 //============================================================================
 
 /// **`AnyError` Type - Universal error wrapper for seamless interoperability**
@@ -6326,7 +6324,7 @@ impl<T> DynamicResult<T> {
         matches!(self, Self::Err(_))
     }
 
-    /// Convert to `core::result::Result`<T, AnyError>
+    /// Convert to `core::result::Result`<T, `AnyError`>
     ///
     /// # Errors
     ///
@@ -6362,6 +6360,7 @@ impl<T> DynamicResult<T> {
     }
 
     /// Map the Err value
+    #[must_use]
     pub fn map_err<F>(self, f: F) -> DynamicResult<T>
     where
         F: FnOnce(AnyError) -> AnyError,
@@ -6373,7 +6372,7 @@ impl<T> DynamicResult<T> {
     }
 }
 
-/// **Automatic conversion from core::result::Result<T, Yoshi> to DynamicResult<T>**
+/// **Automatic conversion from `core::result::Result`<T, Yoshi> to `DynamicResult`<T>**
 impl<T> From<core::result::Result<T, Yoshi>> for DynamicResult<T> {
     fn from(result: core::result::Result<T, Yoshi>) -> Self {
         match result {
@@ -6383,7 +6382,7 @@ impl<T> From<core::result::Result<T, Yoshi>> for DynamicResult<T> {
     }
 }
 
-/// **Automatic conversion from core::result::Result<T, AnyError> to DynamicResult<T>**
+/// **Automatic conversion from `core::result::Result`<T, `AnyError`> to `DynamicResult`<T>**
 impl<T> From<core::result::Result<T, AnyError>> for DynamicResult<T> {
     fn from(result: core::result::Result<T, AnyError>) -> Self {
         match result {
@@ -6393,14 +6392,14 @@ impl<T> From<core::result::Result<T, AnyError>> for DynamicResult<T> {
     }
 }
 
-/// **Automatic conversion from DynamicResult<T> to core::result::Result<T, AnyError>**
+/// **Automatic conversion from `DynamicResult`<T> to `core::result::Result`<T, `AnyError`>**
 impl<T> From<DynamicResult<T>> for core::result::Result<T, AnyError> {
     fn from(dynamic: DynamicResult<T>) -> Self {
         dynamic.into_any_error_result()
     }
 }
 
-/// **Automatic conversion from DynamicResult<T> to core::result::Result<T, Yoshi>**
+/// **Automatic conversion from `DynamicResult`<T> to `core::result::Result`<T, Yoshi>**
 impl<T> From<DynamicResult<T>> for core::result::Result<T, Yoshi> {
     fn from(dynamic: DynamicResult<T>) -> Self {
         dynamic.into_yoshi_result()
@@ -6409,10 +6408,14 @@ impl<T> From<DynamicResult<T>> for core::result::Result<T, Yoshi> {
 
 // Note: We can't have a generic implementation due to conflicts with specific implementations above
 
-/// **Universal Result Conversion for any error type that converts to AnyError**
+/// **Universal Result Conversion for any error type that converts to `AnyError`**
 ///
 /// This provides the broadest compatibility - any Result<T, E> where E: Into<AnyError>
-/// can be automatically converted to Result<T, AnyError>.
+/// can be automatically converted to Result<T, `AnyError`>.
+///
+/// # Errors
+///
+/// Returns the original error converted to `AnyError` if the input Result was an Err.
 pub fn into_any_error_result<T, E>(
     result: core::result::Result<T, E>,
 ) -> core::result::Result<T, AnyError>
@@ -6422,9 +6425,13 @@ where
     result.map_err(Into::into)
 }
 
-/// **Universal Result Conversion from AnyError to Yoshi**
+/// **Universal Result Conversion from `AnyError` to Yoshi**
 ///
-/// This enables conversion from AnyError results back to Yoshi results when needed.
+/// This enables conversion from `AnyError` results back to Yoshi results when needed.
+///
+/// # Errors
+///
+/// Returns the original error converted to `Yoshi` if the input Result was an Err.
 pub fn into_yoshi_result<T>(
     result: core::result::Result<T, AnyError>,
 ) -> core::result::Result<T, Yoshi> {
@@ -6433,8 +6440,12 @@ pub fn into_yoshi_result<T>(
 
 /// **Dynamic Error Creation - Automatic conversion from any error type**
 ///
-/// This function enables automatic conversion from any error type to AnyError,
+/// This function enables automatic conversion from any error type to `AnyError`,
 /// providing true dynamic adaptability for Result types.
+///
+/// # Errors
+///
+/// Always returns an Err containing the input error converted to `AnyError`.
 pub fn any_err<T, E>(error: E) -> core::result::Result<T, AnyError>
 where
     E: Into<AnyError>,
@@ -6446,6 +6457,10 @@ where
 ///
 /// This function enables automatic conversion from any error type to Yoshi,
 /// providing compatibility with Yoshi-specific result types.
+///
+/// # Errors
+///
+/// Always returns an Err containing the input error converted to `Yoshi`.
 pub fn yoshi_err<T, E>(error: E) -> core::result::Result<T, Yoshi>
 where
     E: Into<Yoshi>,
@@ -6493,9 +6508,9 @@ impl From<std::fmt::Error> for AnyError {
     }
 }
 
-/// **AnyResult Type - Result with AnyError for dynamic adaptability**
+/// **`AnyResult` Type - Result with `AnyError` for dynamic adaptability**
 ///
-/// This provides a Result type that uses AnyError as the default error type,
+/// This provides a Result type that uses `AnyError` as the default error type,
 /// enabling seamless interoperability with derive macros.
 ///
 /// # Examples
@@ -6520,7 +6535,8 @@ mod tests {
     #[test]
     fn test_anyerror_accessibility() {
         let _err = AnyError::new("test");
-        let _result: AnyResult<()> = Ok(());
+        let result: AnyResult<()> = Ok(());
+        assert!(result.is_ok());
     }
 
     #[test]

@@ -1,0 +1,61 @@
+{
+  "compilerOptions": {
+    // Core Compilation Settings - Optimized for VS Code Extension
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM"],
+    "module": "CommonJS",
+    "moduleResolution": "node",
+
+    // Output Configuration - Enhanced for debugging and deployment
+    "outDir": "out",
+    "rootDir": "src",
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+
+    // Module System Enhancement
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "resolveJsonModule": true,
+
+    // Type Safety Matrix - Advanced Configuration
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitReturns": true,
+    "noImplicitOverride": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "noUncheckedSideEffectImports": true,
+
+    // Performance and Compatibility Optimizations
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "composite": false,
+    "incremental": true,
+    "tsBuildInfoFile": "./out/.tsbuildinfo",
+
+    // VS Code Extension Specific Optimizations
+    "newLine": "lf",
+    "removeComments": false,
+    "preserveConstEnums": true
+  },
+
+  // Enhanced File Inclusion Strategy
+  "include": [
+    "src/**/*",
+    "typings/**/*"
+  ],
+
+  // Comprehensive Exclusion Matrix
+  "exclude": [
+    "node_modules",
+    ".vscode-test",
+    "out",
+    "**/*.test.ts",
+    "**/*.spec.ts",
+    "**/__tests__/**/*",
+    "coverage",
+    "dist",
+    "build"
+  ]
+}

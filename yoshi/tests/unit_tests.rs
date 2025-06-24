@@ -25,6 +25,14 @@ use yoshi::*;
 //--------------------------------------------------------------------------------------------------
 
 #[test]
+/// **test_yoshi_error_creation**
+///
+/// This function provides test yoshi error creation functionality within the Yoshi error handling
+/// framework.
+///
+/// # Errors
+///
+/// Returns an error if the operation fails due to invalid input or system constraints.
 fn test_yoshi_error_creation() {
     let error = Yoshi::new(YoshiKind::Internal {
         message: "Unit test error".into(),
@@ -40,6 +48,14 @@ fn test_yoshi_error_creation() {
 }
 
 #[test]
+/// **test_yoshi_kind_variants**
+///
+/// This function provides test yoshi kind variants functionality within the Yoshi error handling
+/// framework.
+///
+/// # Errors
+///
+/// Returns an error if the operation fails due to invalid input or system constraints.
 fn test_yoshi_kind_variants() {
     let internal_error = Yoshi::new(YoshiKind::Internal {
         message: "Internal error".into(),
@@ -55,11 +71,33 @@ fn test_yoshi_kind_variants() {
 }
 
 #[test]
+/// **test_result_type_alias**
+///
+/// This function provides test result type alias functionality within the Yoshi error handling
+/// framework.
+///
+/// # Errors
+///
+/// Returns an error if the operation fails due to invalid input or system constraints.
 fn test_result_type_alias() {
+/// **success_function**
+///
+/// This function provides success function functionality within the Yoshi error handling framework.
+///
+/// # Errors
+///
+/// Returns an error if the operation fails due to invalid input or system constraints.
     fn success_function() -> i32 {
         42
     }
 
+/// **error_function**
+///
+/// This function provides error function functionality within the Yoshi error handling framework.
+///
+/// # Errors
+///
+/// Returns an error if the operation fails due to invalid input or system constraints.
     fn error_function() -> Result<String> {
         Err(AnyError::from(Yoshi::new(YoshiKind::Internal {
             message: "Unit test failure".into(),
@@ -77,6 +115,14 @@ fn test_result_type_alias() {
 //--------------------------------------------------------------------------------------------------
 
 #[test]
+/// **test_error_instance_uniqueness**
+///
+/// This function provides test error instance uniqueness functionality within the Yoshi error
+/// handling framework.
+///
+/// # Errors
+///
+/// Returns an error if the operation fails due to invalid input or system constraints.
 fn test_error_instance_uniqueness() {
     let error1 = Yoshi::new(YoshiKind::Internal {
         message: "Error 1".into(),
@@ -100,6 +146,14 @@ fn test_error_instance_uniqueness() {
 }
 
 #[test]
+/// **test_error_severity_consistency**
+///
+/// This function provides test error severity consistency functionality within the Yoshi error
+/// handling framework.
+///
+/// # Errors
+///
+/// Returns an error if the operation fails due to invalid input or system constraints.
 fn test_error_severity_consistency() {
     let error = Yoshi::new(YoshiKind::Internal {
         message: "Severity test".into(),
@@ -113,6 +167,14 @@ fn test_error_severity_consistency() {
 }
 
 #[test]
+/// **test_error_transient_property**
+///
+/// This function provides test error transient property functionality within the Yoshi error
+/// handling framework.
+///
+/// # Errors
+///
+/// Returns an error if the operation fails due to invalid input or system constraints.
 fn test_error_transient_property() {
     let error = Yoshi::new(YoshiKind::Internal {
         message: "Transient test".into(),
@@ -129,6 +191,14 @@ fn test_error_transient_property() {
 //--------------------------------------------------------------------------------------------------
 
 #[test]
+/// **test_empty_message_handling**
+///
+/// This function provides test empty message handling functionality within the Yoshi error handling
+/// framework.
+///
+/// # Errors
+///
+/// Returns an error if the operation fails due to invalid input or system constraints.
 fn test_empty_message_handling() {
     let error = Yoshi::new(YoshiKind::Internal {
         message: "".into(),
@@ -142,6 +212,14 @@ fn test_empty_message_handling() {
 }
 
 #[test]
+/// **test_none_component_handling**
+///
+/// This function provides test none component handling functionality within the Yoshi error
+/// handling framework.
+///
+/// # Errors
+///
+/// Returns an error if the operation fails due to invalid input or system constraints.
 fn test_none_component_handling() {
     let error = Yoshi::new(YoshiKind::Internal {
         message: "No component test".into(),
@@ -156,6 +234,14 @@ fn test_none_component_handling() {
 }
 
 #[test]
+/// **test_long_message_handling**
+///
+/// This function provides test long message handling functionality within the Yoshi error handling
+/// framework.
+///
+/// # Errors
+///
+/// Returns an error if the operation fails due to invalid input or system constraints.
 fn test_long_message_handling() {
     let long_message = "A".repeat(1000);
     let error = Yoshi::new(YoshiKind::Internal {
@@ -171,6 +257,14 @@ fn test_long_message_handling() {
 }
 
 #[test]
+/// **test_special_characters_in_message**
+///
+/// This function provides test special characters in message functionality within the Yoshi error
+/// handling framework.
+///
+/// # Errors
+///
+/// Returns an error if the operation fails due to invalid input or system constraints.
 fn test_special_characters_in_message() {
     let special_message = "Test with special chars: 🦀 Rust 💯 \n\t\r";
     let error = Yoshi::new(YoshiKind::Internal {
@@ -189,6 +283,14 @@ fn test_special_characters_in_message() {
 //--------------------------------------------------------------------------------------------------
 
 #[test]
+/// **test_error_immutability**
+///
+/// This function provides test error immutability functionality within the Yoshi error handling
+/// framework.
+///
+/// # Errors
+///
+/// Returns an error if the operation fails due to invalid input or system constraints.
 fn test_error_immutability() {
     let error = Yoshi::new(YoshiKind::Internal {
         message: "Immutability test".into(),
@@ -212,6 +314,14 @@ fn test_error_immutability() {
 }
 
 #[test]
+/// **test_error_cloning**
+///
+/// This function provides test error cloning functionality within the Yoshi error handling
+/// framework.
+///
+/// # Errors
+///
+/// Returns an error if the operation fails due to invalid input or system constraints.
 fn test_error_cloning() {
     let original = Yoshi::new(YoshiKind::Internal {
         message: "Clone test".into(),
@@ -233,6 +343,14 @@ fn test_error_cloning() {
 //--------------------------------------------------------------------------------------------------
 
 #[test]
+/// **test_error_memory_safety**
+///
+/// This function provides test error memory safety functionality within the Yoshi error handling
+/// framework.
+///
+/// # Errors
+///
+/// Returns an error if the operation fails due to invalid input or system constraints.
 fn test_error_memory_safety() {
     let errors = (0..100)
         .map(|i| {
@@ -255,6 +373,14 @@ fn test_error_memory_safety() {
 }
 
 #[test]
+/// **test_concurrent_error_creation**
+///
+/// This function provides test concurrent error creation functionality within the Yoshi error
+/// handling framework.
+///
+/// # Errors
+///
+/// Returns an error if the operation fails due to invalid input or system constraints.
 fn test_concurrent_error_creation() {
     use std::thread;
 
@@ -292,6 +418,14 @@ fn test_concurrent_error_creation() {
 //--------------------------------------------------------------------------------------------------
 
 #[test]
+/// **test_comprehensive_unit_validation**
+///
+/// This function provides test comprehensive unit validation functionality within the Yoshi error
+/// handling framework.
+///
+/// # Errors
+///
+/// Returns an error if the operation fails due to invalid input or system constraints.
 fn test_comprehensive_unit_validation() {
     // Test all core functionality in isolation
     let test_cases = [

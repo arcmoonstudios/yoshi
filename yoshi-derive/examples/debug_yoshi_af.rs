@@ -5,7 +5,7 @@
 use yoshi_derive::yoshi_af;
 
 fn main() {
-    println!("Testing yoshi_af! macro...");
+    tracing::info!("Testing yoshi_af! macro...");
 
     // Test 1: Simple function
     yoshi_af! {
@@ -31,16 +31,16 @@ fn main() {
 
     // Call the example functions to demonstrate their usage
     if let Ok(result) = simple_test() {
-        println!("Simple test result: {result}");
+        tracing::info!("Simple test result: {result}");
     }
 
     if let Ok(result) = private_test() {
-        println!("Private test result: {result}");
+        tracing::info!("Private test result: {result}");
     }
 
     if let Ok(result) = public_test() {
-        println!("Public test result: {result}");
+        tracing::info!("Public test result: {result}");
     }
 
-    println!("All yoshi_af! macro tests passed!");
+    tracing::info!("All yoshi_af! macro tests passed!");
 }

@@ -10,7 +10,7 @@ Yoshi offers a unique blend of features that often surpass the capabilities of o
 * **Rich Contextualization**: Attach multiple layers of diagnostic information, arbitrary typed payloads, user-facing suggestions, and metadata as errors propagate.
 * **Mathematical Performance**: Sub-microsecond error creation and O(1) context attachment with intelligent memory optimizations like string interning.
 * **`no_std` Compatibility**: Full functionality available in `no_std` environments, ensuring broad applicability across embedded and high-performance contexts.
-* **Unified API**: A consistent API for both simple `Result` propagation (`HatchExt`) and complex error construction (`yoshi!` macro or direct `Yoshi::new`).
+* **Unified API**: A consistent API for both simple `Result` propagation (`HatchExt`) and complex error construction (`yopost!` macro or direct `Yoshi::new`).
 * **Extensible by Design**: Supports custom error definitions via `yoshi-derive` macros, seamlessly integrating into the `Yoshi` ecosystem.
 * **Advanced Features**: Built-in support for error priority, recovery strategies, detailed context analysis, and performance monitoring.
 
@@ -22,13 +22,13 @@ Before diving into specific migration paths, let's understand how Yoshi's core c
 | :--------------------------------------------------------- | :------------------------------------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `std::error::Error` (trait object)                         | `Yoshi` (main error type)                                                              | `Yoshi` is the central error type, encapsulating structured `YoshiKind`, context chain, and optional `YoshiBacktrace`. It implements `std::error::Error`.                                                                                                                                                                                              |
 | Custom error enums (`thiserror`, `snafu`)                  | `yoshi_af!` macro for auto-correcting enums                                                 | Define custom, structured error types with comprehensive auto-correction capabilities. The `yoshi_af!` macro generates LSP integration, conversion traits, and enhanced error handling.                                                                                                                                                                             |
-| Dynamic error types (`anyhow::Error`, `eyre::Report`)      | `yoshi!(error: error)` or `yoshi!(message: "text")`                                       | Wrap any `std::error::Error` or create message-based errors. Yoshi automatically handles conversion and provides structured error kinds.                                                                                                                                                                                                                |
+| Dynamic error types (`anyhow::Error`, `eyre::Report`)      | `yopost!(error: error)` or `yopost!(message: "text")`                                       | Wrap any `std::error::Error` or create message-based errors. Yoshi automatically handles conversion and provides structured error kinds.                                                                                                                                                                                                                |
 | Context chaining (`.context()`, `.wrap_err()`)             | `.lay("context")`, `Yoshi::context()`, `Yoshi::with_metadata()` | Yoshi's `.lay()` method provides ergonomic context chaining. Additional methods like `with_metadata()` and `with_signpost()` add rich diagnostic information.                                                                                                                                                                  |
 | Backtraces (`RUST_BACKTRACE`, `anyhow::Error::backtrace()`) | `YoshiBacktrace` (conditional capture), `Yoshi::backtrace()`                           | Yoshi captures backtraces when enabled, with enhanced location tracking and thread information. Available in yoshi-std layer.                                                                                                                                                                                                  |
 | Error kinds/variants (enum variants, `snafu` selectors)    | `YoshiKind` (structured enum)                                                                     | Yoshi provides a rich, structured `YoshiKind` enum with detailed fields for each variant (e.g., `Network { message, source, error_code }`, `Validation { field, message, expected, actual }`).                                                                                                                                                                          |
 | Error introspection (`.downcast_ref()`, `ErrorCompat`)     | `Yoshi::kind()`, `Yoshi::contexts()`, `yum!` macro                          | Yoshi offers dedicated accessor methods and the `yum!` macro for comprehensive error analysis and debugging.                                                                                                                                                                                                                                                  |
 | Result type alias (`anyhow::Result`, `snafu::Result`)      | `Hatch<T>` (recommended)                                                                     | A convenient type alias for `Result<T, Yoshi>`. The name "Hatch" reflects the Yoshi theme and provides clear semantic meaning.                                                                                                                                                                                                                                     |
-| Error creation macros (`anyhow!`, `eyre!`, `snafu!`)       | `yoshi!` macro, `yoshi_af!` macro, `yum!` macro                                                                         | Multiple powerful macros: `yoshi!` for adaptive error creation, `yoshi_af!` for auto-correcting enums, and `yum!` for enhanced debugging output.                                                                                                                                                                                   |
+| Error creation macros (`anyhow!`, `eyre!`, `snafu!`)       | `yopost!` macro, `yoshi_af!` macro, `yum!` macro                                                                         | Multiple powerful macros: `yopost!` for adaptive error creation, `yoshi_af!` for auto-correcting enums, and `yum!` for enhanced debugging output.                                                                                                                                                                                   |
 
 ## Migration Paths by Crate
 
@@ -123,12 +123,12 @@ fn new_function_user_not_found() -> yoshi_std::Result<(), Yoshi> {
 #### ✅ Example: Macro-Based Error Creation
 
 ```rust
-// Demonstrating how to use the yoshi! macro with derived errors
+// Demonstrating how to use the yopost! macro with derived errors
 fn new_function_user_not_found_with_macro() -> Yoshi {
-    yoshi!(kind: NewAppError::UserNotFound {
+    yopost!(kind: NewAppError::UserNotFound {
         user_id: 42,
         user_info: UserInfo { name: "Arthur Dent".to_string() },
-    }.into()) // Still needs .into() here as yoshi! macro expects YoshiKind or Error
+    }.into()) // Still needs .into() here as yopost! macro expects YoshiKind or Error
 }
 ```
 
@@ -156,7 +156,7 @@ fn new_function_user_not_found_with_api() -> Yoshi {
 
 * Replace `anyhow::Result<T>` with `yoshi::Result<T>`.
 * Replace `anyhow::Error` with `Yoshi`.
-* Replace `anyhow::anyhow!` with `yoshi!`.
+* Replace `anyhow::anyhow!` with `yopost!`.
 * Replace `.context()` (`anyhow`) with `Yoshi::context()` or `HatchExt::context()`.
 * For wrapping any `std::error::Error`, use `Yoshi::foreign(error)`.
 * Backtraces are controlled by `RUST_BACKTRACE` environment variable in Yoshi, similar to `anyhow`'s default.
@@ -214,14 +214,14 @@ fn run_new_app() -> YoshiResult<String> {
     process_data_yoshi(&data)
 }
 
-// Demonstrating the yoshi! macro for error creation
+// Demonstrating the yopost! macro for error creation
 fn run_new_app_with_macro() -> YoshiResult<String> {
     let data = parse_file_yoshi("non_existent.txt")
-        .map_err(|e| yoshi!(error: e, with_signpost = "Ensure file exists"))?; // Wrap and add suggestion
+        .map_err(|e| yopost!(error: e, with_signpost = "Ensure file exists"))?; // Wrap and add suggestion
 
     // Using Yoshi macro for structured validation error
     if data.is_empty() {
-        return Err(yoshi!(kind: YoshiKind::Validation {
+        return Err(yopost!(kind: YoshiKind::Validation {
             field: "data".into(),
             message: "Data cannot be empty".into(),
             expected: Some("non-empty string".into()),
@@ -261,14 +261,14 @@ fn run_new_app_with_api() -> YoshiResult<String> {
 #### ✅ Example: anyhow Macro-Based Error Creation
 
 ```rust
-// Demonstrating how to use the yoshi! macro with anyhow errors
+// Demonstrating how to use the yopost! macro with anyhow errors
 fn run_new_app_anyhow_macro() -> YoshiResult<String> {
     let data = std::fs::read_to_string("non_existent.txt")
         .map_err(Yoshi::from)?
         .context("Failed to read file for processing".to_string());
 
-    // Using yoshi! macro to add context and suggestions
-    yoshi!(error: data, with_signpost = "Check if the file exists and is accessible")
+    // Using yopost! macro to add context and suggestions
+    yopost!(error: data, with_signpost = "Check if the file exists and is accessible")
 }
 ```
 
@@ -280,7 +280,7 @@ fn run_new_app_anyhow_macro() -> YoshiResult<String> {
 
 * Replace `eyre::Report` with `Yoshi`.
 * Replace `eyre::Result<T>` with `yoshi::Result<T>`.
-* Replace `eyre::eyre!` with `yoshi!`.
+* Replace `eyre::eyre!` with `yopost!`.
 * Replace `.wrap_err()` or `.context()` (`eyre`) with `Yoshi::context()` or `HatchExt::context()`.
 * `eyre`'s `attach()` for structured data can be replaced by Yoshi's `with_metadata()` or `with_shell()`.
 
@@ -310,8 +310,8 @@ use std::io::{self, ErrorKind}; // For compatibility with original error types
 
 fn fetch_user_yoshi(id: u32) -> YoshiResult<String> {
     if id == 0 {
-        // Use yoshi! macro for structured validation error with suggestion
-        return Err(yoshi!(kind: YoshiKind::Validation {
+        // Use yopost! macro for structured validation error with suggestion
+        return Err(yopost!(kind: YoshiKind::Validation {
             field: "user_id".into(),
             message: format!("Invalid user ID: {}", id).into(),
             expected: Some("positive integer".into()),
@@ -330,10 +330,10 @@ fn load_profile_yoshi(user_id: u32) -> YoshiResult<String> {
         .meta("user_id", user_id.to_string()) // Add metadata for user_id
 }
 
-// Demonstrating yoshi! macro for context
+// Demonstrating yopost! macro for context
 fn load_profile_yoshi_with_macro(user_id: u32) -> YoshiResult<String> {
     fetch_user_yoshi(user_id)
-        .map_err(|e| yoshi!(error: e, with_metadata = ("user_id", user_id.to_string()))) // Wrap and add metadata
+        .map_err(|e| yopost!(error: e, with_metadata = ("user_id", user_id.to_string()))) // Wrap and add metadata
         .context(format!("Failed to load profile for user {}", user_id).to_string())
 }
 
@@ -447,10 +447,10 @@ fn check_auth_new(user_id: u32, action: &str) -> NewResult<()> {
     }
 }
 
-// Demonstrating the yoshi! macro with derived errors for direct error creation
+// Demonstrating the yopost! macro with derived errors for direct error creation
 fn check_auth_new_with_macro(user_id: u32, action: &str) -> YoshiResult<()> {
     if user_id == 0 {
-        Err(yoshi!(kind: NewYoshiError::Unauthorized {
+        Err(yopost!(kind: NewYoshiError::Unauthorized {
             user_id: user_id,
             action: action.to_string(),
         }.into())) // Use .into() to convert derived error to Yoshi
@@ -505,7 +505,7 @@ fn check_auth_api(user_id: u32, action: &str) -> YoshiResult<()> {
 ```markdown
 | Use Case                        | Recommended Syntax  | Example |
 |---------------------------------|---------------------|---------|
-| Quick one-liner                 | `yoshi!(...)`       | `yoshi!(message: "Quick error")` |
+| Quick one-liner                 | `yopost!(...)`       | `yopost!(message: "Quick error")` |
 | Multi-field struct conversion   | `Yoshi::new(...)`   | `Yoshi::new(MyError::ConfigLoad { ... }.into())` |
 | Custom derived enum conversion | `.into()` then `.context(...)` | `MyError::UserNotFound { ... }.into()` |
 | Result context addition | `HatchExt::context()` | `result.context("Operation failed")` |
@@ -521,7 +521,7 @@ As you migrate, consider integrating Yoshi's advanced capabilities:
     #[derive(Debug, Clone, PartialEq)]
     struct TransactionData { id: String, amount: f64 }
 
-    let err = yoshi!(message: "Transaction failed",
+    let err = yopost!(message: "Transaction failed",
         with_shell = TransactionData { id: "tx_123".to_string(), amount: 100.0 })
         .with_priority(255); // Mark as critical
 
@@ -542,7 +542,7 @@ As you migrate, consider integrating Yoshi's advanced capabilities:
         ManualIntervention(String),
     }
 
-    let err = yoshi!(kind: YoshiKind::Network {
+    let err = yopost!(kind: YoshiKind::Network {
         message: "External service down".into(),
         source: None, error_code: Some(503),
     },
@@ -557,12 +557,12 @@ As you migrate, consider integrating Yoshi's advanced capabilities:
     }
 ```
 
-* **Customizable Location Capture**: `YoshiLocation` is `Copy` and very lightweight, making it cheap to store. The `yoshi_location!` macro (internal to `yoshi!`) automatically captures `file!`, `line!`, `column!`.
+* **Customizable Location Capture**: `YoshiLocation` is `Copy` and very lightweight, making it cheap to store. The `yoshi_location!` macro (internal to `yopost!`) automatically captures `file!`, `line!`, `column!`.
 
 * **Performance Monitoring**: Yoshi provides global counters for error instances and other metrics through the memory module, valuable for profiling in long-running applications.
 
 ## Conclusion
 
-Migrating to Yoshi can significantly enhance the debuggability, observability, and programmatic handling of errors in your Rust applications. While it requires adapting to Yoshi's structured approach, the benefits in terms of clarity, performance, and advanced features make it a worthwhile investment for robust and maintainable systems. Start by migrating your custom error definitions with `yoshi-derive`, and then progressively adapt your error creation and propagation logic to leverage the `yoshi!` macro and `HatchExt` for a seamless transition.
+Migrating to Yoshi can significantly enhance the debuggability, observability, and programmatic handling of errors in your Rust applications. While it requires adapting to Yoshi's structured approach, the benefits in terms of clarity, performance, and advanced features make it a worthwhile investment for robust and maintainable systems. Start by migrating your custom error definitions with `yoshi-derive`, and then progressively adapt your error creation and propagation logic to leverage the `yopost!` macro and `HatchExt` for a seamless transition.
 
 > **Note:** `snafu` is still excellent for lightweight projects. Migration to Yoshi is most beneficial when structured diagnostics, telemetry, or enterprise-grade observability are priorities.

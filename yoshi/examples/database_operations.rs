@@ -364,6 +364,13 @@ impl DatabasePool {
         Ok(connection_id)
     }
 
+/// **create_connection**
+///
+/// This function provides connection functionality within the Yoshi error handling framework.
+///
+/// # Errors
+///
+/// Returns an error if the operation fails due to invalid input or system constraints.
     fn create_connection(&self) -> Hatch<DatabaseConnection> {
         let connection_id = format!("conn_{}", self.connections.len() + 1);
 
@@ -385,6 +392,20 @@ impl DatabasePool {
         Ok(connection)
     }
 
+/// **validate_connection**
+///
+/// This function provides connection functionality within the Yoshi error handling framework.
+///
+/// # Errors
+///
+/// Returns an error if the operation fails due to invalid input or system constraints.
+/// **validate**
+///
+/// This function provides validate functionality within the Yoshi error handling framework.
+///
+/// # Errors
+///
+/// Returns an error if the operation fails due to invalid input or system constraints.
     fn validate_connection(&self, connection: &DatabaseConnection) -> Hatch<()> {
         // Simulate authentication
         if connection.username.is_empty() {
@@ -581,6 +602,13 @@ impl QueryBuilder {
         Ok(())
     }
 
+/// **build_select**
+///
+/// This function provides build select functionality within the Yoshi error handling framework.
+///
+/// # Errors
+///
+/// Returns an error if the operation fails due to invalid input or system constraints.
     fn build_select(&self) -> Hatch<String> {
         let fields = if self.fields.is_empty() {
             "*".to_string()
@@ -597,6 +625,13 @@ impl QueryBuilder {
         Ok(query)
     }
 
+/// **build_insert**
+///
+/// This function provides build insert functionality within the Yoshi error handling framework.
+///
+/// # Errors
+///
+/// Returns an error if the operation fails due to invalid input or system constraints.
     fn build_insert(&self) -> Hatch<String> {
         if self.values.is_empty() {
             return Err(DatabaseError::ValidationFailed {
@@ -618,6 +653,13 @@ impl QueryBuilder {
         ))
     }
 
+/// **build_update**
+///
+/// This function provides build update functionality within the Yoshi error handling framework.
+///
+/// # Errors
+///
+/// Returns an error if the operation fails due to invalid input or system constraints.
     fn build_update(&self) -> Hatch<String> {
         if self.values.is_empty() {
             return Err(DatabaseError::ValidationFailed {
@@ -643,6 +685,13 @@ impl QueryBuilder {
         Ok(query)
     }
 
+/// **build_delete**
+///
+/// This function provides build delete functionality within the Yoshi error handling framework.
+///
+/// # Errors
+///
+/// Returns an error if the operation fails due to invalid input or system constraints.
     fn build_delete(&self) -> Hatch<String> {
         if self.conditions.is_empty() {
             return Err(DatabaseError::ValidationFailed {
@@ -979,6 +1028,13 @@ yoshi_af! {
 // Example Usage and Demonstration
 //--------------------------------------------------------------------------------------------------
 
+/// **main**
+///
+/// This function provides main functionality within the Yoshi error handling framework.
+///
+/// # Errors
+///
+/// Returns an error if the operation fails due to invalid input or system constraints.
 fn main() -> Hatch<()> {
     tracing::info!("🗄️ Yoshi Database Operations Example");
 
@@ -989,7 +1045,7 @@ fn main() -> Hatch<()> {
     // Example 1: Create a new user
     tracing::info!("\n📝 Creating new user...");
     match user_repository.create_user("alice", "alice@example.com") {
-        Ok(user) => println!("✅ User created: {user:?}"),
+        Ok(user) => tracing::info!("✅ User created: {user:?}"),
         Err(e) => {
             tracing::info!("❌ User creation failed: {e}");
             if let Some(suggestion) = e.signpost() {
@@ -1001,8 +1057,8 @@ fn main() -> Hatch<()> {
     // Example 2: Find user by ID
     tracing::info!("\n🔍 Finding user by ID...");
     match user_repository.find_user_by_id(1) {
-        Ok(Some(user)) => println!("✅ User found: {user:?}"),
-        Ok(None) => println!("ℹ️ User not found"),
+        Ok(Some(user)) => tracing::info!("✅ User found: {user:?}"),
+        Ok(None) => tracing::info!("ℹ️ User not found"),
         Err(e) => {
             tracing::info!("❌ User lookup failed: {e}");
             if let Some(suggestion) = e.signpost() {
@@ -1014,7 +1070,7 @@ fn main() -> Hatch<()> {
     // Example 3: Update user email
     tracing::info!("\n✏️ Updating user email...");
     match user_repository.update_user_email(1, "alice.updated@example.com") {
-        Ok(()) => println!("✅ User email updated successfully"),
+        Ok(()) => tracing::info!("✅ User email updated successfully"),
         Err(e) => {
             tracing::info!("❌ Email update failed: {e}");
             if let Some(suggestion) = e.signpost() {
@@ -1026,7 +1082,7 @@ fn main() -> Hatch<()> {
     // Example 4: Error handling demonstration
     tracing::error!("\n⚠️ Demonstrating error handling...");
     match user_repository.update_user_email(1, "invalid-email") {
-        Ok(()) => println!("✅ Unexpected success"),
+        Ok(()) => tracing::info!("✅ Unexpected success"),
         Err(e) => {
             tracing::error!("❌ Expected validation error: {e}");
             if let Some(suggestion) = e.signpost() {
@@ -1044,7 +1100,7 @@ fn main() -> Hatch<()> {
         .build();
 
     match query_result {
-        Ok(query) => println!("✅ Query built: {query}"),
+        Ok(query) => tracing::info!("✅ Query built: {query}"),
         Err(e) => {
             tracing::info!("❌ Query building failed: {e}");
             if let Some(suggestion) = e.signpost() {
@@ -1064,20 +1120,20 @@ fn main() -> Hatch<()> {
 
     match (query1_result, query2_result) {
         (Ok(_), Ok(_)) => match transaction.commit() {
-            Ok(result) => println!("✅ Transaction committed: {result}"),
-            Err(e) => println!("❌ Transaction commit failed: {e}"),
+            Ok(result) => tracing::info!("✅ Transaction committed: {result}"),
+            Err(e) => tracing::error!("❌ Transaction commit failed: {e}"),
         },
         _ => match transaction.rollback() {
-            Ok(result) => println!("✅ Transaction rolled back: {result}"),
-            Err(e) => println!("❌ Transaction rollback failed: {e}"),
+            Ok(result) => tracing::info!("✅ Transaction rolled back: {result}"),
+            Err(e) => tracing::error!("❌ Transaction rollback failed: {e}"),
         },
     }
 
     // Example 6: Auto-correction demonstration
     tracing::info!("\n🔧 Auto-correction demonstration...");
     match enhanced_database_operations() {
-        Ok(result) => println!("✅ Auto-correction result: {result}"),
-        Err(e) => println!("❌ Auto-correction failed: {e}"),
+        Ok(result) => tracing::info!("✅ Auto-correction result: {result}"),
+        Err(e) => tracing::error!("❌ Auto-correction failed: {e}"),
     }
 
     tracing::info!("\n🎉 Database operations example completed successfully!");

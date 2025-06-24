@@ -5,6 +5,7 @@
 #![allow(unused_variables)]
 #![deny(clippy::unwrap_used)]
 #![deny(clippy::expect_used)]
+
 //! **Brief:** Autocorrection showcase demonstrating `yoshi_af`! and yoshi-deluxe features.
 // ~=####====A===r===c===M===o===o===n====S===t===u===d===i===o===s====X|0|$>
 //! + Autocorrection and auto-fix capabilities
@@ -30,7 +31,6 @@ use yoshi::*;
 /// These errors demonstrate how the yoshi framework can provide
 /// rich error information and suggestions for common error patterns.
 #[derive(Debug)]
-#[allow(dead_code)]
 pub enum AutocorrectionError {
     /// File operation that can be auto-corrected with retry logic.
     ///
@@ -70,6 +70,13 @@ pub enum AutocorrectionError {
 }
 
 impl std::fmt::Display for AutocorrectionError {
+    /// **fmt**
+    ///
+    /// This function provides fmt functionality within the Yoshi error handling framework.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the operation fails due to invalid input or system constraints.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::FileOperationFailed { path, reason, .. } => {
@@ -109,6 +116,14 @@ pub fn demonstrate_basic_autocorrection() -> Hatch<String> {
     tracing::info!("=== Basic Autocorrection Demonstration ===");
 
     // Pattern: File operation without retry
+    /// **risky_file_operation**
+    ///
+    /// This function provides risky file operation functionality within the Yoshi error handling
+    /// framework.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the operation fails due to invalid input or system constraints.
     fn risky_file_operation(path: &str) -> Hatch<String> {
         // This pattern demonstrates error handling that could benefit from retry logic
         std::fs::read_to_string(path).map_err(|e| {
@@ -124,6 +139,14 @@ pub fn demonstrate_basic_autocorrection() -> Hatch<String> {
     }
 
     // Pattern: Network call without timeout handling
+    /// **risky_network_call**
+    ///
+    /// This function provides risky network call functionality within the Yoshi error handling
+    /// framework.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the operation fails due to invalid input or system constraints.
     fn risky_network_call(service: &str) -> Hatch<String> {
         // Demonstrates timeout patterns that suggest circuit breaker implementation
         if service == "unreliable_service" {
@@ -142,6 +165,14 @@ pub fn demonstrate_basic_autocorrection() -> Hatch<String> {
     }
 
     // Pattern: Resource usage without monitoring
+    /// **risky_resource_usage**
+    ///
+    /// This function provides risky resource usage functionality within the Yoshi error handling
+    /// framework.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the operation fails due to invalid input or system constraints.
     fn risky_resource_usage() -> Hatch<()> {
         // Demonstrates resource monitoring patterns
         let usage = 95.0; // Simulated high usage
@@ -163,10 +194,10 @@ pub fn demonstrate_basic_autocorrection() -> Hatch<String> {
 
     // Demonstrate the functions with autocorrection suggestions
     match risky_file_operation("test.txt") {
-        Ok(content) => println!("✓ File read successfully: {content}"),
+        Ok(content) => tracing::info!("✓ File read successfully: {content}"),
         Err(e) => {
             tracing::info!("✗ File operation failed: {e}");
-            println!(
+            tracing::info!(
                 "  🔧 Suggestion: {}",
                 e.signpost().unwrap_or("No suggestion available")
             );
@@ -174,10 +205,10 @@ pub fn demonstrate_basic_autocorrection() -> Hatch<String> {
     }
 
     match risky_network_call("unreliable_service") {
-        Ok(result) => println!("✓ Network call succeeded: {result}"),
+        Ok(result) => tracing::info!("✓ Network call succeeded: {result}"),
         Err(e) => {
             tracing::info!("✗ Network call failed: {e}");
-            println!(
+            tracing::info!(
                 "  🔧 Suggestion: {}",
                 e.signpost().unwrap_or("No suggestion available")
             );
@@ -185,10 +216,10 @@ pub fn demonstrate_basic_autocorrection() -> Hatch<String> {
     }
 
     match risky_resource_usage() {
-        Ok(()) => println!("✓ Resource usage within limits"),
+        Ok(()) => tracing::info!("✓ Resource usage within limits"),
         Err(e) => {
             tracing::info!("✗ Resource exhausted: {e}");
-            println!(
+            tracing::info!(
                 "  🔧 Suggestion: {}",
                 e.signpost().unwrap_or("No suggestion available")
             );
@@ -211,6 +242,14 @@ pub fn demonstrate_advanced_autocorrection() -> Hatch<AutocorrectionReport> {
 
     // Complex patterns for future yoshi_af! analysis
     // Pattern: Distributed transaction without compensation
+    /// **distributed_transaction**
+    ///
+    /// This function provides distributed transaction functionality within the Yoshi error handling
+    /// framework.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the operation fails due to invalid input or system constraints.
     fn distributed_transaction() -> Hatch<String> {
         // Step 1: Payment processing
         let payment_result = process_payment("user123", 100.0)?;
@@ -226,6 +265,14 @@ pub fn demonstrate_advanced_autocorrection() -> Hatch<AutocorrectionReport> {
     }
 
     // Pattern: Concurrent operations without proper synchronization
+    /// **concurrent_operations**
+    ///
+    /// This function provides concurrent operations functionality within the Yoshi error handling
+    /// framework.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the operation fails due to invalid input or system constraints.
     fn concurrent_operations() -> Hatch<Vec<String>> {
         let mut results = Vec::with_capacity(20);
 
@@ -240,6 +287,14 @@ pub fn demonstrate_advanced_autocorrection() -> Hatch<AutocorrectionReport> {
     }
 
     // Pattern: Resource cleanup without RAII
+    /// **resource_management**
+    ///
+    /// This function provides resource management functionality within the Yoshi error handling
+    /// framework.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the operation fails due to invalid input or system constraints.
     fn resource_management() -> Hatch<String> {
         let resource = acquire_resource()?;
 
@@ -326,6 +381,14 @@ pub fn demonstrate_realworld_autocorrection() -> Hatch<()> {
     tracing::info!("\n=== Real-World Autocorrection Demonstration ===");
 
     // Real-world patterns for future yoshi_af! analysis
+    /// **database_operations**
+    ///
+    /// This function provides database operations functionality within the Yoshi error handling
+    /// framework.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the operation fails due to invalid input or system constraints.
     fn database_operations() -> Hatch<Vec<String>> {
         // Future: yoshi_af! will analyze this and suggest connection pooling improvements
         let mut results = Vec::with_capacity(10);
@@ -345,6 +408,14 @@ pub fn demonstrate_realworld_autocorrection() -> Hatch<()> {
         Ok(results)
     }
 
+    /// **web_service_handler**
+    ///
+    /// This function provides web service handler functionality within the Yoshi error handling
+    /// framework.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the operation fails due to invalid input or system constraints.
     fn web_service_handler(request: &str) -> Hatch<String> {
         // Future: yoshi_af! will detect missing input validation
         let processed_request = process_request(request)?;
@@ -358,13 +429,13 @@ pub fn demonstrate_realworld_autocorrection() -> Hatch<()> {
 
     // Demonstrate the functions
     match database_operations() {
-        Ok(results) => println!("✓ Database operations completed: {} queries", results.len()),
-        Err(e) => println!("✗ Database operations failed: {e}"),
+        Ok(results) => tracing::info!("✓ Database operations completed: {} queries", results.len()),
+        Err(e) => tracing::info!("✗ Database operations failed: {e}"),
     }
 
     match web_service_handler("test request") {
-        Ok(response) => println!("✓ Web service handled request: {response}"),
-        Err(e) => println!("✗ Web service failed: {e}"),
+        Ok(response) => tracing::info!("✓ Web service handled request: {response}"),
+        Err(e) => tracing::info!("✗ Web service failed: {e}"),
     }
 
     tracing::info!("\n🔧 Future yoshi_af! Analysis Results:");
@@ -434,7 +505,7 @@ pub struct AutocorrectionSuggestion {
 /// Simulates payment processing for distributed transaction example.
 fn process_payment(user_id: &str, amount: f64) -> Hatch<String> {
     if amount > 1000.0 {
-        Err(yoshi!(message: "Payment amount exceeds limit"))
+        Err(yopost!(message: "Payment amount exceeds limit"))
     } else {
         Ok(format!("Payment processed for {user_id} amount {amount}"))
     }
@@ -443,7 +514,7 @@ fn process_payment(user_id: &str, amount: f64) -> Hatch<String> {
 /// Simulates inventory update for distributed transaction example.
 fn update_inventory(item_id: &str, quantity: i32) -> Hatch<String> {
     if quantity > 100 {
-        Err(yoshi!(message: "Insufficient inventory"))
+        Err(yopost!(message: "Insufficient inventory"))
     } else {
         Ok(format!(
             "Inventory updated for {item_id} quantity {quantity}"
@@ -454,7 +525,7 @@ fn update_inventory(item_id: &str, quantity: i32) -> Hatch<String> {
 /// Simulates notification sending for distributed transaction example.
 fn send_notification(user_id: &str, message: &str) -> Hatch<String> {
     if message.len() > 1000 {
-        Err(yoshi!(message: "Notification message too long"))
+        Err(yopost!(message: "Notification message too long"))
     } else {
         Ok(format!("Notification sent to {user_id}: {message}"))
     }
@@ -463,7 +534,7 @@ fn send_notification(user_id: &str, message: &str) -> Hatch<String> {
 /// Simulates concurrent task processing.
 fn process_concurrent_task(task_id: i32) -> Hatch<String> {
     if task_id % 7 == 0 {
-        Err(yoshi!(message: "Task processing failed"))
+        Err(yopost!(message: "Task processing failed"))
     } else {
         Ok(format!("Task {task_id} completed"))
     }
@@ -504,7 +575,7 @@ fn close_db_connection(connection: String) -> Hatch<()> {
 /// Simulates request processing.
 fn process_request(request: &str) -> Hatch<String> {
     if request.is_empty() {
-        Err(yoshi!(message: "Empty request received"))
+        Err(yopost!(message: "Empty request received"))
     } else {
         Ok(format!("Processed: {request}"))
     }
@@ -529,23 +600,25 @@ pub fn demonstrate_complete_workflow() -> Hatch<()> {
     // Step 2: Advanced pattern detection
     let advanced_report = demonstrate_advanced_autocorrection()?;
     tracing::info!("✓ Advanced analysis completed:");
-    println!(
+    tracing::info!(
         "  - Patterns detected: {}",
         advanced_report.patterns_detected
     );
-    println!(
+    tracing::info!(
         "  - Auto-fix success rate: {:.1}%",
         advanced_report.auto_fix_success_rate * 100.0
     );
-    println!(
+    tracing::info!(
         "  - Performance impact: {}",
         advanced_report.performance_impact
     );
 
     for suggestion in &advanced_report.suggestions {
-        println!(
+        tracing::info!(
             "  🔧 {}: {} ({})",
-            suggestion.pattern, suggestion.suggestion, suggestion.severity
+            suggestion.pattern,
+            suggestion.suggestion,
+            suggestion.severity
         );
     }
 

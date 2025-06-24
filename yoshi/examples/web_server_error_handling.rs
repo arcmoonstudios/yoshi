@@ -497,6 +497,14 @@ impl WebServer {
         }
     }
 
+/// **process_authenticated_request**
+///
+/// This function provides process authenticated request functionality within the Yoshi error
+/// handling framework.
+///
+/// # Errors
+///
+/// Returns an error if the operation fails due to invalid input or system constraints.
     fn process_authenticated_request(
         &self,
         request: &WebRequest,
@@ -512,6 +520,14 @@ impl WebServer {
         }
     }
 
+/// **process_public_request**
+///
+/// This function provides process public request functionality within the Yoshi error handling
+/// framework.
+///
+/// # Errors
+///
+/// Returns an error if the operation fails due to invalid input or system constraints.
     fn process_public_request(&self, request: &WebRequest) -> Hatch<WebResponse> {
         match request.endpoint.as_str() {
             "/health" => Ok(WebResponse {
@@ -526,6 +542,13 @@ impl WebServer {
         }
     }
 
+/// **get_users**
+///
+/// This function provides users functionality within the Yoshi error handling framework.
+///
+/// # Errors
+///
+/// Returns an error if the operation fails due to invalid input or system constraints.
     fn get_users(&self, _user: &str) -> Hatch<WebResponse> {
         let users = self
             .database
@@ -538,6 +561,13 @@ impl WebServer {
         })
     }
 
+/// **get_user_data**
+///
+/// This function provides user data functionality within the Yoshi error handling framework.
+///
+/// # Errors
+///
+/// Returns an error if the operation fails due to invalid input or system constraints.
     fn get_user_data(&self, user: &str, params: &HashMap<String, String>) -> Hatch<WebResponse> {
         let user_id = params
             .get("user_id")
@@ -557,6 +587,13 @@ impl WebServer {
         })
     }
 
+/// **handle_login**
+///
+/// This function provides handle login functionality within the Yoshi error handling framework.
+///
+/// # Errors
+///
+/// Returns an error if the operation fails due to invalid input or system constraints.
     fn handle_login(&self, request: &WebRequest) -> Hatch<WebResponse> {
         let username =
             request
@@ -638,6 +675,13 @@ yoshi_af! {
 // Example Usage and Demonstration
 //--------------------------------------------------------------------------------------------------
 
+/// **main**
+///
+/// This function provides main functionality within the Yoshi error handling framework.
+///
+/// # Errors
+///
+/// Returns an error if the operation fails due to invalid input or system constraints.
 fn main() -> Hatch<()> {
     tracing::error!("🚀 Yoshi Web Server Error Handling Example");
 
@@ -657,8 +701,8 @@ fn main() -> Hatch<()> {
     };
 
     match server.handle_request(&health_request) {
-        Ok(response) => println!("✅ Health check: {} - {}", response.status, response.body),
-        Err(e) => println!("❌ Health check failed: {e}"),
+        Ok(response) => tracing::info!("✅ Health check: {} - {}", response.status, response.body),
+        Err(e) => tracing::error!("❌ Health check failed: {e}"),
     }
 
     // Example 2: Login request
@@ -676,8 +720,7 @@ fn main() -> Hatch<()> {
 
     let token = match server.handle_request(&login_request) {
         Ok(response) => {
-            println!(
-                "✅ Login successful: {} - {}",
+            tracing::info!("✅ Login successful: {} - {}",
                 response.status, response.body
             );
             "token_for_admin".to_string()
@@ -701,8 +744,8 @@ fn main() -> Hatch<()> {
     };
 
     match server.handle_request(&auth_request) {
-        Ok(response) => println!("✅ Data request: {} - {}", response.status, response.body),
-        Err(e) => println!("❌ Data request failed: {e}"),
+        Ok(response) => tracing::info!("✅ Data request: {} - {}", response.status, response.body),
+        Err(e) => tracing::error!("❌ Data request failed: {e}"),
     }
 
     // Example 4: Error handling demonstration
@@ -715,8 +758,7 @@ fn main() -> Hatch<()> {
     };
 
     match server.handle_request(&invalid_request) {
-        Ok(response) => println!(
-            "✅ Unexpected success: {} - {}",
+        Ok(response) => tracing::info!("✅ Unexpected success: {} - {}",
             response.status, response.body
         ),
         Err(e) => {
@@ -730,8 +772,8 @@ fn main() -> Hatch<()> {
     // Example 6: Auto-correction demonstration
     tracing::info!("\n🔧 Auto-correction demonstration...");
     match enhanced_error_handling() {
-        Ok(result) => println!("✅ Auto-correction result: {result}"),
-        Err(e) => println!("❌ Auto-correction failed: {e}"),
+        Ok(result) => tracing::info!("✅ Auto-correction result: {result}"),
+        Err(e) => tracing::error!("❌ Auto-correction failed: {e}"),
     }
 
     tracing::error!("🎉 Web server error handling example completed successfully!");

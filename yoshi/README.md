@@ -122,7 +122,7 @@ use yoshi::*;
 // Create rich, structured errors
 fn validate_input(value: &str) -> Result<()> {
     if value.is_empty() {
-        return Err(yoshi!(
+        return Err(yopost!(
             YoshiKind::Validation,
             "Input cannot be empty",
             field: "value",
@@ -135,9 +135,9 @@ fn validate_input(value: &str) -> Result<()> {
 // Attach metadata for debugging
 fn process_config(path: &str) -> Result<Config> {
     let config = std::fs::read_to_string(path)
-        .map_err(|e| yoshi!(YoshiKind::Io, "Failed to read config", path: path, source: e))?
+        .map_err(|e| yopost!(YoshiKind::Io, "Failed to read config", path: path, source: e))?
         .parse::<Config>()
-        .map_err(|e| yoshi!(YoshiKind::Parse, "Invalid config format", source: e))?;
+        .map_err(|e| yopost!(YoshiKind::Parse, "Invalid config format", source: e))?;
 
     // Conditionally add contextual metadata
     if config.is_development() {
@@ -514,7 +514,7 @@ yoshi_af! {
 
 - Use `Hatch<T>` as your Result type (`Result<T, Yoshi>`)
 - Use `.lay()` method for adding context (ergonomic `.lay_with_context()`)
-- Use `yoshi!()` macro for creating ad-hoc errors
+- Use `yopost!()` macro for creating ad-hoc errors
 
 ## LSP Integration and Auto-Correction Triggers
 
@@ -888,7 +888,7 @@ use yoshi::*;
 
 // Now you have access to:
 // - Core error types: Yoshi, YoshiKind, Hatch<T>
-// - Error handling: .lay(), .laytext(), yoshi!() macro
+// - Error handling: .lay(), .laytext(), yopost!() macro
 // - Auto-correction: YoshiACSystem, yoshi_af!
 // - Derive macros: #[derive(YoshiError)]
 // - Best-in-class utilities: DashMap, SmallVec, Regex, etc.

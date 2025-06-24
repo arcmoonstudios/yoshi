@@ -19,7 +19,6 @@
 // **Contact:** LordXyn@proton.me
 // **Author:** Lord Xyn
 
-use tracing;
 use yoshi::*;
 //--------------------------------------------------------------------------------------------------
 // Basic Error Types
@@ -106,7 +105,7 @@ pub enum BasicError {
 /// # use std::collections::HashMap;
 /// # fn main() -> Hatch<()> {
 /// let config = read_config_file("config.json")?;
-/// println!("Loaded {} configuration entries", config.len());
+/// tracing::info!("Loaded {} configuration entries", config.len());
 /// # Ok(())
 /// # }
 /// ```
@@ -229,7 +228,7 @@ pub fn process_files(file_paths: &[&str]) -> Hatch<Vec<String>> {
 /// A `Hatch<String>` with the processed result or contextual error information.
 pub fn process_with_context(operation: &str, data: &str) -> Hatch<String> {
     if data.is_empty() {
-        return Err(yoshi!(message: "Cannot process empty data"));
+        return Err(yopost!(message: "Cannot process empty data"));
     }
 
     // Simulate processing that might fail
@@ -257,16 +256,16 @@ pub fn demonstrate_basic_patterns() -> Hatch<()> {
     tracing::error!("=== Basic Error Handling Demonstration ===");
 
     // Example 1: Simple error creation
-    let simple_error = yoshi!(message: "Something went wrong");
+    let simple_error = yopost!(message: "Something went wrong");
     tracing::error!("Simple error: {simple_error}");
 
     // Example 2: Error with context
-    let contextual_error = yoshi!(message: "Operation failed");
+    let contextual_error = yopost!(message: "Operation failed");
     tracing::error!("Contextual error: {contextual_error}");
 
     // Example 3: Converting std::io::Error
     match fs::read_to_string("nonexistent.txt") {
-        Ok(_) => println!("File read successfully"),
+        Ok(_) => tracing::info!("File read successfully"),
         Err(e) => {
             let yoshi_error = io_error_to_yoshi(e).lay("Failed to read configuration file");
             tracing::error!("Converted I/O error: {yoshi_error}");
@@ -275,8 +274,8 @@ pub fn demonstrate_basic_patterns() -> Hatch<()> {
 
     // Example 4: Error propagation with ?
     match process_with_context("demo", "test_data") {
-        Ok(result) => println!("Processing result: {result}"),
-        Err(e) => println!("Processing error: {e}"),
+        Ok(result) => tracing::info!("Processing result: {result}"),
+        Err(e) => tracing::info!("Processing error: {e}"),
     }
 
     Ok(())
@@ -294,8 +293,8 @@ pub fn main() -> Hatch<()> {
 
     for (key, value) in config_data {
         match validate_config_value(key, value) {
-            Ok(()) => println!("✓ {key} = {value} is valid"),
-            Err(e) => println!("✗ Validation error: {e}"),
+            Ok(()) => tracing::info!("✓ {key} = {value} is valid"),
+            Err(e) => tracing::info!("✗ Validation error: {e}"),
         }
     }
 

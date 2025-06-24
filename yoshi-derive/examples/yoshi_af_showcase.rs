@@ -17,27 +17,27 @@ use yoshi_core::Hatch;
 /// Main function that demonstrates the enhanced `yoshi_af!` macro capabilities
 #[allow(clippy::print_stdout)]
 fn main() {
-    println!("🚀 Enhanced yoshi_af! Macro Showcase 🚀\n");
+    tracing::info!("🚀 Enhanced yoshi_af! Macro Showcase 🚀\n");
 
     // Test the enhanced macro with auto-optimization
     test_basic_optimization();
     test_error_handling_optimization();
     test_combined_optimizations();
 
-    println!("\n✅ Enhanced yoshi_af! macro showcase completed!");
+    tracing::info!("\n✅ Enhanced yoshi_af! macro showcase completed!");
 }
 
 /// Demonstrates basic optimization capabilities of the enhanced macro
 #[allow(clippy::print_stdout)]
 fn test_basic_optimization() {
-    println!("📦 Basic Optimization Test");
-    println!("==========================");
+    tracing::info!("📦 Basic Optimization Test");
+    tracing::info!("==========================");
 
     // This function will be processed by the enhanced yoshi_af! macro
     let result = basic_function_with_optimizations();
     match result {
-        Ok(items) => println!("✅ Function succeeded with {} items", items.len()),
-        Err(e) => println!("❌ Function failed: {e}"),
+        Ok(items) => tracing::info!("✅ Function succeeded with {} items", items.len()),
+        Err(e) => tracing::error!("❌ Function failed: {e}"),
     }
 
     println!();
@@ -46,13 +46,13 @@ fn test_basic_optimization() {
 /// Demonstrates error handling optimization capabilities of the enhanced macro
 #[allow(clippy::print_stdout)]
 fn test_error_handling_optimization() {
-    eprintln!("🛡️ Error Handling Optimization Test");
-    println!("===================================");
+    tracing::info!("🛡️ Error Handling Optimization Test");
+    tracing::info!("===================================");
 
     let result = error_handling_function();
     match result {
-        Ok(value) => println!("✅ Error handling succeeded: {value}"),
-        Err(e) => println!("❌ Error handling failed: {e}"),
+        Ok(value) => tracing::info!("✅ Error handling succeeded: {value}"),
+        Err(e) => tracing::error!("❌ Error handling failed: {e}"),
     }
 
     println!();
@@ -61,13 +61,13 @@ fn test_error_handling_optimization() {
 /// Demonstrates combined optimization capabilities of the enhanced macro
 #[allow(clippy::print_stdout)]
 fn test_combined_optimizations() {
-    println!("⚡ Combined Optimizations Test");
-    println!("=============================");
+    tracing::info!("⚡ Combined Optimizations Test");
+    tracing::info!("=============================");
 
     let result = combined_optimizations_function();
     match result {
-        Ok(data) => println!("✅ Combined optimizations succeeded: {data:?}"),
-        Err(e) => println!("❌ Combined optimizations failed: {e}"),
+        Ok(data) => tracing::info!("✅ Combined optimizations succeeded: {data:?}"),
+        Err(e) => tracing::error!("❌ Combined optimizations failed: {e}"),
     }
 
     println!();

@@ -53,14 +53,14 @@ fn example() -> Hatch<String> {
 use yoshi::*;
 
 // Correct usage with proper type conversions
-let err = yoshi!(kind: YoshiKind::Network {
+let err = yopost!(kind: YoshiKind::Network {
     message: "Connection failed".into(), // Convert &str to Arc<str>
     source: None, // Or Some(Box::new(other_yoshi_error))
     error_code: Some(500), // Provide as u32
 });
 
-// Alternative using the yoshi! macro for simpler syntax
-let err = yoshi!(message: "Connection failed")
+// Alternative using the yopost! macro for simpler syntax
+let err = yopost!(message: "Connection failed")
     .with_metadata("error_code", "500")
     .with_signpost("Check network connectivity");
 ```
@@ -83,22 +83,22 @@ struct MyCustomData {
 }
 
 // This will work
-let error = yoshi!(message: "Custom error")
+let error = yopost!(message: "Custom error")
     .with_metadata("custom_data", "some value");
 ```
 
-### 4. Macro-related errors (yoshi!, yoshi_af!)
+### 4. Macro-related errors (yopost!, yoshi_af!)
 
 **Problem:** `macro-error: unexpected token in input`, `no rules expected ...` or missing derive implementations.
 
 **Reason:**
 
-* **yoshi! macro**: Incorrect argument format or attempting to chain methods not supported by the macro.
+* **yopost! macro**: Incorrect argument format or attempting to chain methods not supported by the macro.
 * **yoshi_af! macro**: Missing yoshi-derive feature in Cargo.toml, or syntax errors in the `#[yoshi(...)]` attributes.
 
 **Solution:**
 
-**yoshi! macro:**
+**yopost! macro:**
 
 * Ensure attribute values are tuples for with_metadata: `with_metadata = ("key", "value")`.
 * Ensure string arguments are &str or String: `with_signpost = "my suggestion"`.
@@ -107,14 +107,14 @@ let error = yoshi!(message: "Custom error")
 ```rust
 use yoshi::*;
 
-// Correct yoshi! macro usage
-let error = yoshi!(message: "Something went wrong");
-let error = yoshi!(kind: YoshiKind::Network {
+// Correct yopost! macro usage
+let error = yopost!(message: "Something went wrong");
+let error = yopost!(kind: YoshiKind::Network {
     message: "Connection failed".into(),
     source: None,
     error_code: Some(503),
 });
-let error = yoshi!(
+let error = yopost!(
     message: "Database error",
     with_metadata = ("host", "localhost"),
     with_signpost = "Check database connection"
@@ -155,7 +155,7 @@ use yoshi::*;
 
 fn example_function() -> Hatch<String> {
     // Some operation that might fail
-    Err(yoshi!(kind: YoshiKind::Network {
+    Err(yopost!(kind: YoshiKind::Network {
         message: "Connection timeout".into(),
         source: None,
         error_code: Some(408),
@@ -194,7 +194,7 @@ fn main() {
 use yoshi::*;
 
 fn main() {
-    let error = yoshi!(message: "Something went wrong")
+    let error = yopost!(message: "Something went wrong")
         .with_metadata("component", "database")
         .with_signpost("Check database connection");
 

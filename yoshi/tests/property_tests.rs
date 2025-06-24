@@ -25,6 +25,14 @@ use yoshi::*;
 //--------------------------------------------------------------------------------------------------
 
 #[test]
+/// **test_error_creation_determinism**
+///
+/// This function provides test error creation determinism functionality within the Yoshi error
+/// handling framework.
+///
+/// # Errors
+///
+/// Returns an error if the operation fails due to invalid input or system constraints.
 fn test_error_creation_determinism() {
     // Property: Creating errors with the same parameters should produce consistent results
     let message = "Determinism test";
@@ -52,6 +60,14 @@ fn test_error_creation_determinism() {
 }
 
 #[test]
+/// **test_error_display_consistency**
+///
+/// This function provides test error display consistency functionality within the Yoshi error
+/// handling framework.
+///
+/// # Errors
+///
+/// Returns an error if the operation fails due to invalid input or system constraints.
 fn test_error_display_consistency() {
     // Property: Display representation should be consistent and non-empty
     let test_messages = [
@@ -91,6 +107,14 @@ fn test_error_display_consistency() {
 }
 
 #[test]
+/// **test_error_severity_bounds**
+///
+/// This function provides test error severity bounds functionality within the Yoshi error handling
+/// framework.
+///
+/// # Errors
+///
+/// Returns an error if the operation fails due to invalid input or system constraints.
 fn test_error_severity_bounds() {
     // Property: Severity should always be within valid bounds
     let test_cases = [
@@ -123,6 +147,14 @@ fn test_error_severity_bounds() {
 //--------------------------------------------------------------------------------------------------
 
 #[test]
+/// **test_error_immutability_invariant**
+///
+/// This function provides test error immutability invariant functionality within the Yoshi error
+/// handling framework.
+///
+/// # Errors
+///
+/// Returns an error if the operation fails due to invalid input or system constraints.
 fn test_error_immutability_invariant() {
     // Property: Error objects should be immutable after creation
     let error = Yoshi::new(YoshiKind::Internal {
@@ -152,6 +184,14 @@ fn test_error_immutability_invariant() {
 }
 
 #[test]
+/// **test_error_clone_invariant**
+///
+/// This function provides test error clone invariant functionality within the Yoshi error handling
+/// framework.
+///
+/// # Errors
+///
+/// Returns an error if the operation fails due to invalid input or system constraints.
 fn test_error_clone_invariant() {
     // Property: Cloned errors should preserve content but have unique identity
     let original = Yoshi::new(YoshiKind::Internal {
@@ -180,6 +220,14 @@ fn test_error_clone_invariant() {
 //--------------------------------------------------------------------------------------------------
 
 #[test]
+/// **test_result_type_state_transitions**
+///
+/// This function provides test result type state transitions functionality within the Yoshi error
+/// handling framework.
+///
+/// # Errors
+///
+/// Returns an error if the operation fails due to invalid input or system constraints.
 fn test_result_type_state_transitions() {
     // Property: Result type should maintain correct state transitions
 
@@ -203,6 +251,14 @@ fn test_result_type_state_transitions() {
 }
 
 #[test]
+/// **test_context_addition_properties**
+///
+/// This function provides test context addition properties functionality within the Yoshi error
+/// handling framework.
+///
+/// # Errors
+///
+/// Returns an error if the operation fails due to invalid input or system constraints.
 fn test_context_addition_properties() {
     // Property: Adding context should preserve original error while adding information
     let original_error = Yoshi::new(YoshiKind::Internal {
@@ -235,6 +291,14 @@ fn test_context_addition_properties() {
 //--------------------------------------------------------------------------------------------------
 
 #[test]
+/// **test_error_size_regression**
+///
+/// This function provides test error size regression functionality within the Yoshi error handling
+/// framework.
+///
+/// # Errors
+///
+/// Returns an error if the operation fails due to invalid input or system constraints.
 fn test_error_size_regression() {
     use std::mem;
 
@@ -250,6 +314,14 @@ fn test_error_size_regression() {
 }
 
 #[test]
+/// **test_performance_regression**
+///
+/// This function provides test performance regression functionality within the Yoshi error handling
+/// framework.
+///
+/// # Errors
+///
+/// Returns an error if the operation fails due to invalid input or system constraints.
 fn test_performance_regression() {
     use std::time::Instant;
 
@@ -275,6 +347,14 @@ fn test_performance_regression() {
 //--------------------------------------------------------------------------------------------------
 
 #[test]
+/// **test_error_composition_properties**
+///
+/// This function provides test error composition properties functionality within the Yoshi error
+/// handling framework.
+///
+/// # Errors
+///
+/// Returns an error if the operation fails due to invalid input or system constraints.
 fn test_error_composition_properties() {
     // Property: Errors should compose correctly through the error handling chain
     let base_error = Yoshi::new(YoshiKind::Internal {
@@ -304,6 +384,14 @@ fn test_error_composition_properties() {
 }
 
 #[test]
+/// **test_comprehensive_property_validation**
+///
+/// This function provides test comprehensive property validation functionality within the Yoshi
+/// error handling framework.
+///
+/// # Errors
+///
+/// Returns an error if the operation fails due to invalid input or system constraints.
 fn test_comprehensive_property_validation() {
     // Property: All error operations should maintain system invariants
     let test_data = [

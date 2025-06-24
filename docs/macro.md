@@ -10,9 +10,9 @@ First, make sure you have Yoshi installed with the necessary features:
 cargo add yoshi --features full
 ```
 
-## The `yoshi!` Macro
+## The `yopost!` Macro
 
-The adaptive `yoshi!` macro intelligently creates structured errors based on usage context.
+The adaptive `yopost!` macro intelligently creates structured errors based on usage context.
 
 ### Message-Based Error Creation
 
@@ -21,11 +21,11 @@ use yoshi::*;
 
 fn validate_email(email: &str) -> Hatch<()> {
     if email.is_empty() {
-        return Err(yoshi!(message: "Email cannot be empty"));
+        return Err(yopost!(message: "Email cannot be empty"));
     }
 
     if !email.contains('@') {
-        return Err(yoshi!(message: "Invalid email format: missing @"));
+        return Err(yopost!(message: "Invalid email format: missing @"));
     }
 
     Ok(())
@@ -39,7 +39,7 @@ use yoshi::*;
 
 fn validate_user_data(email: &str) -> Hatch<()> {
     if email.is_empty() {
-        return Err(yoshi!(kind: YoshiKind::Validation {
+        return Err(yopost!(kind: YoshiKind::Validation {
             field: "email".into(),
             message: "Email cannot be empty".into(),
             expected: Some("user@domain.com".into()),
@@ -59,10 +59,10 @@ use yoshi::*;
 fn read_config_file(path: &str) -> Hatch<String> {
     // Wrap existing errors
     let io_err = std::io::Error::new(std::io::ErrorKind::NotFound, "file not found");
-    let wrapped = yoshi!(error: io_err);
+    let wrapped = yopost!(error: io_err);
 
     // With additional context
-    let enhanced = yoshi!(
+    let enhanced = yopost!(
         error: io_err,
         with_signpost = "Check the file path and permissions"
     );
@@ -77,7 +77,7 @@ fn read_config_file(path: &str) -> Hatch<String> {
 use yoshi::*;
 
 fn complex_operation() -> Hatch<String> {
-    let error = yoshi!(
+    let error = yopost!(
         message: "Database connection failed",
         with_metadata = ("host", "localhost:5432"),
         with_metadata = ("timeout", "30s"),
@@ -132,7 +132,7 @@ The `yum!` macro provides comprehensive error analysis and debugging output:
 use yoshi::*;
 
 fn process_request() -> Hatch<String> {
-    let error = yoshi!(kind: YoshiKind::Network {
+    let error = yopost!(kind: YoshiKind::Network {
         message: "Connection failed".into(),
         source: None,
         error_code: Some(503),
@@ -168,7 +168,7 @@ use yoshi::*;
 fn lookup_user(id: u64, database: &str) -> Hatch<User> {
     let user = db.find_user(id)
         .lay("Failed to query user database")?
-        .ok_or_else(|| yoshi!(kind: YoshiKind::NotFound {
+        .ok_or_else(|| yopost!(kind: YoshiKind::NotFound {
             resource_type: "User".into(),
             identifier: format!("user_id_{}", id).into(),
             search_locations: Some(vec![database.into()]),
@@ -194,7 +194,7 @@ async fn fetch_api_data(url: &str) -> Hatch<ApiResponse> {
         .lay("HTTP request failed")?;
 
     if !response.status().is_success() {
-        return Err(yoshi!(kind: YoshiKind::Network {
+        return Err(yopost!(kind: YoshiKind::Network {
             message: format!("API returned error status: {}", response.status()).into(),
             source: None,
             error_code: Some(response.status().as_u16() as u32),
@@ -216,22 +216,22 @@ async fn fetch_api_data(url: &str) -> Hatch<ApiResponse> {
 use yoshi::*;
 
 // Message-based error creation
-yoshi!(message: "Something went wrong")
-yoshi!(message: "Invalid value: {}", value)
+yopost!(message: "Something went wrong")
+yopost!(message: "Invalid value: {}", value)
 
 // Structured error kind creation
-yoshi!(kind: YoshiKind::Network {
+yopost!(kind: YoshiKind::Network {
     message: "Connection failed".into(),
     source: None,
     error_code: Some(503),
 })
 
 // Error wrapping
-yoshi!(error: io_error)
-yoshi!(error: io_error, with_signpost = "Check file permissions")
+yopost!(error: io_error)
+yopost!(error: io_error, with_signpost = "Check file permissions")
 
 // Advanced context chaining
-yoshi!(
+yopost!(
     message: "Database connection failed",
     with_metadata = ("host", "localhost:5432"),
     with_metadata = ("timeout", "30s"),

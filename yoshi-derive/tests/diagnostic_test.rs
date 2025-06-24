@@ -398,12 +398,13 @@ fn test_specific_issue() {
     tracing::error!("Error Source: {:?}", error_trait.source());
 
     // Test conversion to Yoshi if possible
-    match std::panic::catch_unwind(|| {
+    if let Ok(yoshi_str) = std::panic::catch_unwind(|| {
         let yoshi_err: yoshi_core::Yoshi = err.into();
         format!("{yoshi_err}")
     }) {
-        Ok(yoshi_str) => println!("Yoshi Conversion: '{yoshi_str}'"),
-        Err(_) => println!("❌ Yoshi conversion failed"),
+        tracing::info!("Yoshi Conversion: '{yoshi_str}'");
+    } else {
+        tracing::error!("❌ Yoshi conversion failed");
     }
 
     tracing::info!("====================\n");

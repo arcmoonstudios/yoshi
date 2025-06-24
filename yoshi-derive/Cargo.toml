@@ -26,6 +26,10 @@ hashbrown = "0.15.4"
 tracing = { version = "0.1.39", features = ["attributes"] }
 const-fnv1a-hash = "1.1.0"
 crossbeam-queue = "0.3"
+chrono = { version = "0.4", features = ["serde"] }
+sha2 = "0.10"
+convert_case = "0.6"
+
 futures = { version = "0.3", optional = true }
 tokio = { version = "1.0", features = [
     "rt",
@@ -71,6 +75,7 @@ features = ["full", "extra-traits", "derive", "visit", "visit-mut"]
 version = "0.1.6"
 path = "../yoshi-core"
 features = ["alloc"]
+
 
 [dependencies.trybuild]
 version = "1.0.105"

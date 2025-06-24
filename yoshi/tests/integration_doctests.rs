@@ -12,7 +12,7 @@ fn test_basic_hatch_usage() -> Hatch<()> {
     // Test divide function
     fn divide(a: f64, b: f64) -> Hatch<f64> {
         if b == 0.0 {
-            Err(yoshi!(message: "Division by zero"))
+            Err(yopost!(message: "Division by zero"))
         } else {
             Ok(a / b)
         }
@@ -49,7 +49,7 @@ fn test_file_operations() -> Hatch<()> {
 
     fn read_config_sync() -> Hatch<String> {
         let content = fs::read_to_string("nonexistent_config.toml").map_err(|e| {
-            yoshi!(
+            yopost!(
                 error: e,
                 with_signpost = "Create config.toml or check file permissions"
             )
@@ -76,25 +76,25 @@ fn test_file_operations() -> Hatch<()> {
 #[test]
 fn test_error_patterns() -> Hatch<()> {
     // Test basic error creation
-    let error = yoshi!(message: "Configuration error in app.toml: missing required field");
+    let error = yopost!(message: "Configuration error in app.toml: missing required field");
     let error_str = format!("{error}");
     assert!(error_str.contains("Configuration error"));
     assert!(error_str.contains("app.toml"));
 
     // Test error with suggestion
-    let error_with_suggestion = yoshi!(message: "Validation error: email invalid format");
+    let error_with_suggestion = yopost!(message: "Validation error: email invalid format");
     let error_str = format!("{error_with_suggestion}");
     assert!(error_str.contains("Validation error"));
     assert!(error_str.contains("email"));
 
     // Test business rule error
-    let business_error = yoshi!(message: "Business rule violation: max_orders - limit exceeded");
+    let business_error = yopost!(message: "Business rule violation: max_orders - limit exceeded");
     let error_str = format!("{business_error}");
     assert!(error_str.contains("Business rule violation"));
     assert!(error_str.contains("max_orders"));
 
     // Test timeout error
-    let timeout_error = yoshi!(message: "Operation 'database_query' timed out after 5000ms");
+    let timeout_error = yopost!(message: "Operation 'database_query' timed out after 5000ms");
     let error_str = format!("{timeout_error}");
     assert!(error_str.contains("timed out"));
     assert!(error_str.contains("5000ms"));
@@ -107,14 +107,14 @@ fn test_error_patterns() -> Hatch<()> {
 fn test_optimization_patterns() -> Hatch<()> {
     // Test optimization-related error messages
     let optimization_error =
-        yoshi!(message: "Optimization opportunity: Vec::new() could use with_capacity()");
+        yopost!(message: "Optimization opportunity: Vec::new() could use with_capacity()");
     let error_str = format!("{optimization_error}");
     assert!(error_str.contains("Optimization"));
     assert!(error_str.contains("Vec::new"));
 
     // Test auto-correction suggestion format
     let suggestion_error =
-        yoshi!(message: "Auto-correction: Replace .unwrap() with proper error handling");
+        yopost!(message: "Auto-correction: Replace .unwrap() with proper error handling");
     let error_str = format!("{suggestion_error}");
     assert!(error_str.contains("Auto-correction"));
     assert!(error_str.contains("unwrap"));
@@ -131,7 +131,7 @@ fn test_error_chaining() -> Hatch<()> {
 
     fn parse_data(data: &str) -> Hatch<Vec<i32>> {
         data.split(',')
-            .map(|s| s.parse().map_err(|e| yoshi!(error: e)))
+            .map(|s| s.parse().map_err(|e| yopost!(error: e)))
             .collect()
     }
 
@@ -156,12 +156,12 @@ fn test_error_chaining() -> Hatch<()> {
 #[test]
 fn test_comprehensive_patterns() -> Hatch<()> {
     // Test various error creation patterns
-    let _config_err = yoshi!(message: "Configuration error");
-    let _validation_err = yoshi!(message: "Validation failed - check input format");
+    let _config_err = yopost!(message: "Configuration error");
+    let _validation_err = yopost!(message: "Validation failed - check input format");
 
     // Test error conversion
     let std_err = std::io::Error::new(std::io::ErrorKind::NotFound, "File not found");
-    let _yoshi_err = yoshi!(error: std_err, with_signpost = "Create the missing file");
+    let _yoshi_err = yopost!(error: std_err, with_signpost = "Create the missing file");
 
     // Test Result<T> alias
     fn example_function() -> Result<String> {

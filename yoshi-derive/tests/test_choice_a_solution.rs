@@ -46,29 +46,29 @@ mod tests {
 
     #[test]
     fn test_choice_a_solution() {
-        eprintln!("🚀 Testing Choice A Solution - Extraordinary std::io::Error Support");
+        tracing::info!("🚀 Testing Choice A Solution - Extraordinary std::io::Error Support");
 
         // Test 1: Transparent variant (should work with From)
         let io_err = io::Error::new(io::ErrorKind::NotFound, "file not found");
         let test_err1 = TestError::IoError(io_err);
-        println!("✓ Transparent variant works: {test_err1}");
+        tracing::info!("✓ Transparent variant works: {test_err1}");
 
         // Test 2: Check if std::io::Error support works with From trait
         let io_err2 = io::Error::new(io::ErrorKind::PermissionDenied, "access denied");
         // For now, let's test basic functionality
-        eprintln!("✓ std::io::Error can be created: {:?}", io_err2.kind());
+        tracing::info!("✓ std::io::Error can be created: {:?}", io_err2.kind());
 
         // Test 3: Test error trait implementation
         let error_trait: &dyn Error = &test_err1;
-        eprintln!("✓ Error trait works: {error_trait}");
+        tracing::info!("✓ Error trait works: {error_trait}");
 
         // Test 4: Test if source() method works
         if let Some(source) = error_trait.source() {
-            println!("✓ Source method works: {source}");
+            tracing::info!("✓ Source method works: {source}");
         } else {
-            println!("✓ No source (expected for transparent)");
+            tracing::info!("✓ No source (expected for transparent)");
         }
 
-        eprintln!("\n🎉 Choice A Solution Working! Users can use std::io::Error naturally!");
+        tracing::info!("\n🎉 Choice A Solution Working! Users can use std::io::Error naturally!");
     }
 }

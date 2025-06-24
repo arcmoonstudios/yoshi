@@ -368,6 +368,13 @@ pub struct PredictionAccuracy {
 }
 
 impl Default for ErrorAnalyticsEngine {
+/// **default**
+///
+/// This function provides default functionality within the Yoshi error handling framework.
+///
+/// # Errors
+///
+/// Returns an error if the operation fails due to invalid input or system constraints.
     fn default() -> Self {
         Self::new()
     }
@@ -787,58 +794,36 @@ pub fn demonstrate_expert_patterns() -> Hatch<()> {
             tracing::info!("  Confidence Score: {:.2}", diagnosis.confidence_score);
 
             tracing::info!("\nCorrelation Analysis:");
-            println!(
-                "  Correlation ID: {}",
-                diagnosis.correlation_result.correlation_id
+            tracing::info!("  Correlation ID: {}", diagnosis.correlation_result.correlation_id
             );
-            println!(
-                "  Root Cause Probability: {:.2}%",
-                diagnosis.correlation_result.root_cause_probability * 100.0
+            tracing::info!("  Root Cause Probability: {:.2}%", diagnosis.correlation_result.root_cause_probability * 100.0
             );
-            println!(
-                "  Correlation Strength: {:.2}",
-                diagnosis.correlation_result.correlation_strength
+            tracing::info!("  Correlation Strength: {:.2}", diagnosis.correlation_result.correlation_strength
             );
-            println!(
-                "  Affected Services: {:?}",
-                diagnosis.correlation_result.affected_services
+            tracing::info!("  Affected Services: {:?}", diagnosis.correlation_result.affected_services
             );
 
             tracing::info!("\nPerformance Impact:");
-            println!(
-                "  Severity: {}",
-                diagnosis.performance_impact.impact_severity
+            tracing::info!("  Severity: {}", diagnosis.performance_impact.impact_severity
             );
-            println!(
-                "  Degradation: {:.1}%",
-                diagnosis.performance_impact.performance_degradation_pct
+            tracing::info!("  Degradation: {:.1}%", diagnosis.performance_impact.performance_degradation_pct
             );
-            println!(
-                "  Recovery Time: {}ms",
-                diagnosis.performance_impact.estimated_recovery_time_ms
+            tracing::info!("  Recovery Time: {}ms", diagnosis.performance_impact.estimated_recovery_time_ms
             );
 
             tracing::info!("\nPredictions:");
-            println!(
-                "  Confidence: {:.2}%",
-                diagnosis.predictions.prediction_confidence * 100.0
+            tracing::info!("  Confidence: {:.2}%", diagnosis.predictions.prediction_confidence * 100.0
             );
             if let Some(time_to_next) = diagnosis.predictions.time_to_next_error_minutes {
                 tracing::error!("  Next Error ETA: {time_to_next:.1} minutes");
             }
-            println!(
-                "  Likely Next Errors: {:?}",
-                diagnosis.predictions.likely_next_errors
+            tracing::info!("  Likely Next Errors: {:?}", diagnosis.predictions.likely_next_errors
             );
 
             tracing::info!("\nPattern Analysis:");
-            println!(
-                "  Matched Patterns: {:?}",
-                diagnosis.pattern_analysis.matched_patterns
+            tracing::info!("  Matched Patterns: {:?}", diagnosis.pattern_analysis.matched_patterns
             );
-            println!(
-                "  Pattern Confidence: {:.2}%",
-                diagnosis.pattern_analysis.pattern_confidence * 100.0
+            tracing::info!("  Pattern Confidence: {:.2}%", diagnosis.pattern_analysis.pattern_confidence * 100.0
             );
             tracing::info!("  Diagnosis: {}", diagnosis.pattern_analysis.diagnosis);
 

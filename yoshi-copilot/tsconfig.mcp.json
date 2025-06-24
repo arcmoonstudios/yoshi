@@ -1,0 +1,37 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    // MCP Server Specific Overrides - ESM Module System
+    "module": "ES2022",                    // ESM for MCP server compatibility
+    "target": "ES2022",                    // Modern target for MCP runtime
+    "moduleResolution": "node",            // Node resolution for MCP SDK
+    "outDir": "out/mcp",                   // Separate output for MCP builds
+    
+    // MCP-Specific Optimizations
+    "allowImportingTsExtensions": false,   // Standard import behavior
+    "noEmit": false,                       // Enable output for MCP server
+    "isolatedModules": true,               // Better for bundling tools
+    
+    // Enhanced Type Safety for MCP
+    "verbatimModuleSyntax": false,         // Allow flexible module syntax
+    "allowArbitraryExtensions": false      // Standard extension handling
+  },
+  
+  // MCP-Specific File Inclusion
+  "include": [
+    "src/mcp/**/*",                        // MCP-specific source files
+    "src/shared/**/*",                     // Shared utilities
+    "typings/**/*"                         // Type definitions
+  ],
+  
+  // MCP Build Exclusions
+  "exclude": [
+    "node_modules",
+    "out/extension",                       // Exclude VS Code extension output
+    "**/*.test.ts",
+    "**/*.spec.ts",
+    "**/__tests__/**/*",
+    "coverage",
+    "src/extension/**/*"                   // Exclude VS Code extension source
+  ]
+}

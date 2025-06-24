@@ -15,10 +15,10 @@ use yoshi::*;
 Err("failed to connect to database")
 
 // Yoshi gives you this:
-Err(yoshi!(message: "Failed to connect to database"))
+Err(yopost!(message: "Failed to connect to database"))
 
 // Or with structured error kinds:
-Err(yoshi!(kind: YoshiKind::Network {
+Err(yopost!(kind: YoshiKind::Network {
     message: "Database connection failed".into(),
     source: None,
     error_code: Some(503),
@@ -118,7 +118,7 @@ fn get_user(id: u64) -> Hatch<User> {
         .lay("Querying user database")?;
 
     if user_data.is_empty() {
-        return Err(yoshi!(kind: YoshiKind::NotFound {
+        return Err(yopost!(kind: YoshiKind::NotFound {
             resource_type: "User".into(),
             identifier: format!("user_id_{}", id).into(),
             search_locations: Some(vec!["users_table".into(), "user_cache".into()]),
@@ -147,7 +147,7 @@ fn validate_config(config: &Config) -> Hatch<()> {
     // Check required fields
     for field in REQUIRED_FIELDS {
         if !config.has_field(field) {
-            return Err(yoshi!(kind: YoshiKind::Config {
+            return Err(yopost!(kind: YoshiKind::Config {
                 message: format!("Missing required field '{}'", field).into(),
                 source: None,
                 config_path: Some(config.path().into()),
@@ -247,7 +247,7 @@ use yoshi::*;
 #[cfg(feature = "std")]
 fn std_function() -> Hatch<String> {
     // Full feature set including backtrace, std::io integration, etc.
-    yoshi!(message: "This works with std features")
+    yopost!(message: "This works with std features")
         .with_metadata("environment", "std")
         .into()
 }

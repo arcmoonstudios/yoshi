@@ -47,7 +47,7 @@ macro_rules! test_expansion {
             // If this compiles, the macro worked
             $input
 
-            println!("✓ Macro expansion successful for {}", stringify!($name));
+            tracing::info!("✓ Macro expansion successful for {}", stringify!($name));
         }
     };
 }
@@ -136,7 +136,7 @@ fn test_simple_enum_performance() {
     }
 
     let duration = start.elapsed();
-    println!("Simple enum performance test completed in {duration:?}");
+    tracing::info!("Simple enum performance test completed in {duration:?}");
 
     // Should be very fast
     assert!(duration.as_millis() < 100);
@@ -217,7 +217,7 @@ fn test_large_enum_performance() {
     }
 
     let duration = start.elapsed();
-    println!("Large enum performance test completed in {duration:?}");
+    tracing::info!("Large enum performance test completed in {duration:?}");
 
     // Should still be reasonably fast even with many variants
     assert!(duration.as_millis() < 200);
@@ -248,8 +248,8 @@ fn test_memory_usage() {
     let small_size = mem::size_of::<MemoryTestError>();
     let small_align = mem::align_of::<MemoryTestError>();
 
-    println!("MemoryTestError size: {small_size} bytes");
-    println!("MemoryTestError alignment: {small_align} bytes");
+    tracing::info!("MemoryTestError size: {small_size} bytes");
+    tracing::info!("MemoryTestError alignment: {small_align} bytes");
 
     // Should be reasonably sized
     assert!(small_size <= 64, "Error size too large: {small_size} bytes");
@@ -269,7 +269,7 @@ fn test_memory_usage() {
     ];
 
     let total_size = errors.len() * small_size;
-    println!(
+    tracing::info!(
         "Total size for {} errors: {} bytes",
         errors.len(),
         total_size
@@ -319,7 +319,7 @@ fn test_thread_safety() {
         assert!(result % 2 == 0);
     }
 
-    println!("Thread safety test completed successfully");
+    tracing::info!("Thread safety test completed successfully");
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -366,7 +366,7 @@ fn test_std_error_compatibility() {
         assert!(depth < 10, "Error chain too deep");
     }
 
-    eprintln!("Error chain depth: {depth}");
+    tracing::info!("Error chain depth: {depth}");
     assert!(depth > 0, "Should have at least one source error");
 }
 
@@ -498,9 +498,9 @@ fn test_debug_output() {
     assert!(display_str.contains("404"));
     assert!(display_str.contains("Resource not found"));
 
-    println!("Debug output test completed");
-    println!("Debug: {err:#?}");
-    println!("Display: {err}");
+    tracing::info!("Debug output test completed");
+    tracing::debug!("Debug: {err:#?}");
+    tracing::info!("Display: {err}");
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -509,7 +509,7 @@ fn test_debug_output() {
 
 #[test]
 fn test_comprehensive_integration() {
-    println!("\n=== COMPREHENSIVE YOSHI-DERIVE INTEGRATION TEST ===");
+    tracing::info!("\n=== COMPREHENSIVE YOSHI-DERIVE INTEGRATION TEST ===");
 
     // Test all major features work together
     #[derive(Debug, YoshiError)]
@@ -557,9 +557,9 @@ fn test_comprehensive_integration() {
         code: 504,
     };
 
-    eprintln!("Network Error Tests:");
-    println!("  Display: {network_err}");
-    println!("  Debug: {network_err:?}");
+    tracing::info!("Network Error Tests:");
+    tracing::info!("  Display: {network_err}");
+    tracing::info!("  Debug: {network_err:?}");
 
     assert!(format!("{network_err}").starts_with("integration:"));
     assert!(!format!("{network_err:?}").is_empty());
@@ -570,9 +570,9 @@ fn test_comprehensive_integration() {
         message: "invalid format".to_string(),
     };
 
-    eprintln!("\nValidation Error Tests:");
-    println!("  Display: {validation_err}");
-    println!("  Debug: {validation_err:?}");
+    tracing::info!("\nValidation Error Tests:");
+    tracing::info!("  Display: {validation_err}");
+    tracing::info!("  Debug: {validation_err:?}");
 
     assert!(!format!("{validation_err}").is_empty());
     assert!(!format!("{validation_err:?}").is_empty());
@@ -583,9 +583,9 @@ fn test_comprehensive_integration() {
         "File not found",
     ));
 
-    eprintln!("\nIO Error Tests:");
-    println!("  Source: {:?}", io_err.source().is_some());
-    println!("  Display: {io_err}");
+    tracing::info!("\nIO Error Tests:");
+    tracing::info!("  Source: {:?}", io_err.source().is_some());
+    tracing::info!("  Display: {io_err}");
 
     assert!(io_err.source().is_some());
     assert!(format!("{io_err}").contains("File not found"));
@@ -594,8 +594,8 @@ fn test_comprehensive_integration() {
     let json_str = r#"{"invalid": json}"#;
     if let Err(json_parse_err) = serde_json::from_str::<serde_json::Value>(json_str) {
         let wrapped_err = IntegrationTestError::from(json_parse_err);
-        eprintln!("\nJSON Error Tests:");
-        println!("  Display: {wrapped_err}");
+        tracing::info!("\nJSON Error Tests:");
+        tracing::info!("  Display: {wrapped_err}");
         assert!(matches!(wrapped_err, IntegrationTestError::JsonError(_)));
     }
 
@@ -603,9 +603,9 @@ fn test_comprehensive_integration() {
     let inferred_timeout = IntegrationTestError::InferredNetworkTimeout;
     let inferred_validation = IntegrationTestError::InferredValidationFailed;
 
-    println!("\nAuto-Inference Tests:");
-    println!("  Timeout display: {inferred_timeout}");
-    println!("  Validation display: {inferred_validation}");
+    tracing::info!("\nAuto-Inference Tests:");
+    tracing::info!("  Timeout display: {inferred_timeout}");
+    tracing::info!("  Validation display: {inferred_validation}");
 
     assert!(!format!("{inferred_timeout}").is_empty());
     assert!(!format!("{inferred_validation}").is_empty());
@@ -614,8 +614,8 @@ fn test_comprehensive_integration() {
     assert!(!format!("{network_err}").is_empty());
     assert!(!format!("{validation_err}").is_empty());
 
-    println!("\n✓ All integration tests passed successfully!");
-    println!("=====================================\n");
+    tracing::info!("\n✓ All integration tests passed successfully!");
+    tracing::info!("=====================================\n");
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -628,21 +628,21 @@ mod test_runner {
 
     #[test]
     fn run_all_debug_tests() {
-        println!("\n🚀 Starting YoshiError Derive Macro Test Suite");
-        println!("================================================");
+        tracing::info!("\n🚀 Starting YoshiError Derive Macro Test Suite");
+        tracing::info!("================================================");
 
         // The actual tests run automatically, this is just for coordination
-        println!("✓ Basic functionality tests");
-        println!("✓ Performance tests");
-        println!("✓ Memory usage tests");
-        println!("✓ Thread safety tests");
-        println!("✓ Compatibility tests");
-        println!("✓ Regression tests");
-        println!("✓ Debug output tests");
-        println!("✓ Integration tests");
+        tracing::info!("✓ Basic functionality tests");
+        tracing::info!("✓ Performance tests");
+        tracing::info!("✓ Memory usage tests");
+        tracing::info!("✓ Thread safety tests");
+        tracing::info!("✓ Compatibility tests");
+        tracing::info!("✓ Regression tests");
+        tracing::info!("✓ Debug output tests");
+        tracing::info!("✓ Integration tests");
 
-        println!("\n🎉 All YoshiError derive tests completed!");
-        println!("If you see this message, your macro is working correctly.");
-        println!("================================================\n");
+        tracing::info!("\n🎉 All YoshiError derive tests completed!");
+        tracing::info!("If you see this message, your macro is working correctly.");
+        tracing::info!("================================================\n");
     }
 }

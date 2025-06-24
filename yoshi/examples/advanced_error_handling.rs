@@ -171,6 +171,13 @@ pub enum CircuitStatus {
 }
 
 impl Default for ErrorHandler {
+/// **default**
+///
+/// This function provides default functionality within the Yoshi error handling framework.
+///
+/// # Errors
+///
+/// Returns an error if the operation fails due to invalid input or system constraints.
     fn default() -> Self {
         Self::new()
     }
@@ -487,9 +494,9 @@ pub fn process_batch_operations(
 /// Simulates an operation that may fail.
 fn simulate_operation(operation: &str) -> Hatch<String> {
     if operation.contains("fail") {
-        Err(yoshi!(message: "Service unavailable: operation_service - Simulated failure"))
+        Err(yopost!(message: "Service unavailable: operation_service - Simulated failure"))
     } else if operation.contains("limit") {
-        Err(yoshi!(message: "Resource exhausted: cpu (95/100) - Performance degradation"))
+        Err(yopost!(message: "Resource exhausted: cpu (95/100) - Performance degradation"))
     } else {
         Ok(format!("Success: {operation}"))
     }
@@ -620,9 +627,7 @@ fn demonstrate_advanced_error_handling() -> Hatch<()> {
             tracing::info!("  Success rate: {:.2}%", result.success_rate * 100.0);
 
             for success in &result.successful {
-                println!(
-                    "  ✓ [{}] {} (attempts: {})",
-                    success.index, success.operation, success.attempts
+                tracing::info!("  ✓ [{}] {} (attempts: {})", success.index, success.operation, success.attempts
                 );
             }
 
@@ -633,9 +638,7 @@ fn demonstrate_advanced_error_handling() -> Hatch<()> {
                     failure.operation,
                     failure.error
                 );
-                println!(
-                    "  ✗ [{}] {} - {}",
-                    failure.index, failure.operation, failure.error
+                tracing::info!("  ✗ [{}] {} - {}", failure.index, failure.operation, failure.error
                 );
             }
         }

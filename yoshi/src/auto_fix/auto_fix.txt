@@ -1,0 +1,681 @@
+/* src/bin/cargo-yoshi.rs */
+//! **Cargo Yoshi - Single Command for Fix + Build**
+//!
+//! This creates a `cargo yoshi` subcommand that:
+//! 1. Processes files with #![yoshi(auto-fix)]
+//! 2. Applies all integrated engine fixes
+//! 3. Removes the yoshi attributes
+//! 4. Runs the original cargo command
+//!
+//! Usage: cargo yoshi [build|check|test|run|...]
+
+use std::env;
+use std::process::{self, Command};
+use tracing::{info, error};
+use yoshi::auto_fix::{YoshiAF, AutoFixConfig};
+
+fn main() {
+    tracing_subscriber::init();
+
+    let args: Vec<String> = env::args().collect();
+
+    // Parse cargo subcommand arguments
+    // cargo yoshi build -> ["cargo-yoshi", "build"]
+    // cargo yoshi check -> ["cargo-yoshi", "check"]
+    // cargo yoshi -> ["cargo-yoshi"] (defaults to build)
+
+    let cargo_command = if args.len() > 1 {
+        &args[1]
+    } else {
+        "build"
+    };
+
+    let cargo_args: Vec<&str> = if args.len() > 2 {
+        args[2..].iter().map(|s| s.as_str()).collect()
+    } else {
+        vec![]
+    };
+
+    // **PHASE 1: YoshiAF Processing**
+    info!("🤖 Running YoshiAF preprocessing...");
+
+    let config = AutoFixConfig::default();
+    let mut yoshiaf = match YoshiAF::with_config(config) {
+        Ok(engine) => engine,
+        Err(e) => {
+            error!("❌ Failed to initialize YoshiAF: {}", e);
+            process::exit(1);
+        }
+    };
+
+    match yoshiaf.apply_autonomous_fixes() {
+        Ok(stats) => {
+            if stats.fixes_applied > 0 {
+                info!("✅ Applied {} fixes across {} files", stats.fixes_applied, stats.files_processed);
+
+                // Remove #![yoshi(auto-fix)] attributes after processing
+                if let Err(e) = remove_yoshi_attributes(&config.source_dirs) {
+                    error!("❌ Failed to remove yoshi attributes: {}", e);
+                    process::exit(1);
+                }
+            } else {
+                info!("ℹ️  No files with #![yoshi(auto-fix)] found");
+            }
+        }
+        Err(e) => {
+            error!("❌ YoshiAF processing failed: {}", e);
+            process::exit(1);
+        }
+    }
+
+    // **PHASE 2: Original Cargo Command**
+    info!("🔨 Running cargo {}...", cargo_command);
+
+    let mut cmd = Command::new("cargo");
+    cmd.arg(cargo_command);
+    cmd.args(&cargo_args);
+
+    match cmd.status() {
+        Ok(status) => {
+            if status.success() {
+                info!("🎉 cargo {} completed successfully!", cargo_command);
+            } else {
+                error!("❌ cargo {} failed with exit code: {:?}", cargo_command, status.code());
+                process::exit(status.code().unwrap_or(1));
+            }
+        }
+        Err(e) => {
+            error!("❌ Failed to execute cargo {}: {}", cargo_command, e);
+            process::exit(1);
+        }
+    }
+}
+
+/// Remove #![yoshi(auto-fix)] attributes from files after processing
+fn remove_yoshi_attributes(source_dirs: &[std::path::PathBuf]) -> Result<(), Box<dyn std::error::Error>> {
+    use std::fs;
+    use walkdir::WalkDir;
+
+    for source_dir in source_dirs {
+        for entry in WalkDir::new(source_dir) {
+            let entry = entry?;
+            let path = entry.path();
+
+            if path.extension().map_or(false, |ext| ext == "rs") {
+                let content = fs::read_to_string(path)?;
+                let mut lines: Vec<String> = content.lines().map(|s| s.to_string()).collect();
+                let mut modified = false;
+
+                // Remove lines containing #![yoshi(auto-fix)]
+                lines.retain(|line| {
+                    let trimmed = line.trim();
+                    let should_remove = trimmed == "#![yoshi(auto-fix)]"
+                        || trimmed == "#![yoshi(auto_fix)]"
+                        || trimmed == "#![yoshi(autofix)]";
+
+                    if should_remove {
+                        modified = true;
+                        false
+                    } else {
+                        true
+                    }
+                });
+
+                if modified {
+                    fs::write(path, lines.join("\n"))?;
+                }
+            }
+        }
+    }
+
+    Ok(())
+}
+
+---
+
+/* src/bin/yoshi-rustc.rs */
+//! **YoshiAF RUSTC Wrapper - Ultimate Seamless Integration**
+//!
+//! This acts as a rustc wrapper that automatically processes #![yoshi(auto-fix)]
+//! files before calling the real rustc. Works with ANY cargo command:
+//!
+//! RUSTC_WRAPPER=yoshi-rustc cargo build   # Automatic processing
+//! RUSTC_WRAPPER=yoshi-rustc cargo test    # Automatic processing
+//! RUSTC_WRAPPER=yoshi-rustc cargo run     # Automatic processing
+
+use std::env;
+use std::process::{self, Command};
+use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
+use tracing::{info, debug, warn};
+use yoshi::auto_fix::{YoshiAF, AutoFixConfig};
+
+// Global state to ensure we only process files once per build
+lazy_static::lazy_static! {
+    static ref PROCESSED_FILES: Arc<Mutex<std::collections::HashSet<PathBuf>>> =
+        Arc::new(Mutex::new(std::collections::HashSet::new()));
+    static ref YOSHIAF_ENGINE: Arc<Mutex<Option<YoshiAF>>> =
+        Arc::new(Mutex::new(None));
+}
+
+fn main() {
+    // Initialize tracing (only if not already done)
+    if env::var("YOSHI_TRACE").is_ok() {
+        tracing_subscriber::init();
+    }
+
+    let args: Vec<String> = env::args().collect();
+
+    // First argument should be the real rustc path
+    if args.len() < 2 {
+        eprintln!("❌ yoshi-rustc: No rustc path provided");
+        process::exit(1);
+    }
+
+    let rustc_path = &args[1];
+    let rustc_args: Vec<&str> = args[2..].iter().map(|s| s.as_str()).collect();
+
+    // Check if this compilation involves any Rust source files
+    let source_files: Vec<PathBuf> = rustc_args
+        .iter()
+        .filter_map(|arg| {
+            if arg.ends_with(".rs") && Path::new(arg).exists() {
+                Some(PathBuf::from(arg))
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    // **PHASE 1: YoshiAF Processing (if needed)**
+    if !source_files.is_empty() {
+        process_yoshi_files(&source_files);
+    }
+
+    // **PHASE 2: Call Real rustc**
+    debug!("🔨 Calling real rustc: {} {:?}", rustc_path, rustc_args);
+
+    let mut cmd = Command::new(rustc_path);
+    cmd.args(&rustc_args);
+
+    match cmd.status() {
+        Ok(status) => {
+            process::exit(status.code().unwrap_or(0));
+        }
+        Err(e) => {
+            eprintln!("❌ Failed to execute rustc: {}", e);
+            process::exit(1);
+        }
+    }
+}
+
+fn process_yoshi_files(source_files: &[PathBuf]) {
+    // Check if any files have #![yoshi(auto-fix)] and haven't been processed
+    let mut yoshi_files = Vec::new();
+
+    {
+        let processed = PROCESSED_FILES.lock().unwrap();
+        for file in source_files {
+            if !processed.contains(file) && has_yoshi_attribute(file) {
+                yoshi_files.push(file.clone());
+            }
+        }
+    }
+
+    if yoshi_files.is_empty() {
+        return; // No YoshiAF processing needed
+    }
+
+    debug!("🤖 Found {} files with #![yoshi(auto-fix)]", yoshi_files.len());
+
+    // Initialize YoshiAF engine if not already done
+    {
+        let mut engine_guard = YOSHIAF_ENGINE.lock().unwrap();
+        if engine_guard.is_none() {
+            match YoshiAF::with_config(AutoFixConfig::default()) {
+                Ok(engine) => {
+                    *engine_guard = Some(engine);
+                    debug!("✅ YoshiAF engine initialized");
+                }
+                Err(e) => {
+                    warn!("⚠️  Failed to initialize YoshiAF: {}", e);
+                    return;
+                }
+            }
+        }
+    }
+
+    // Process the files
+    {
+        let mut engine_guard = YOSHIAF_ENGINE.lock().unwrap();
+        if let Some(ref mut engine) = *engine_guard {
+            // Create temporary config for these specific files
+            let temp_config = AutoFixConfig {
+                source_dirs: vec![PathBuf::from(".")], // Current directory
+                ..Default::default()
+            };
+
+            // Apply fixes to the discovered files
+            match engine.apply_autonomous_fixes() {
+                Ok(stats) => {
+                    if stats.fixes_applied > 0 {
+                        debug!("✅ Applied {} YoshiAF fixes", stats.fixes_applied);
+
+                        // Remove #![yoshi(auto-fix)] attributes
+                        for file in &yoshi_files {
+                            if let Err(e) = remove_yoshi_attribute_from_file(file) {
+                                warn!("⚠️  Failed to remove yoshi attribute from {}: {}", file.display(), e);
+                            }
+                        }
+                    }
+                }
+                Err(e) => {
+                    warn!("⚠️  YoshiAF processing failed: {}", e);
+                }
+            }
+        }
+    }
+
+    // Mark files as processed
+    {
+        let mut processed = PROCESSED_FILES.lock().unwrap();
+        for file in &yoshi_files {
+            processed.insert(file.clone());
+        }
+    }
+}
+
+fn has_yoshi_attribute(file_path: &Path) -> bool {
+    match std::fs::read_to_string(file_path) {
+        Ok(content) => {
+            content.lines().any(|line| {
+                let trimmed = line.trim();
+                trimmed.contains("#![yoshi(auto-fix)]")
+                    || trimmed.contains("#![yoshi(auto_fix)]")
+                    || trimmed.contains("#![yoshi(autofix)]")
+            })
+        }
+        Err(_) => false,
+    }
+}
+
+fn remove_yoshi_attribute_from_file(file_path: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    let content = std::fs::read_to_string(file_path)?;
+    let mut lines: Vec<String> = content.lines().map(|s| s.to_string()).collect();
+    let mut modified = false;
+
+    lines.retain(|line| {
+        let trimmed = line.trim();
+        let should_remove = trimmed == "#![yoshi(auto-fix)]"
+            || trimmed == "#![yoshi(auto_fix)]"
+            || trimmed == "#![yoshi(autofix)]";
+
+        if should_remove {
+            modified = true;
+            false
+        } else {
+            true
+        }
+    });
+
+    if modified {
+        std::fs::write(file_path, lines.join("\n"))?;
+        debug!("🧹 Removed #![yoshi(auto-fix)] from {}", file_path.display());
+    }
+
+    Ok(())
+}
+
+---
+
+/* src/bin/cargo-yoshi.rs */
+//! **Cargo Yoshi - Single Command for Fix + Build**
+//!
+//! This creates a `cargo yoshi` subcommand that:
+//! 1. Processes files with #![yoshi(auto-fix)]
+//! 2. Applies all integrated engine fixes
+//! 3. Removes the yoshi attributes
+//! 4. Runs the original cargo command
+//!
+//! Usage: cargo yoshi [build|check|test|run|...]
+
+use std::env;
+use std::process::{self, Command};
+use std::path::PathBuf;
+use tracing::{info, error};
+use yoshi::auto_fix::{YoshiAF, AutoFixConfig};
+
+fn main() {
+    tracing_subscriber::init();
+
+    let args: Vec<String> = env::args().collect();
+
+    // Parse cargo subcommand arguments
+    // cargo yoshi build -> ["cargo-yoshi", "build"]
+    // cargo yoshi check -> ["cargo-yoshi", "check"]
+    // cargo yoshi -> ["cargo-yoshi"] (defaults to build)
+
+    let cargo_command = if args.len() > 1 {
+        &args[1]
+    } else {
+        "build"
+    };
+
+    let cargo_args: Vec<&str> = if args.len() > 2 {
+        args[2..].iter().map(|s| s.as_str()).collect()
+    } else {
+        vec![]
+    };
+
+    // **PHASE 1: YoshiAF Processing**
+    info!("🤖 Running YoshiAF preprocessing...");
+
+    let config = AutoFixConfig::default();
+    let mut yoshiaf = match YoshiAF::with_config(config) {
+        Ok(engine) => engine,
+        Err(e) => {
+            error!("❌ Failed to initialize YoshiAF: {}", e);
+            process::exit(1);
+        }
+    };
+
+    match yoshiaf.apply_autonomous_fixes() {
+        Ok(stats) => {
+            if stats.fixes_applied > 0 {
+                info!("✅ Applied {} fixes across {} files", stats.fixes_applied, stats.files_processed);
+
+                // Remove #![yoshi(auto-fix)] attributes after processing
+                if let Err(e) = remove_yoshi_attributes(&config.source_dirs) {
+                    error!("❌ Failed to remove yoshi attributes: {}", e);
+                    process::exit(1);
+                }
+            } else {
+                info!("ℹ️  No files with #![yoshi(auto-fix)] found");
+            }
+        }
+        Err(e) => {
+            error!("❌ YoshiAF processing failed: {}", e);
+            process::exit(1);
+        }
+    }
+
+    // **PHASE 2: Original Cargo Command**
+    info!("🔨 Running cargo {}...", cargo_command);
+
+    let mut cmd = Command::new("cargo");
+    cmd.arg(cargo_command);
+    cmd.args(&cargo_args);
+
+    match cmd.status() {
+        Ok(status) => {
+            if status.success() {
+                info!("🎉 cargo {} completed successfully!", cargo_command);
+            } else {
+                error!("❌ cargo {} failed with exit code: {:?}", cargo_command, status.code());
+                process::exit(status.code().unwrap_or(1));
+            }
+        }
+        Err(e) => {
+            error!("❌ Failed to execute cargo {}: {}", cargo_command, e);
+            process::exit(1);
+        }
+    }
+}
+
+/// Remove #![yoshi(auto-fix)] attributes from files after processing
+fn remove_yoshi_attributes(source_dirs: &[std::path::PathBuf]) -> Result<(), Box<dyn std::error::Error>> {
+    use std::fs;
+    use walkdir::WalkDir;
+
+    for source_dir in source_dirs {
+        for entry in WalkDir::new(source_dir) {
+            let entry = entry?;
+            let path = entry.path();
+
+            if path.extension().map_or(false, |ext| ext == "rs") {
+                let content = fs::read_to_string(path)?;
+                let mut lines: Vec<String> = content.lines().map(|s| s.to_string()).collect();
+                let mut modified = false;
+
+                // Remove lines containing #![yoshi(auto-fix)]
+                lines.retain(|line| {
+                    let trimmed = line.trim();
+                    let should_remove = trimmed == "#![yoshi(auto-fix)]"
+                        || trimmed == "#![yoshi(auto_fix)]"
+                        || trimmed == "#![yoshi(autofix)]";
+
+                    if should_remove {
+                        modified = true;
+                        false
+                    } else {
+                        true
+                    }
+                });
+
+                if modified {
+                    fs::write(path, lines.join("\n"))?;
+                }
+            }
+        }
+    }
+
+    Ok(())
+}
+
+---
+
+# 🎯 Single Command Solutions for YoshiAF
+
+You're absolutely right - nobody wants to run two commands! Here are **single command** solutions:
+
+## 🚀 **Option 1: Cargo Subcommand (Recommended)**
+
+### Setup
+```bash
+cargo install yoshi  # Installs cargo-yoshi binary
+```
+
+### Usage
+```bash
+# Write your exact syntax
+echo '#![yoshi(auto-fix)]' >> src/main.rs
+
+# Single command that processes AND builds
+cargo yoshi          # Equivalent to: yoshi-af fix && cargo build
+cargo yoshi test     # Equivalent to: yoshi-af fix && cargo test
+cargo yoshi run      # Equivalent to: yoshi-af fix && cargo run
+```
+
+**Benefits:**
+- ✅ Single command for everything
+- ✅ Familiar `cargo` interface
+- ✅ Works with all cargo subcommands
+- ✅ Clear what's happening
+
+---
+
+## ⚡ **Option 2: RUSTC Wrapper (Ultimate Seamless)**
+
+### Setup
+```bash
+cargo install yoshi  # Installs yoshi-rustc binary
+
+# One-time setup in your shell profile (~/.bashrc, ~/.zshrc)
+export RUSTC_WRAPPER=yoshi-rustc
+```
+
+### Usage
+```bash
+# Write your exact syntax
+echo '#![yoshi(auto-fix)]' >> src/main.rs
+
+# ANY cargo command automatically processes yoshi files
+cargo build    # Automatic YoshiAF processing
+cargo test     # Automatic YoshiAF processing
+cargo run      # Automatic YoshiAF processing
+cargo check    # Automatic YoshiAF processing
+```
+
+**Benefits:**
+- ✅ **COMPLETELY TRANSPARENT** - works with any cargo command
+- ✅ Zero workflow changes needed
+- ✅ Set once, works forever
+- ✅ Ultimate seamless experience
+
+---
+
+## 🎯 **Which Should You Choose?**
+
+### **Cargo Subcommand** if you want:
+- Explicit control over when YoshiAF runs
+- Clear visual indication of processing
+- Easy to enable/disable per command
+
+### **RUSTC Wrapper** if you want:
+- **Maximum seamlessness** - just write code and run cargo
+- Zero workflow changes
+- "It just works" experience
+
+---
+
+## 📋 **Developer Experience Comparison**
+
+### **Before (Two Commands):**
+```bash
+yoshi-af fix          # 😤 Extra step
+cargo build           # 😤 Have to remember both
+```
+
+### **After (Cargo Subcommand):**
+```bash
+cargo yoshi           # 😊 Single command
+```
+
+### **After (RUSTC Wrapper):**
+```bash
+cargo build           # 🤩 Completely transparent!
+```
+
+---
+
+## 🎊 **Perfect Solution!**
+
+Both options give you:
+- ✅ **Exact syntax:** `#![yoshi(auto-fix)]`
+- ✅ **Single command** workflow
+- ✅ **Zero configuration** in user projects
+- ✅ **Stable Rust** compatibility
+- ✅ **Universal** - works in any Rust project
+
+**No more dual CLI nonsense!** 🎯
+
+---
+
+#!/bin/bash
+# install.sh - YoshiAF Auto-Setup Script
+
+set -e
+
+echo "🤖 Installing YoshiAF - Autonomous Fixing Engine for Rust"
+echo ""
+
+# Install the binaries
+echo "📦 Installing YoshiAF binaries..."
+cargo install yoshi
+
+echo ""
+echo "✅ YoshiAF installed successfully!"
+echo ""
+
+# Offer to set up RUSTC_WRAPPER
+echo "🚀 Setup Options:"
+echo ""
+echo "1) Cargo subcommand: Use 'cargo yoshi' command"
+echo "2) RUSTC wrapper: Automatic processing with any cargo command"
+echo "3) Manual setup: I'll configure it myself"
+echo ""
+
+read -p "Choose setup option (1-3): " choice
+
+case $choice in
+    1)
+        echo ""
+        echo "✅ Cargo subcommand setup complete!"
+        echo ""
+        echo "Usage:"
+        echo "  cargo yoshi        # Process files and build"
+        echo "  cargo yoshi test   # Process files and test"
+        echo "  cargo yoshi run    # Process files and run"
+        echo ""
+        ;;
+    2)
+        echo ""
+        echo "🔧 Setting up RUSTC wrapper..."
+
+        # Detect shell and add to appropriate config file
+        if [[ "$SHELL" == *"zsh"* ]]; then
+            SHELL_CONFIG="$HOME/.zshrc"
+        elif [[ "$SHELL" == *"bash"* ]]; then
+            SHELL_CONFIG="$HOME/.bashrc"
+        elif [[ "$SHELL" == *"fish"* ]]; then
+            SHELL_CONFIG="$HOME/.config/fish/config.fish"
+            echo "set -x RUSTC_WRAPPER yoshi-rustc" >> "$SHELL_CONFIG"
+            echo "✅ RUSTC_WRAPPER added to $SHELL_CONFIG"
+            echo ""
+            echo "Run: source $SHELL_CONFIG"
+            echo "Or restart your terminal"
+            echo ""
+            echo "Usage:"
+            echo "  cargo build   # Automatic YoshiAF processing!"
+            echo "  cargo test    # Automatic YoshiAF processing!"
+            echo "  cargo run     # Automatic YoshiAF processing!"
+            echo ""
+            exit 0
+        else
+            SHELL_CONFIG="$HOME/.profile"
+        fi
+
+        # Add RUSTC_WRAPPER to shell config
+        if ! grep -q "RUSTC_WRAPPER=yoshi-rustc" "$SHELL_CONFIG" 2>/dev/null; then
+            echo "" >> "$SHELL_CONFIG"
+            echo "# YoshiAF RUSTC Wrapper" >> "$SHELL_CONFIG"
+            echo "export RUSTC_WRAPPER=yoshi-rustc" >> "$SHELL_CONFIG"
+            echo "✅ RUSTC_WRAPPER added to $SHELL_CONFIG"
+        else
+            echo "✅ RUSTC_WRAPPER already configured in $SHELL_CONFIG"
+        fi
+
+        echo ""
+        echo "Run: source $SHELL_CONFIG"
+        echo "Or restart your terminal"
+        echo ""
+        echo "Usage:"
+        echo "  cargo build   # Automatic YoshiAF processing!"
+        echo "  cargo test    # Automatic YoshiAF processing!"
+        echo "  cargo run     # Automatic YoshiAF processing!"
+        echo ""
+        ;;
+    3)
+        echo ""
+        echo "✅ Manual setup chosen"
+        echo ""
+        echo "Available commands:"
+        echo "  yoshi-af fix      # Standalone tool"
+        echo "  cargo yoshi       # Cargo subcommand"
+        echo ""
+        echo "To enable RUSTC wrapper:"
+        echo "  export RUSTC_WRAPPER=yoshi-rustc"
+        echo ""
+        ;;
+    *)
+        echo "Invalid choice. Setup cancelled."
+        exit 1
+        ;;
+esac
+
+echo "🎯 Write #![yoshi(auto-fix)] in your Rust files to enable autonomous fixing!"
+echo ""
+echo "📖 Documentation: https://github.com/arcmoonstudios/yoshi"
+echo "🎉 Happy coding!"
+
+---

@@ -1,0 +1,274 @@
+{
+  "name": "yoshi-copilot",
+  "displayName": "Yoshi Copilot - Revolutionary Rust Error Handling AI",
+  "description": "The world's first ML-powered Rust error handling extension that integrates with GitHub Copilot and yoshi macros",
+  "version": "1.0.0",
+  "type": "commonjs",
+  "publisher": "arcmoon-studios",
+  "author": {
+    "name": "Lord Xyn",
+    "email": "LordXyn@proton.me"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/arcmoonstudios/yoshi"
+  },
+  "engines": {
+    "vscode": "^1.85.0",
+    "node": ">=18.0.0"
+  },
+  "categories": [
+    "Machine Learning",
+    "Programming Languages",
+    "Linters",
+    "Other"
+  ],
+  "keywords": [
+    "rust",
+    "error-handling",
+    "ai",
+    "copilot",
+    "machine-learning",
+    "yoshi",
+    "autonomous",
+    "autofix"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "yoshi.analyzeErrorPatterns",
+        "title": "🧠 Analyze Error Patterns",
+        "category": "Yoshi Copilot"
+      },
+      {
+        "command": "yoshi.generateErrorHandling",
+        "title": "🚀 Generate Smart Error Handling",
+        "category": "Yoshi Copilot"
+      },
+      {
+        "command": "yoshi.learnFromMacros",
+        "title": "📚 Learn from Yoshi Macros",
+        "category": "Yoshi Copilot"
+      },
+      {
+        "command": "yoshi.showInsights",
+        "title": "📊 Show AI Insights",
+        "category": "Yoshi Copilot"
+      },
+      {
+        "command": "yoshi.runAutoFix",
+        "title": "🔧 Run Auto Fix",
+        "category": "Yoshi Copilot"
+      },
+      {
+        "command": "yoshi.runDeadCodeAnalysis",
+        "title": "🔍 Run Dead Code Analysis",
+        "category": "Yoshi Copilot"
+      },
+      {
+        "command": "yoshi.runClippyFix",
+        "title": "📎 Run Clippy Fix",
+        "category": "Yoshi Copilot"
+      },
+      {
+        "command": "yoshi.analyzeFile",
+        "title": "🔍 Analyze Current File",
+        "category": "Yoshi Copilot"
+      },
+      {
+        "command": "yoshi.fixAllInFile",
+        "title": "🚀 Fix All Issues in File",
+        "category": "Yoshi Copilot"
+      },
+      {
+        "command": "yoshi.runYoFixWhat",
+        "title": "📊 Run yoFixWhat Analysis",
+        "category": "Yoshi Copilot"
+      },
+      {
+        "command": "yoshi.applySystematicFixes",
+        "title": "⚡ Apply Systematic Fixes",
+        "category": "Yoshi Copilot"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "when": "editorLangId == rust",
+          "command": "yoshi.generateErrorHandling",
+          "group": "yoshi@1"
+        },
+        {
+          "when": "editorLangId == rust",
+          "command": "yoshi.analyzeErrorPatterns",
+          "group": "yoshi@2"
+        },
+        {
+          "when": "editorLangId == rust",
+          "command": "yoshi.analyzeFile",
+          "group": "yoshi@3"
+        },
+        {
+          "when": "editorLangId == rust",
+          "command": "yoshi.fixAllInFile",
+          "group": "yoshi@4"
+        },
+        {
+          "when": "editorLangId == rust",
+          "command": "yoshi.runYoFixWhat",
+          "group": "yoshi@5"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "yoshi.analyzeErrorPatterns",
+          "when": "editorLangId == rust"
+        },
+        {
+          "command": "yoshi.generateErrorHandling",
+          "when": "editorLangId == rust"
+        },
+        {
+          "command": "yoshi.learnFromMacros",
+          "when": "editorLangId == rust"
+        },
+        {
+          "command": "yoshi.analyzeFile",
+          "when": "editorLangId == rust"
+        },
+        {
+          "command": "yoshi.fixAllInFile",
+          "when": "editorLangId == rust"
+        },
+        {
+          "command": "yoshi.runYoFixWhat",
+          "when": "editorLangId == rust"
+        },
+        {
+          "command": "yoshi.applySystematicFixes",
+          "when": "editorLangId == rust"
+        },
+        {
+          "command": "yoshi.runDeadCodeAnalysis",
+          "when": "editorLangId == rust"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Yoshi Copilot",
+      "properties": {
+        "yoshiCopilot.enableMLSuggestions": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable ML-powered error handling suggestions"
+        },
+        "yoshiCopilot.confidenceThreshold": {
+          "type": "number",
+          "default": 0.8,
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "description": "Minimum confidence threshold for showing suggestions"
+        },
+        "yoshiCopilot.enableAutonomousOptimization": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable autonomous code optimization with yoshi_af! macro"
+        },
+        "yoshiCopilot.learningMode": {
+          "type": "string",
+          "enum": ["aggressive", "moderate", "conservative"],
+          "default": "moderate",
+          "description": "How aggressively the AI learns from your codebase"
+        },
+        "yoshiCopilot.enableRealTimeSuggestions": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show real-time error handling suggestions as you type"
+        },
+        "yoshiCopilot.rustAnalyzerIntegration": {
+          "type": "boolean",
+          "default": true,
+          "description": "Integrate with rust-analyzer for enhanced diagnostics"
+        }
+      }
+    },
+    "languages": [
+      {
+        "id": "rust",
+        "extensions": [".rs"],
+        "aliases": ["Rust", "rust"]
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "yoshi.generateErrorHandling",
+        "key": "ctrl+shift+y",
+        "mac": "cmd+shift+y",
+        "when": "editorTextFocus && editorLangId == rust"
+      },
+      {
+        "command": "yoshi.analyzeErrorPatterns",
+        "key": "ctrl+shift+alt+y",
+        "mac": "cmd+shift+alt+y",
+        "when": "editorTextFocus && editorLangId == rust"
+      },
+      {
+        "command": "yoshi.fixAllInFile",
+        "key": "ctrl+shift+f",
+        "mac": "cmd+shift+f",
+        "when": "editorTextFocus && editorLangId == rust"
+      },
+      {
+        "command": "yoshi.runYoFixWhat",
+        "key": "ctrl+shift+w",
+        "mac": "cmd+shift+w",
+        "when": "editorTextFocus && editorLangId == rust"
+      },
+      {
+        "command": "yoshi.applySystematicFixes",
+        "key": "ctrl+shift+alt+f",
+        "mac": "cmd+shift+alt+f",
+        "when": "editorTextFocus && editorLangId == rust"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "compile:mcp": "tsc -p ./tsconfig.mcp.json",
+    "watch": "tsc -watch -p ./",
+    "watch:mcp": "tsc -watch -p ./tsconfig.mcp.json",
+    "build:all": "npm run compile && npm run compile:mcp",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js",
+    "test:mcp": "node ./out/mcp/test/runMcpTest.js",
+    "package": "vsce package",
+    "publish": "vsce publish",
+    "clean": "rimraf out",
+    "dev": "npm run watch"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.99",
+    "@types/node": "18.x",
+    "@typescript-eslint/eslint-plugin": "^6.13.0",
+    "@typescript-eslint/parser": "^6.13.0",
+    "eslint": "^8.54.0",
+    "typescript": "^5.3.0",
+    "@vscode/test-electron": "^2.3.8",
+    "@vscode/vsce": "^2.22.0",
+    "rimraf": "^5.0.0"
+  },
+  "dependencies": {
+    "@github/copilot-extension-api": "^1.0.0",
+    "vscode-languageclient": "^9.0.1",
+    "@tensorflow/tfjs-node": "^4.15.0",
+    "axios": "^1.6.0",
+    "ws": "^8.14.0"
+  },
+  "extensionDependencies": [
+    "github.copilot",
+    "rust-lang.rust-analyzer"
+  ]
+}

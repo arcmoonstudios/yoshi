@@ -8,7 +8,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.1.9] - 2025-06-22 - Yoshi Framework Stabilization & Copilot Integration
+## [0.1.6] - 2025-06-22 - Yoshi Framework Stabilization & Copilot Integration
 
 ### 🚀 **MAJOR FRAMEWORK STABILIZATION & COPILOT INTEGRATION**
 
@@ -129,7 +129,7 @@ All notable changes to this project will be documented in this file.
 - **Unicode Issues**: All Unicode characters replaced with ASCII equivalents
 - **Windows Paths**: `cwd=str(path)` for paths with spaces
 
-## [0.1.8] - 2025-06-08
+## [0.1.5] - 2025-06-08
 
 ### 🏗️ **MAJOR ARCHITECTURE RESTRUCTURE** - Foundation Crates & Advanced Features
 
@@ -273,7 +273,7 @@ All notable changes to this project will be documented in this file.
 > optionally adopting new features like yoshi-core for no-std environments or
 > yoshi-deluxe for advanced auto-correction capabilities.
 
-## [0.1.7] - 2025-06-05
+## [0.1.4] - 2025-06-05
 
 ### 🔧 **Bug Fixes & Compilation Issues**
 
@@ -301,7 +301,7 @@ All notable changes to this project will be documented in this file.
 - **ArcMoon Studios compliance**: All coding standards upheld throughout the fix process
 - **Mathematical precision**: O(1) compilation overhead for warning resolution
 
-## [0.1.6] - 2025-01-13
+## [0.1.4] - 2025-01-13
 
 ### 🚀 **STABLE RELEASE PREPARATION & AUTOFIX SHOWCASE**
 
@@ -315,7 +315,7 @@ All notable changes to this project will be documented in this file.
 
 #### 🔧 **Autofix Integration Enhancement**
 
-- **Enhanced yoshi! macro autofix integration**
+- **Enhanced yopost! macro autofix integration**
   - **Simplified import pattern**: Showcase `yoshi::*;` for maximum developer convenience
   - **Comprehensive autofix testing**: Complete test coverage for autofix functionality
   - **Example implementations**: Practical autofix showcases for real-world usage
@@ -337,7 +337,7 @@ All notable changes to this project will be documented in this file.
 - **Example implementations**: Real-world autofix usage patterns
 - **Documentation updates**: Enhanced examples showcasing `yoshi::*;` simplicity
 
-## [0.1.5] - 2025-01-13
+## [0.1.4] - 2025-01-13
 
 ### 🔧 **Minor Bug Fixes & Publication Issues**
 

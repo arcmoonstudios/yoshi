@@ -6,9 +6,15 @@
 #![deny(clippy::unwrap_used)]
 #![deny(clippy::expect_used)]
 #![allow(clippy::wildcard_imports)]
+#![allow(clippy::unused_async)]
+//! #![yoshi(auto-fix)]
 //! **Brief:** Real-world async error handling with comprehensive Yoshi integration.
 // ~=####====A===r===c===M===o===o===n====S===t===u===d===i===o===s====X|0|$>
 //! + Production-grade async operations with advanced error recovery patterns
+//! **AsyncHttpClient.timeout**
+//!
+//! Data structure representing AsyncHttpClient.timeout within the Yoshi ecosystem.
+//! This structure provides type-safe encapsulation and efficient memory layout.
 //!  - HTTP client operations with timeout and retry mechanisms
 //!  - Concurrent task management with error aggregation and recovery
 //!  - Stream processing with backpressure and error handling
@@ -30,6 +36,10 @@ use yoshi::*;
 /// Comprehensive error types for asynchronous operations with rich context and recovery suggestions.
 ///
 /// This enum provides structured error handling for common async scenarios including HTTP requests,
+/// **TaskManager.tasks**
+///
+/// Data structure representing TaskManager.tasks within the Yoshi ecosystem.
+/// This structure provides type-safe encapsulation and efficient memory layout.
 /// timeouts, concurrent tasks, stream processing, WebSocket connections, and file operations.
 #[derive(YoshiError, Debug)]
 #[allow(dead_code)]
@@ -37,6 +47,10 @@ pub enum AsyncError {
     /// HTTP request failed with detailed status information.
     ///
     /// Contains the target URL, HTTP status code, and failure reason for comprehensive debugging.
+    /// **WebSocketManager.url**
+    ///
+    /// Data structure representing WebSocketManager.url within the Yoshi ecosystem.
+    /// This structure provides type-safe encapsulation and efficient memory layout.
     #[yoshi(display = "HTTP request to {url} failed: {status_code} - {reason}")]
     #[yoshi(suggestion = "Check URL validity and network connectivity")]
     HttpRequestFailed {
@@ -155,9 +169,21 @@ pub enum NetworkError {
 /// This client provides robust HTTP operations with configurable timeouts,
 /// retry mechanisms, and comprehensive error handling for production use.
 pub struct AsyncHttpClient {
+    /// **AsyncHttpClient.base_url**
+    ///
+    /// Data structure representing AsyncHttpClient.base url within the Yoshi ecosystem.
+    /// This structure provides type-safe encapsulation and efficient memory layout.
     base_url: String,
     timeout: Duration,
+    /// **AsyncHttpClient.retry_attempts**
+    ///
+    /// Data structure representing AsyncHttpClient.retry attempts within the Yoshi ecosystem.
+    /// This structure provides type-safe encapsulation and efficient memory layout.
     retry_attempts: u32,
+    /// **AsyncHttpClient.retry_delay**
+    ///
+    /// Data structure representing AsyncHttpClient.retry delay within the Yoshi ecosystem.
+    /// This structure provides type-safe encapsulation and efficient memory layout.
     retry_delay: Duration,
 }
 
@@ -225,6 +251,13 @@ impl AsyncHttpClient {
         self.execute_request("POST", &url, Some(body)).await
     }
 
+    /// **execute_request**
+    ///
+    /// This function provides execute request functionality within the Yoshi error handling framework.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the operation fails due to invalid input or system constraints.
     async fn execute_request(
         &self,
         method: &str,
@@ -259,6 +292,13 @@ impl AsyncHttpClient {
         }))
     }
 
+    /// **single_request**
+    ///
+    /// This function provides single request functionality within the Yoshi error handling framework.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the operation fails due to invalid input or system constraints.
     async fn single_request(
         &self,
         method: &str,
@@ -334,7 +374,15 @@ impl AsyncHttpClient {
 /// and provides comprehensive error tracking and recovery capabilities.
 pub struct TaskManager {
     tasks: HashMap<String, TaskInfo>,
+    /// **TaskManager.max_concurrent**
+    ///
+    /// Data structure representing TaskManager.max concurrent within the Yoshi ecosystem.
+    /// This structure provides type-safe encapsulation and efficient memory layout.
     max_concurrent: usize,
+    /// **TaskManager.active_count**
+    ///
+    /// Data structure representing TaskManager.active count within the Yoshi ecosystem.
+    /// This structure provides type-safe encapsulation and efficient memory layout.
     active_count: usize,
 }
 
@@ -507,8 +555,20 @@ impl TaskManager {
 /// Processes items in configurable chunks with error threshold management
 /// and automatic recovery capabilities for robust stream processing.
 pub struct StreamProcessor {
+    /// **StreamProcessor.buffer_size**
+    ///
+    /// Data structure representing StreamProcessor.buffer size within the Yoshi ecosystem.
+    /// This structure provides type-safe encapsulation and efficient memory layout.
     buffer_size: usize,
+    /// **StreamProcessor.error_threshold**
+    ///
+    /// Data structure representing StreamProcessor.error threshold within the Yoshi ecosystem.
+    /// This structure provides type-safe encapsulation and efficient memory layout.
     error_threshold: usize,
+    /// **StreamProcessor.error_count**
+    ///
+    /// Data structure representing StreamProcessor.error count within the Yoshi ecosystem.
+    /// This structure provides type-safe encapsulation and efficient memory layout.
     error_count: usize,
 }
 
@@ -564,6 +624,13 @@ impl StreamProcessor {
         Ok(results)
     }
 
+    /// **process_chunk**
+    ///
+    /// This function provides process chunk functionality within the Yoshi error handling framework.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the operation fails due to invalid input or system constraints.
     async fn process_chunk<T>(&self, chunk: &[T], position: u64) -> Hatch<Vec<String>>
     where
         T: std::fmt::Debug,
@@ -618,9 +685,25 @@ impl StreamProcessor {
 /// and comprehensive error handling for reliable real-time communication.
 pub struct WebSocketManager {
     url: String,
+    /// **WebSocketManager.is_connected**
+    ///
+    /// Data structure representing WebSocketManager.is connected within the Yoshi ecosystem.
+    /// This structure provides type-safe encapsulation and efficient memory layout.
     is_connected: bool,
+    /// **WebSocketManager.reconnect_attempts**
+    ///
+    /// Data structure representing WebSocketManager.reconnect attempts within the Yoshi ecosystem.
+    /// This structure provides type-safe encapsulation and efficient memory layout.
     reconnect_attempts: u32,
+    /// **WebSocketManager.max_reconnect_attempts**
+    ///
+    /// Data structure representing WebSocketManager.max reconnect attempts within the Yoshi ecosystem.
+    /// This structure provides type-safe encapsulation and efficient memory layout.
     max_reconnect_attempts: u32,
+    /// **WebSocketManager.reconnect_delay**
+    ///
+    /// Data structure representing WebSocketManager.reconnect delay within the Yoshi ecosystem.
+    /// This structure provides type-safe encapsulation and efficient memory layout.
     reconnect_delay: Duration,
 }
 
@@ -704,13 +787,21 @@ impl WebSocketManager {
         Ok("Received message from server".to_string())
     }
 
+    /// **reconnect**
+    ///
+    /// This function provides reconnect functionality within the Yoshi error handling framework.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the operation fails due to invalid input or system constraints.
     async fn reconnect(&mut self) -> Hatch<()> {
         while self.reconnect_attempts < self.max_reconnect_attempts {
             self.reconnect_attempts += 1;
 
-            println!(
+            tracing::info!(
                 "Reconnection attempt {} of {}",
-                self.reconnect_attempts, self.max_reconnect_attempts
+                self.reconnect_attempts,
+                self.max_reconnect_attempts
             );
 
             match self.connect().await {
@@ -770,6 +861,13 @@ yoshi_af! {
 //--------------------------------------------------------------------------------------------------
 
 #[tokio::main]
+/// **main**
+///
+/// This function provides main functionality within the Yoshi error handling framework.
+///
+/// # Errors
+///
+/// Returns an error if the operation fails due to invalid input or system constraints.
 async fn main() -> Hatch<()> {
     tracing::error!("🚀 Yoshi Async Error Handling Example");
 
@@ -780,9 +878,10 @@ async fn main() -> Hatch<()> {
         .with_retry(3, Duration::from_millis(500));
 
     match client.get("/users").await {
-        Ok(response) => println!(
+        Ok(response) => tracing::info!(
             "✅ HTTP request successful: {} - {}",
-            response.status_code, response.body
+            response.status_code,
+            response.body
         ),
         Err(e) => {
             tracing::info!("❌ HTTP request failed: {e}");
@@ -812,14 +911,14 @@ async fn main() -> Hatch<()> {
         };
 
         match task_manager.spawn_task(task_id.clone(), future).await {
-            Ok(()) => println!("✅ Task {task_id} spawned"),
-            Err(e) => println!("❌ Failed to spawn task {task_id}: {e}"),
+            Ok(()) => tracing::info!("✅ Task {task_id} spawned"),
+            Err(e) => tracing::error!("❌ Failed to spawn task {task_id}: {e}"),
         }
     }
 
     // Wait for all tasks
     match task_manager.wait_for_all().await {
-        Ok(completed) => println!("✅ All tasks completed: {completed:?}"),
+        Ok(completed) => tracing::info!("✅ All tasks completed: {completed:?}"),
         Err(e) => {
             tracing::info!("❌ Some tasks failed: {e}");
             if let Some(suggestion) = e.suggestion() {
@@ -834,7 +933,7 @@ async fn main() -> Hatch<()> {
     let data: Vec<i32> = (1..=50).collect();
 
     match stream_processor.process_stream(data).await {
-        Ok(results) => println!("✅ Stream processed: {} items", results.len()),
+        Ok(results) => tracing::info!("✅ Stream processed: {} items", results.len()),
         Err(e) => {
             tracing::info!("❌ Stream processing failed: {e}");
             if let Some(suggestion) = e.suggestion() {
@@ -855,7 +954,7 @@ async fn main() -> Hatch<()> {
             for i in 1..=3 {
                 let message = format!("Hello WebSocket {i}");
                 match ws_manager.send_message(&message).await {
-                    Ok(()) => println!("✅ Message sent: {message}"),
+                    Ok(()) => tracing::info!("✅ Message sent: {message}"),
                     Err(e) => {
                         tracing::info!("❌ Message send failed: {e}");
                         if let Some(suggestion) = e.suggestion() {
@@ -867,8 +966,8 @@ async fn main() -> Hatch<()> {
 
             // Receive message
             match ws_manager.receive_message().await {
-                Ok(message) => println!("✅ Message received: {message}"),
-                Err(e) => println!("❌ Message receive failed: {e}"),
+                Ok(message) => tracing::info!("✅ Message received: {message}"),
+                Err(e) => tracing::error!("❌ Message receive failed: {e}"),
             }
 
             ws_manager.disconnect();
@@ -893,7 +992,7 @@ async fn main() -> Hatch<()> {
     .await;
 
     match error_demo_result {
-        Ok(response) => println!("✅ Unexpected success: {}", response.body),
+        Ok(response) => tracing::info!("✅ Unexpected success: {}", response.body),
         Err(e) => {
             tracing::error!("❌ Expected error with context: {e}");
             if let Some(suggestion) = e.suggestion() {
@@ -905,8 +1004,8 @@ async fn main() -> Hatch<()> {
     // Example 6: Auto-correction demonstration
     tracing::info!("\n🔧 Auto-correction demonstration...");
     match enhanced_async_operations() {
-        Ok(result) => println!("✅ Auto-correction result: {result}"),
-        Err(e) => println!("❌ Auto-correction failed: {e}"),
+        Ok(result) => tracing::info!("✅ Auto-correction result: {result}"),
+        Err(e) => tracing::error!("❌ Auto-correction failed: {e}"),
     }
 
     tracing::error!("\n🎉 Async error handling example completed successfully!");
