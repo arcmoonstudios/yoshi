@@ -706,7 +706,7 @@ impl DocsScrapingEngine {
         if let Some(start) = url.find("/docs.rs/") {
             let remaining = &url[start + 9..];
             if let Some(slash_pos) = remaining.find('/') {
-                let crate_part = &remaining[..slash_pos];
+                let _crate_part = &remaining[..slash_pos];
                 if let Some(version_start) = remaining[slash_pos + 1..].find('/') {
                     let version = &remaining[slash_pos + 1..slash_pos + 1 + version_start];
                     if version != "latest" {
@@ -815,7 +815,7 @@ impl DocsScrapingEngine {
         }
 
         let mut column: Vec<usize> = (0..=a_len).collect();
-        for (j, b_char) in b.chars().enumerate() {
+        for (_j, b_char) in b.chars().enumerate() {
             let mut last_diag = column[0];
             column[0] += 1;
             for (i, a_char) in a.chars().enumerate() {

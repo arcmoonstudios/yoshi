@@ -83,10 +83,11 @@ pub use codegen::CodeGenerationEngine;
 pub use types::{CorrectionProposal, CorrectionStrategy, SafetyLevel};
 pub use constants::*;
 pub use diagnostics::CompilerDiagnosticProcessor;
-pub use docs::{DocsScrapingEngine, MethodSuggestion};
+pub use docs::DocsScrapingEngine;
 pub use errors::{AutoCorrectionError, Result};
 pub use metrics::{SystemMetrics, SystemMetricsSnapshot};
-pub use system::{AutoCorrectionSystem, SystemConfig};
+pub use system::AutoCorrectionSystem;
+pub use types::{MethodSuggestion, SystemConfig};
 pub use types::*;
 
 // Re-export yoshi-std types for convenience

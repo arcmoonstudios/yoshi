@@ -26,7 +26,7 @@ use syn::{
     parse_file, visit::Visit, Expr, File, Item, ItemFn, Local, Pat, PatIdent, PatType, Stmt,
 };
 use tokio::sync::RwLock;
-use yoshi_std::{HatchExt, LayText};
+use yoshi_std::LayText;
 use syn::spanned::Spanned;
 
 //--------------------------------------------------------------------------------------------------

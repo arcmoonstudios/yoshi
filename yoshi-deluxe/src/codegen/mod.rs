@@ -345,15 +345,20 @@ impl CodeGenerationEngine {
     /// Creates a new code generation engine
     #[must_use]
     pub fn new() -> Self {
-        let mut engine = Self {
+        let engine = Self {
             template_cache: Arc::new(RwLock::new(HashMap::new())),
             validator: CodeValidator::new(),
             metrics: GenerationMetrics::default(),
         };
 
-        // Initialize with common templates
+        // Initialize with common templates in background
+        let template_cache = Arc::clone(&engine.template_cache);
         tokio::spawn(async move {
-            engine.initialize_common_templates().await;
+            let mut cache = template_cache.write().await;
+            // Initialize common templates
+            cache.insert("error_handling".to_string(), "Result<T, E>".to_string());
+            cache.insert("option_handling".to_string(), "Option<T>".to_string());
+            cache.insert("trait_implementation".to_string(), "impl Trait for Type".to_string());
         });
 
         engine
@@ -1153,7 +1158,7 @@ impl CodeGenerationEngine {
             return 0.0;
         }
         let mut column: Vec<usize> = (0..=a_len).collect();
-        for (j, b_char) in b.chars().enumerate() {
+        for (_j, b_char) in b.chars().enumerate() {
             let mut last_diag = column[0];
             column[0] += 1;
             for (i, a_char) in a.chars().enumerate() {

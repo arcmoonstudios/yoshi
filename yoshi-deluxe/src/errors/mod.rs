@@ -7,7 +7,7 @@
 
 use std::{collections::HashMap, error::Error as StdError, path::PathBuf, time::Duration};
 use yoshi_derive::YoshiError;
-use yoshi_std::{Hatch, HatchExt, Result as YoshiResult, Yoshi, YoshiKind};
+use yoshi_std::{Hatch, HatchExt, Hatchable, Result as YoshiResult, Yoshi, YoshiKind};
 
 //--------------------------------------------------------------------------------------------------
 // Core Error Types with Yoshi Integration
@@ -38,7 +38,7 @@ pub enum AutoCorrectionError {
         diagnostic_data: Option<String>,
         /// Project path context
         #[yoshi(context = "project_path")]
-        project_path: PathBuf,
+        project_path: String,
         /// Cargo command that failed
         #[yoshi(context = "cargo_command")]
         cargo_command: Option<String>,
@@ -56,7 +56,7 @@ pub enum AutoCorrectionError {
         /// Reason for analysis failure
         reason: String,
         /// Source file path
-        file_path: PathBuf,
+        file_path: String,
         /// Line number (1-indexed)
         line: usize,
         /// Column number (1-indexed)
@@ -141,7 +141,7 @@ pub enum AutoCorrectionError {
         /// Type of file operation
         operation: String,
         /// Target file path
-        file_path: PathBuf,
+        file_path: String,
         /// File size if relevant
         #[yoshi(context = "file_size")]
         file_size: Option<u64>,
@@ -293,6 +293,36 @@ pub enum AutoCorrectionError {
         #[yoshi(context = "compatibility_rule")]
         compatibility_rule: Option<String>,
     },
+}
+
+//--------------------------------------------------------------------------------------------------
+// Additional From Implementations for External Error Types
+//--------------------------------------------------------------------------------------------------
+
+impl From<syn::Error> for Yoshi {
+    fn from(error: syn::Error) -> Self {
+        Yoshi::new(YoshiKind::Validation)
+            .with_message(format!("Syntax parsing error: {}", error))
+            .with_severity(180)
+            .with_category("ast_parsing")
+    }
+}
+
+impl From<reqwest::Error> for Yoshi {
+    fn from(error: reqwest::Error) -> Self {
+        let kind = if error.is_timeout() {
+            YoshiKind::Timeout
+        } else if error.is_connect() {
+            YoshiKind::Network
+        } else {
+            YoshiKind::Network
+        };
+        
+        Yoshi::new(kind)
+            .with_message(format!("HTTP request error: {}", error))
+            .with_severity(120)
+            .with_category("network")
+    }
 }
 
 //--------------------------------------------------------------------------------------------------
