@@ -23,7 +23,7 @@ use std::{
     time::{Duration, SystemTime},
 };
 use tokio::time::timeout;
-use yoshi_std::{HatchExt, LayText};
+use yoshi_std::{Yoshi, YoshiKind, LayText};
 
 //--------------------------------------------------------------------------------------------------
 // Documentation Scraping Engine with Structured API Support
@@ -55,6 +55,19 @@ pub struct ScrapingMetrics {
     pub methods_scraped: AtomicU64,
     /// Retry operations
     pub retry_operations: AtomicU64,
+}
+
+impl Clone for ScrapingMetrics {
+    fn clone(&self) -> Self {
+        Self {
+            successful_scrapes: AtomicU64::new(self.successful_scrapes.load(Ordering::Relaxed)),
+            failed_scrapes: AtomicU64::new(self.failed_scrapes.load(Ordering::Relaxed)),
+            cache_hits: AtomicU64::new(self.cache_hits.load(Ordering::Relaxed)),
+            urls_attempted: AtomicU64::new(self.urls_attempted.load(Ordering::Relaxed)),
+            methods_scraped: AtomicU64::new(self.methods_scraped.load(Ordering::Relaxed)),
+            retry_operations: AtomicU64::new(self.retry_operations.load(Ordering::Relaxed)),
+        }
+    }
 }
 
 impl ScrapingMetrics {
@@ -272,7 +285,11 @@ impl DocsScrapingEngine {
         response
             .text()
             .await
-            .with_operation_context("response_body_reading")
+            .map_err(|e| Yoshi::new(YoshiKind::Network {
+                message: format!("Response body reading failed: {}", e).into(),
+                source: None,
+                error_code: None,
+            }))
             .lay("Reading response body")
     }
 
@@ -558,7 +575,7 @@ impl DocsScrapingEngine {
                 let implementing_type = captures.get(2)?.as_str().to_string();
 
                 let method_selector = Selector::parse(".method, .method-name").ok()?;
-                let methods = element
+                let methods: Vec<String> = element
                     .select(&method_selector)
                     .map(|el| el.text().collect::<String>().trim().to_string())
                     .filter(|s| !s.is_empty())

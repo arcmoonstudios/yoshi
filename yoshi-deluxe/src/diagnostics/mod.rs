@@ -22,7 +22,7 @@ use std::{
     time::{Duration, SystemTime},
 };
 use tokio::sync::RwLock;
-use yoshi_std::{HatchExt, LayText};
+use yoshi_std::{Yoshi, YoshiKind, LayText};
 
 //--------------------------------------------------------------------------------------------------
 // Diagnostic Processor with Enhanced JSON Parsing
@@ -299,7 +299,12 @@ impl CompilerDiagnosticProcessor {
         source: &str,
     ) -> Result<Option<CompilerDiagnostic>> {
         let json_value: serde_json::Value = serde_json::from_str(line)
-            .with_operation_context("json_parsing")
+            .map_err(|e| Yoshi::new(YoshiKind::Validation {
+                field: "json_input".into(),
+                message: format!("JSON parsing failed: {}", e).into(), 
+                expected: Some("Valid JSON diagnostic format".into()),
+                actual: None,
+            }))
             .lay("Parsing JSON diagnostic line")?;
 
         if json_value["reason"] != "compiler-message" {
@@ -327,7 +332,7 @@ impl CompilerDiagnosticProcessor {
             _ => DiagnosticLevel::Error,
         };
 
-        let spans = json["spans"]
+        let spans: Vec<DiagnosticSpan> = json["spans"]
             .as_array()
             .map(|spans| {
                 spans
@@ -337,7 +342,7 @@ impl CompilerDiagnosticProcessor {
             })
             .unwrap_or_default();
 
-        let children = json["children"]
+        let children: Vec<CompilerDiagnostic> = json["children"]
             .as_array()
             .map(|children| {
                 children

@@ -326,7 +326,7 @@ pub trait YoshiDeluxeExt<T> {
 
 impl<T, E> YoshiDeluxeExt<T> for std::result::Result<T, E>
 where
-    E: StdError + Send + Sync + 'static,
+    E: StdError + Send + Sync + Into<Yoshi> + 'static,
 {
     fn with_file_context(self, file_path: &std::path::Path) -> Result<T> {
         self.hatch()
@@ -399,7 +399,7 @@ pub mod factory {
         AutoCorrectionError::DiagnosticProcessing {
             message: message.into(),
             diagnostic_data: None,
-            project_path: project_path.into(),
+            project_path: project_path.into().display().to_string(),
             cargo_command: None,
         }
         .into()
@@ -415,11 +415,11 @@ pub mod factory {
     ) -> Yoshi {
         AutoCorrectionError::AstAnalysis {
             reason: reason.into(),
-            file_path: file_path.into(),
+            file_path: file_path.into().display().to_string(),
             line,
             column,
             byte_offset: None,
-            source_error,
+            source_error: Some(source_error.to_string()),
             node_type: None,
         }
         .into()
@@ -469,7 +469,7 @@ pub mod factory {
     ) -> Yoshi {
         AutoCorrectionError::FileOperation {
             operation: operation.into(),
-            file_path: file_path.into(),
+            file_path: file_path.into().display().to_string(),
             file_size: None,
             io_error,
             expected_permissions: None,

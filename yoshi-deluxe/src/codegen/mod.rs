@@ -123,6 +123,18 @@ pub struct GenerationMetrics {
     strategy_usage: Arc<RwLock<HashMap<String, u64>>>,
 }
 
+impl Clone for GenerationMetrics {
+    fn clone(&self) -> Self {
+        Self {
+            corrections_generated: AtomicU64::new(self.corrections_generated.load(Ordering::Relaxed)),
+            successful_validations: AtomicU64::new(self.successful_validations.load(Ordering::Relaxed)),
+            template_cache_hits: AtomicU64::new(self.template_cache_hits.load(Ordering::Relaxed)),
+            generation_times: Arc::clone(&self.generation_times),
+            strategy_usage: Arc::clone(&self.strategy_usage),
+        }
+    }
+}
+
 impl GenerationMetrics {
     /// Record correction generation
     pub fn record_generation(&self, strategy: &str, duration: Duration) {
@@ -356,10 +368,16 @@ impl CodeGenerationEngine {
         let template_cache = Arc::clone(&engine.template_cache);
         tokio::spawn(async move {
             let mut cache = template_cache.write().await;
-            // Initialize common templates
-            cache.insert("error_handling".to_string(), "Result<T, E>".to_string());
-            cache.insert("option_handling".to_string(), "Option<T>".to_string());
-            cache.insert("trait_implementation".to_string(), "impl Trait for Type".to_string());
+            // Initialize common templates with proper CorrectionTemplate instances
+            cache.insert("error_handling".to_string(), CorrectionTemplate::new(
+                "Result<_, _>", "Result<T, E>", 0.8, SafetyLevel::Safe
+            ));
+            cache.insert("option_handling".to_string(), CorrectionTemplate::new(
+                "Option<_>", "Option<T>", 0.8, SafetyLevel::Safe
+            ));
+            cache.insert("trait_implementation".to_string(), CorrectionTemplate::new(
+                "impl _ for _", "impl Trait for Type", 0.7, SafetyLevel::Safe
+            ));
         });
 
         engine
@@ -1218,7 +1236,7 @@ impl CodeGenerationEngine {
     /// Get validation statistics
     #[must_use]
     pub fn validation_stats(&self) -> ValidationStats {
-        self.validator.validation_stats()
+        self.validator.lock().unwrap().validation_stats()
     }
 
     /// Clear template cache
