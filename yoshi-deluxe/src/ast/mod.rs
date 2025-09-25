@@ -34,6 +34,7 @@ use syn::spanned::Spanned;
 //--------------------------------------------------------------------------------------------------
 
 /// Production-grade AST analysis engine with byte-offset mapping
+#[derive(Clone)]
 pub struct ASTAnalysisEngine {
     /// File cache for parsed ASTs with source mapping
     ast_cache: Arc<RwLock<HashMap<PathBuf, CachedAst>>>,
@@ -93,6 +94,17 @@ pub struct AnalysisMetrics {
     pub successful_mappings: AtomicU64,
     /// Cache hit ratio
     pub cache_hits: AtomicU64,
+}
+
+impl Clone for AnalysisMetrics {
+    fn clone(&self) -> Self {
+        Self {
+            files_processed: AtomicU64::new(self.files_processed.load(Ordering::Relaxed)),
+            nodes_analyzed: AtomicU64::new(self.nodes_analyzed.load(Ordering::Relaxed)),  
+            successful_mappings: AtomicU64::new(self.successful_mappings.load(Ordering::Relaxed)),
+            cache_hits: AtomicU64::new(self.cache_hits.load(Ordering::Relaxed)),
+        }
+    }
 }
 
 impl AnalysisMetrics {

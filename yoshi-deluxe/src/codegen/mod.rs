@@ -28,6 +28,7 @@ use yoshi_std::LayText;
 //--------------------------------------------------------------------------------------------------
 
 /// Advanced code generation engine with safe AST-based modifications
+#[derive(Clone)]
 pub struct CodeGenerationEngine {
     /// Template cache for common corrections
     template_cache: Arc<RwLock<HashMap<String, CorrectionTemplate>>>,
@@ -1257,14 +1258,7 @@ impl Default for CodeGenerationEngine {
 use crate::types::FieldSuggestion;
 
 impl FieldSuggestion {
-    /// Create new field suggestion
-    pub fn new(name: impl Into<String>, confidence: f64, description: impl Into<String>) -> Self {
-        Self {
-            name: name.into(),
-            confidence,
-            description: description.into(),
-        }
-    }
+    // Methods moved to types/mod.rs to avoid duplication
 }
 
 /// Template cache statistics

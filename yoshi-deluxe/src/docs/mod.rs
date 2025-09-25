@@ -30,6 +30,7 @@ use yoshi_std::{HatchExt, LayText};
 //--------------------------------------------------------------------------------------------------
 
 /// Production-grade documentation scraping engine with structured API support
+#[derive(Clone)]
 pub struct DocsScrapingEngine {
     /// HTTP client with connection pooling
     client: &'static reqwest::Client,

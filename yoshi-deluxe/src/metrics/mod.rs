@@ -528,6 +528,9 @@ impl SystemMetricsCollector {
     /// Generate performance report
     pub async fn generate_performance_report(&self) -> PerformanceReport {
         let snapshot = self.get_metrics_snapshot().await;
+        
+        // Generate recommendations first to avoid borrow issues
+        let recommendations = self.generate_recommendations(&snapshot).await;
 
         PerformanceReport {
             report_timestamp: SystemTime::now(),
@@ -547,31 +550,7 @@ impl SystemMetricsCollector {
                 efficiency_score: self
                     .calculate_efficiency_score(&snapshot.analysis_summary)
                     .await,
-            };
-            
-        let error_analysis = ErrorAnalysisReport {
-            error_rate: snapshot.error_summary.total_errors as f64
-                / snapshot.analysis_summary.total_analyses.max(1) as f64,
-            recovery_rate: snapshot.error_summary.recovery_success_rate,
-            most_common_errors: {
-                let mut errors: Vec<_> =
-                    snapshot.error_summary.errors_by_category.iter().collect();
-                errors.sort_by(|a, b| b.1.cmp(a.1));
-                errors
-                    .into_iter()
-                    .take(5)
-                    .map(|(k, v)| (k.clone(), *v))
-                    .collect()
             },
-            },
-        };
-
-        let recommendations = self.generate_recommendations(&snapshot).await;
-        
-        SystemHealthReport {
-            timestamp: snapshot.timestamp,
-            overall_health: self.calculate_health_score(&snapshot).await,
-            performance: performance_report,
             component_performance: snapshot.performance_summary.component_performance,
             cache_efficiency: snapshot
                 .performance_summary
@@ -579,7 +558,21 @@ impl SystemMetricsCollector {
                 .iter()
                 .map(|(name, metrics)| (name.clone(), metrics.hit_ratio))
                 .collect(),
-            error_analysis: error_analysis,
+            error_analysis: ErrorAnalysisReport {
+                error_rate: snapshot.error_summary.total_errors as f64
+                    / snapshot.analysis_summary.total_analyses.max(1) as f64,
+                recovery_rate: snapshot.error_summary.recovery_success_rate,
+                most_common_errors: {
+                    let mut errors: Vec<_> =
+                        snapshot.error_summary.errors_by_category.iter().collect();
+                    errors.sort_by(|a, b| b.1.cmp(a.1));
+                    errors
+                        .into_iter()
+                        .take(5)
+                        .map(|(k, v)| (k.clone(), *v))
+                        .collect()
+                },
+            },
             recommendations,
         }
     }
