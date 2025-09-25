@@ -184,10 +184,7 @@ impl DocsScrapingEngine {
                 crate_name,
                 type_name,
                 "max_retries_exceeded",
-                reqwest::Error::from(std::io::Error::new(
-                    std::io::ErrorKind::TimedOut,
-                    "Maximum retry attempts exceeded",
-                )),
+                "Maximum retry attempts exceeded".to_string(),
             )
         }))
     }
@@ -218,10 +215,7 @@ impl DocsScrapingEngine {
                 crate_name,
                 type_name,
                 "no_valid_urls",
-                reqwest::Error::from(std::io::Error::new(
-                    std::io::ErrorKind::NotFound,
-                    "No valid URLs found",
-                )),
+                "No valid URLs found".to_string(),
             )
         }))
     }
@@ -256,14 +250,11 @@ impl DocsScrapingEngine {
                     "unknown",
                     "unknown",
                     "request_timeout",
-                    reqwest::Error::from(std::io::Error::new(
-                        std::io::ErrorKind::TimedOut,
-                        "Request timed out",
-                    )),
+                    "Request timed out".to_string(),
                 )
             })
             .lay("Awaiting HTTP response")?
-            .map_err(|e| factory::docs_scraping_error("unknown", "unknown", "network_error", e))
+            .map_err(|e| factory::docs_scraping_error("unknown", "unknown", "network_error", e.to_string()))
             .lay("Sending HTTP request")?;
 
         if !response.status().is_success() {
@@ -272,10 +263,7 @@ impl DocsScrapingEngine {
                 "unknown",
                 "unknown",
                 &format!("http_error_{status}"),
-                reqwest::Error::from(std::io::Error::new(
-                    std::io::ErrorKind::Other,
-                    format!("HTTP {status}"),
-                )),
+                format!("HTTP {status}"),
             ))
             .lay("Checking HTTP response status");
         }
@@ -887,10 +875,11 @@ impl DocsScrapingEngine {
         let mut cache = self.cache.write().await;
 
         if cache.len() >= crate::constants::MAX_CACHE_ENTRIES {
-            let mut entries: Vec<_> = cache.iter().collect();
-            entries.sort_by_key(|(_, data)| data.access_count());
-            for (key, _) in entries.iter().take(100) {
-                cache.remove(*key);
+            let mut entries: Vec<_> = cache.iter().map(|(k, v)| (k.clone(), v.access_count())).collect();
+            entries.sort_by_key(|(_, count)| *count);
+            let keys_to_remove: Vec<_> = entries.iter().take(100).map(|(k, _)| k.clone()).collect();
+            for key in keys_to_remove {
+                cache.remove(&key);
             }
         }
         cache.insert(key, data);

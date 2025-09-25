@@ -794,6 +794,8 @@ pub async fn initialize_complete_system() -> Result<(AutoCorrectionSystem, Healt
             parameter: "system_health".to_string(),
             value: "unhealthy".to_string(),
             expected_format: Some("healthy".to_string()),
+            config_source: None,
+            validation_rule: None,
         }
         .into());
     }

@@ -65,8 +65,8 @@ pub enum AutoCorrectionError {
         #[yoshi(context = "byte_offset")]
         byte_offset: Option<usize>,
         /// Source error if chained
-        #[yoshi(source)]
-        source_error: syn::Error,
+        #[yoshi(context = "source_error")]
+        source_error: Option<String>,
         /// AST node type that failed
         #[yoshi(context = "node_type")]
         node_type: Option<String>,
@@ -92,8 +92,8 @@ pub enum AutoCorrectionError {
         #[yoshi(context = "http_status")]
         http_status: Option<u16>,
         /// Underlying network error
-        #[yoshi(source)]
-        network_error: reqwest::Error,
+        #[yoshi(context = "network_error")]
+        network_error: Option<String>,
         /// Attempted URL
         #[yoshi(context = "attempted_url")]
         attempted_url: Option<String>,
@@ -296,36 +296,6 @@ pub enum AutoCorrectionError {
 }
 
 //--------------------------------------------------------------------------------------------------
-// Additional From Implementations for External Error Types
-//--------------------------------------------------------------------------------------------------
-
-impl From<syn::Error> for Yoshi {
-    fn from(error: syn::Error) -> Self {
-        Yoshi::new(YoshiKind::Validation)
-            .with_message(format!("Syntax parsing error: {}", error))
-            .with_severity(180)
-            .with_category("ast_parsing")
-    }
-}
-
-impl From<reqwest::Error> for Yoshi {
-    fn from(error: reqwest::Error) -> Self {
-        let kind = if error.is_timeout() {
-            YoshiKind::Timeout
-        } else if error.is_connect() {
-            YoshiKind::Network
-        } else {
-            YoshiKind::Network
-        };
-        
-        Yoshi::new(kind)
-            .with_message(format!("HTTP request error: {}", error))
-            .with_severity(120)
-            .with_category("network")
-    }
-}
-
-//--------------------------------------------------------------------------------------------------
 // Convenient Result Type Aliases
 //--------------------------------------------------------------------------------------------------
 
@@ -460,14 +430,14 @@ pub mod factory {
         crate_name: impl Into<String>,
         type_name: impl Into<String>,
         error_type: impl Into<String>,
-        network_error: reqwest::Error,
+        network_error: impl Into<String>,
     ) -> Yoshi {
         AutoCorrectionError::DocumentationScraping {
             crate_name: crate_name.into(),
             type_name: type_name.into(),
             error_type: error_type.into(),
             http_status: None,
-            network_error,
+            network_error: Some(network_error.into()),
             attempted_url: None,
             retry_attempt: None,
         }

@@ -15,7 +15,7 @@ use std::{
     collections::HashMap,
     sync::{
         atomic::{AtomicU64, Ordering},
-        Arc,
+        Arc, Mutex,
     },
     time::{Duration, Instant},
 };
@@ -32,7 +32,7 @@ pub struct CodeGenerationEngine {
     /// Template cache for common corrections
     template_cache: Arc<RwLock<HashMap<String, CorrectionTemplate>>>,
     /// Validation engine for generated code
-    validator: CodeValidator,
+    validator: Arc<Mutex<CodeValidator>>,
     /// Generation metrics
     metrics: GenerationMetrics,
 }
@@ -347,7 +347,7 @@ impl CodeGenerationEngine {
     pub fn new() -> Self {
         let engine = Self {
             template_cache: Arc::new(RwLock::new(HashMap::new())),
-            validator: CodeValidator::new(),
+            validator: Arc::new(Mutex::new(CodeValidator::new())),
             metrics: GenerationMetrics::default(),
         };
 
@@ -469,12 +469,11 @@ impl CodeGenerationEngine {
         // Validate all proposals
         let mut validated_proposals = Vec::new();
         for mut proposal in proposals {
-            if self
-                .validator
+            let mut validator = self.validator.lock().unwrap();
+            if validator
                 .validate_syntax(&proposal.corrected_code)
                 .is_ok()
-                && self
-                    .validator
+                && validator
                     .validate_semantics(&proposal.corrected_code, context)
                     .is_ok()
             {
@@ -550,7 +549,7 @@ impl CodeGenerationEngine {
                         proposal.add_metadata("method_signature", method.canonical_signature());
                         proposal.add_metadata(
                             "method_docs",
-                            method.documentation.chars().take(200).collect(),
+                            method.documentation.chars().take(200).collect::<String>(),
                         );
 
                         proposals.push(proposal);
