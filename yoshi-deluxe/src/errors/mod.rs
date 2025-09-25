@@ -7,7 +7,7 @@
 
 use std::{collections::HashMap, error::Error as StdError, path::PathBuf, time::Duration};
 use yoshi_derive::YoshiError;
-use yoshi_std::{Hatch, HatchExt, Result as YoshiResult, Yoshi, YoshiKind};
+use yoshi_std::{Hatch, HatchExt, Hatchable, Result as YoshiResult, Yoshi, YoshiKind};
 
 //--------------------------------------------------------------------------------------------------
 // Core Error Types with Yoshi Integration
@@ -38,7 +38,7 @@ pub enum AutoCorrectionError {
         diagnostic_data: Option<String>,
         /// Project path context
         #[yoshi(context = "project_path")]
-        project_path: PathBuf,
+        project_path: String,
         /// Cargo command that failed
         #[yoshi(context = "cargo_command")]
         cargo_command: Option<String>,
@@ -56,7 +56,7 @@ pub enum AutoCorrectionError {
         /// Reason for analysis failure
         reason: String,
         /// Source file path
-        file_path: PathBuf,
+        file_path: String,
         /// Line number (1-indexed)
         line: usize,
         /// Column number (1-indexed)
@@ -65,8 +65,8 @@ pub enum AutoCorrectionError {
         #[yoshi(context = "byte_offset")]
         byte_offset: Option<usize>,
         /// Source error if chained
-        #[yoshi(source)]
-        source_error: syn::Error,
+        #[yoshi(context = "source_error")]
+        source_error: Option<String>,
         /// AST node type that failed
         #[yoshi(context = "node_type")]
         node_type: Option<String>,
@@ -92,8 +92,8 @@ pub enum AutoCorrectionError {
         #[yoshi(context = "http_status")]
         http_status: Option<u16>,
         /// Underlying network error
-        #[yoshi(source)]
-        network_error: reqwest::Error,
+        #[yoshi(context = "network_error")]
+        network_error: Option<String>,
         /// Attempted URL
         #[yoshi(context = "attempted_url")]
         attempted_url: Option<String>,
@@ -141,7 +141,7 @@ pub enum AutoCorrectionError {
         /// Type of file operation
         operation: String,
         /// Target file path
-        file_path: PathBuf,
+        file_path: String,
         /// File size if relevant
         #[yoshi(context = "file_size")]
         file_size: Option<u64>,
@@ -326,7 +326,7 @@ pub trait YoshiDeluxeExt<T> {
 
 impl<T, E> YoshiDeluxeExt<T> for std::result::Result<T, E>
 where
-    E: StdError + Send + Sync + 'static,
+    E: StdError + Send + Sync + Into<Yoshi> + 'static,
 {
     fn with_file_context(self, file_path: &std::path::Path) -> Result<T> {
         self.hatch()
@@ -399,7 +399,7 @@ pub mod factory {
         AutoCorrectionError::DiagnosticProcessing {
             message: message.into(),
             diagnostic_data: None,
-            project_path: project_path.into(),
+            project_path: project_path.into().display().to_string(),
             cargo_command: None,
         }
         .into()
@@ -415,11 +415,11 @@ pub mod factory {
     ) -> Yoshi {
         AutoCorrectionError::AstAnalysis {
             reason: reason.into(),
-            file_path: file_path.into(),
+            file_path: file_path.into().display().to_string(),
             line,
             column,
             byte_offset: None,
-            source_error,
+            source_error: Some(source_error.to_string()),
             node_type: None,
         }
         .into()
@@ -430,14 +430,14 @@ pub mod factory {
         crate_name: impl Into<String>,
         type_name: impl Into<String>,
         error_type: impl Into<String>,
-        network_error: reqwest::Error,
+        network_error: impl Into<String>,
     ) -> Yoshi {
         AutoCorrectionError::DocumentationScraping {
             crate_name: crate_name.into(),
             type_name: type_name.into(),
             error_type: error_type.into(),
             http_status: None,
-            network_error,
+            network_error: Some(network_error.into()),
             attempted_url: None,
             retry_attempt: None,
         }
@@ -469,7 +469,7 @@ pub mod factory {
     ) -> Yoshi {
         AutoCorrectionError::FileOperation {
             operation: operation.into(),
-            file_path: file_path.into(),
+            file_path: file_path.into().display().to_string(),
             file_size: None,
             io_error,
             expected_permissions: None,

@@ -528,6 +528,9 @@ impl SystemMetricsCollector {
     /// Generate performance report
     pub async fn generate_performance_report(&self) -> PerformanceReport {
         let snapshot = self.get_metrics_snapshot().await;
+        
+        // Generate recommendations first to avoid borrow issues
+        let recommendations = self.generate_recommendations(&snapshot).await;
 
         PerformanceReport {
             report_timestamp: SystemTime::now(),
@@ -570,7 +573,7 @@ impl SystemMetricsCollector {
                         .collect()
                 },
             },
-            recommendations: self.generate_recommendations(&snapshot).await,
+            recommendations,
         }
     }
 

@@ -15,7 +15,7 @@ use std::{
     collections::HashMap,
     sync::{
         atomic::{AtomicU64, Ordering},
-        Arc,
+        Arc, Mutex,
     },
     time::{Duration, Instant},
 };
@@ -28,11 +28,12 @@ use yoshi_std::LayText;
 //--------------------------------------------------------------------------------------------------
 
 /// Advanced code generation engine with safe AST-based modifications
+#[derive(Clone)]
 pub struct CodeGenerationEngine {
     /// Template cache for common corrections
     template_cache: Arc<RwLock<HashMap<String, CorrectionTemplate>>>,
     /// Validation engine for generated code
-    validator: CodeValidator,
+    validator: Arc<Mutex<CodeValidator>>,
     /// Generation metrics
     metrics: GenerationMetrics,
 }
@@ -120,6 +121,18 @@ pub struct GenerationMetrics {
     generation_times: Arc<RwLock<Vec<Duration>>>,
     /// Strategy usage counts
     strategy_usage: Arc<RwLock<HashMap<String, u64>>>,
+}
+
+impl Clone for GenerationMetrics {
+    fn clone(&self) -> Self {
+        Self {
+            corrections_generated: AtomicU64::new(self.corrections_generated.load(Ordering::Relaxed)),
+            successful_validations: AtomicU64::new(self.successful_validations.load(Ordering::Relaxed)),
+            template_cache_hits: AtomicU64::new(self.template_cache_hits.load(Ordering::Relaxed)),
+            generation_times: Arc::clone(&self.generation_times),
+            strategy_usage: Arc::clone(&self.strategy_usage),
+        }
+    }
 }
 
 impl GenerationMetrics {
@@ -345,15 +358,26 @@ impl CodeGenerationEngine {
     /// Creates a new code generation engine
     #[must_use]
     pub fn new() -> Self {
-        let mut engine = Self {
+        let engine = Self {
             template_cache: Arc::new(RwLock::new(HashMap::new())),
-            validator: CodeValidator::new(),
+            validator: Arc::new(Mutex::new(CodeValidator::new())),
             metrics: GenerationMetrics::default(),
         };
 
-        // Initialize with common templates
+        // Initialize with common templates in background
+        let template_cache = Arc::clone(&engine.template_cache);
         tokio::spawn(async move {
-            engine.initialize_common_templates().await;
+            let mut cache = template_cache.write().await;
+            // Initialize common templates with proper CorrectionTemplate instances
+            cache.insert("error_handling".to_string(), CorrectionTemplate::new(
+                "Result<_, _>", "Result<T, E>", 0.8, SafetyLevel::Safe
+            ));
+            cache.insert("option_handling".to_string(), CorrectionTemplate::new(
+                "Option<_>", "Option<T>", 0.8, SafetyLevel::Safe
+            ));
+            cache.insert("trait_implementation".to_string(), CorrectionTemplate::new(
+                "impl _ for _", "impl Trait for Type", 0.7, SafetyLevel::Safe
+            ));
         });
 
         engine
@@ -464,12 +488,11 @@ impl CodeGenerationEngine {
         // Validate all proposals
         let mut validated_proposals = Vec::new();
         for mut proposal in proposals {
-            if self
-                .validator
+            let mut validator = self.validator.lock().unwrap();
+            if validator
                 .validate_syntax(&proposal.corrected_code)
                 .is_ok()
-                && self
-                    .validator
+                && validator
                     .validate_semantics(&proposal.corrected_code, context)
                     .is_ok()
             {
@@ -545,7 +568,7 @@ impl CodeGenerationEngine {
                         proposal.add_metadata("method_signature", method.canonical_signature());
                         proposal.add_metadata(
                             "method_docs",
-                            method.documentation.chars().take(200).collect(),
+                            method.documentation.chars().take(200).collect::<String>(),
                         );
 
                         proposals.push(proposal);
@@ -1153,7 +1176,7 @@ impl CodeGenerationEngine {
             return 0.0;
         }
         let mut column: Vec<usize> = (0..=a_len).collect();
-        for (j, b_char) in b.chars().enumerate() {
+        for (_j, b_char) in b.chars().enumerate() {
             let mut last_diag = column[0];
             column[0] += 1;
             for (i, a_char) in a.chars().enumerate() {
@@ -1213,7 +1236,7 @@ impl CodeGenerationEngine {
     /// Get validation statistics
     #[must_use]
     pub fn validation_stats(&self) -> ValidationStats {
-        self.validator.validation_stats()
+        self.validator.lock().unwrap().validation_stats()
     }
 
     /// Clear template cache
@@ -1253,14 +1276,7 @@ impl Default for CodeGenerationEngine {
 use crate::types::FieldSuggestion;
 
 impl FieldSuggestion {
-    /// Create new field suggestion
-    pub fn new(name: impl Into<String>, confidence: f64, description: impl Into<String>) -> Self {
-        Self {
-            name: name.into(),
-            confidence,
-            description: description.into(),
-        }
-    }
+    // Methods moved to types/mod.rs to avoid duplication
 }
 
 /// Template cache statistics

@@ -134,65 +134,38 @@ impl AutoCorrectionSystem {
         Ok(corrections)
     }
 
-    /// Process diagnostics in parallel with controlled concurrency
+    /// Process diagnostics in parallel with controlled concurrency (currently sequential for thread safety)
     async fn process_diagnostics_parallel(
         &self,
         diagnostics: &[CompilerDiagnostic],
     ) -> Result<Vec<ProjectCorrection>> {
-        let mut join_set = JoinSet::new();
-        let semaphore = Arc::new(tokio::sync::Semaphore::new(
-            self.config.max_concurrent_operations,
-        ));
+        let mut corrections = Vec::new();
 
         for diagnostic in diagnostics {
             let diagnostic = diagnostic.clone();
-            let permit = semaphore
-                .clone()
-                .acquire_owned()
-                .await
-                .map_err(|e| {
-                    factory::resource_exhausted_error(
-                        "concurrency_semaphore",
-                        self.config.max_concurrent_operations as u64,
-                        1,
-                    )
-                })
-                .lay("Acquiring concurrency permit")?;
-
             let ast_analyzer = ASTAnalysisEngine::new();
             let docs_scraper = DocsScrapingEngine::new();
             let code_generator = CodeGenerationEngine::new();
             let config = self.config.clone();
 
-            join_set.spawn(async move {
-                let _permit = permit;
-                Self::process_single_diagnostic_static(
-                    diagnostic,
-                    ast_analyzer,
-                    docs_scraper,
-                    code_generator,
-                    config,
-                )
-                .await
-            });
-        }
-
-        let mut corrections = Vec::new();
-        while let Some(result) = join_set.join_next().await {
-            match result {
-                Ok(Ok(Some(correction))) => corrections.push(correction),
-                Ok(Ok(None)) => {} // No correction generated
-                Ok(Err(e)) => {
-                    tracing::warn!("Failed to process diagnostic: {}", e);
-                    self.metrics_collector.record_processing_error().await;
-                }
+            // Process directly without spawning to avoid Send issues
+            match Self::process_single_diagnostic_static(
+                diagnostic,
+                ast_analyzer,
+                docs_scraper,
+                code_generator,
+                config,
+            )
+            .await
+            {
+                Ok(Some(correction)) => corrections.push(correction),
+                Ok(None) => {} // No correction generated
                 Err(e) => {
-                    tracing::error!("Task join error: {}", e);
+                    tracing::warn!("Failed to process diagnostic: {}", e);
                     self.metrics_collector.record_processing_error().await;
                 }
             }
         }
-
         Ok(corrections)
     }
 

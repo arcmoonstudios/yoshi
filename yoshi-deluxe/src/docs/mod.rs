@@ -23,13 +23,14 @@ use std::{
     time::{Duration, SystemTime},
 };
 use tokio::time::timeout;
-use yoshi_std::{HatchExt, LayText};
+use yoshi_std::{Yoshi, YoshiKind, LayText};
 
 //--------------------------------------------------------------------------------------------------
 // Documentation Scraping Engine with Structured API Support
 //--------------------------------------------------------------------------------------------------
 
 /// Production-grade documentation scraping engine with structured API support
+#[derive(Clone)]
 pub struct DocsScrapingEngine {
     /// HTTP client with connection pooling
     client: &'static reqwest::Client,
@@ -54,6 +55,19 @@ pub struct ScrapingMetrics {
     pub methods_scraped: AtomicU64,
     /// Retry operations
     pub retry_operations: AtomicU64,
+}
+
+impl Clone for ScrapingMetrics {
+    fn clone(&self) -> Self {
+        Self {
+            successful_scrapes: AtomicU64::new(self.successful_scrapes.load(Ordering::Relaxed)),
+            failed_scrapes: AtomicU64::new(self.failed_scrapes.load(Ordering::Relaxed)),
+            cache_hits: AtomicU64::new(self.cache_hits.load(Ordering::Relaxed)),
+            urls_attempted: AtomicU64::new(self.urls_attempted.load(Ordering::Relaxed)),
+            methods_scraped: AtomicU64::new(self.methods_scraped.load(Ordering::Relaxed)),
+            retry_operations: AtomicU64::new(self.retry_operations.load(Ordering::Relaxed)),
+        }
+    }
 }
 
 impl ScrapingMetrics {
@@ -184,10 +198,7 @@ impl DocsScrapingEngine {
                 crate_name,
                 type_name,
                 "max_retries_exceeded",
-                reqwest::Error::from(std::io::Error::new(
-                    std::io::ErrorKind::TimedOut,
-                    "Maximum retry attempts exceeded",
-                )),
+                "Maximum retry attempts exceeded".to_string(),
             )
         }))
     }
@@ -218,10 +229,7 @@ impl DocsScrapingEngine {
                 crate_name,
                 type_name,
                 "no_valid_urls",
-                reqwest::Error::from(std::io::Error::new(
-                    std::io::ErrorKind::NotFound,
-                    "No valid URLs found",
-                )),
+                "No valid URLs found".to_string(),
             )
         }))
     }
@@ -256,14 +264,11 @@ impl DocsScrapingEngine {
                     "unknown",
                     "unknown",
                     "request_timeout",
-                    reqwest::Error::from(std::io::Error::new(
-                        std::io::ErrorKind::TimedOut,
-                        "Request timed out",
-                    )),
+                    "Request timed out".to_string(),
                 )
             })
             .lay("Awaiting HTTP response")?
-            .map_err(|e| factory::docs_scraping_error("unknown", "unknown", "network_error", e))
+            .map_err(|e| factory::docs_scraping_error("unknown", "unknown", "network_error", e.to_string()))
             .lay("Sending HTTP request")?;
 
         if !response.status().is_success() {
@@ -272,10 +277,7 @@ impl DocsScrapingEngine {
                 "unknown",
                 "unknown",
                 &format!("http_error_{status}"),
-                reqwest::Error::from(std::io::Error::new(
-                    std::io::ErrorKind::Other,
-                    format!("HTTP {status}"),
-                )),
+                format!("HTTP {status}"),
             ))
             .lay("Checking HTTP response status");
         }
@@ -283,7 +285,11 @@ impl DocsScrapingEngine {
         response
             .text()
             .await
-            .with_operation_context("response_body_reading")
+            .map_err(|e| Yoshi::new(YoshiKind::Network {
+                message: format!("Response body reading failed: {}", e).into(),
+                source: None,
+                error_code: None,
+            }))
             .lay("Reading response body")
     }
 
@@ -569,7 +575,7 @@ impl DocsScrapingEngine {
                 let implementing_type = captures.get(2)?.as_str().to_string();
 
                 let method_selector = Selector::parse(".method, .method-name").ok()?;
-                let methods = element
+                let methods: Vec<String> = element
                     .select(&method_selector)
                     .map(|el| el.text().collect::<String>().trim().to_string())
                     .filter(|s| !s.is_empty())
@@ -706,7 +712,7 @@ impl DocsScrapingEngine {
         if let Some(start) = url.find("/docs.rs/") {
             let remaining = &url[start + 9..];
             if let Some(slash_pos) = remaining.find('/') {
-                let crate_part = &remaining[..slash_pos];
+                let _crate_part = &remaining[..slash_pos];
                 if let Some(version_start) = remaining[slash_pos + 1..].find('/') {
                     let version = &remaining[slash_pos + 1..slash_pos + 1 + version_start];
                     if version != "latest" {
@@ -815,7 +821,7 @@ impl DocsScrapingEngine {
         }
 
         let mut column: Vec<usize> = (0..=a_len).collect();
-        for (j, b_char) in b.chars().enumerate() {
+        for (_j, b_char) in b.chars().enumerate() {
             let mut last_diag = column[0];
             column[0] += 1;
             for (i, a_char) in a.chars().enumerate() {
@@ -887,10 +893,11 @@ impl DocsScrapingEngine {
         let mut cache = self.cache.write().await;
 
         if cache.len() >= crate::constants::MAX_CACHE_ENTRIES {
-            let mut entries: Vec<_> = cache.iter().collect();
-            entries.sort_by_key(|(_, data)| data.access_count());
-            for (key, _) in entries.iter().take(100) {
-                cache.remove(*key);
+            let mut entries: Vec<_> = cache.iter().map(|(k, v)| (k.clone(), v.access_count())).collect();
+            entries.sort_by_key(|(_, count)| *count);
+            let keys_to_remove: Vec<_> = entries.iter().take(100).map(|(k, _)| k.clone()).collect();
+            for key in keys_to_remove {
+                cache.remove(&key);
             }
         }
         cache.insert(key, data);
